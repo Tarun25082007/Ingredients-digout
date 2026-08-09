@@ -1,0 +1,104 @@
+package com.digout.controllers;
+
+import com.digout.dto.WhoAssessmentDTO;
+import com.digout.models.HealthStatus;
+import com.digout.models.ScanHistory;
+import com.digout.models.User;
+import com.digout.repositories.ScanHistoryRepository;
+import com.digout.repositories.UserRepository;
+import com.digout.services.GeminiService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/scan")
+public class ScanController {
+
+    private final GeminiService geminiService;
+    private final ScanHistoryRepository scanHistoryRepository;
+    private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
+
+    public ScanController(GeminiService geminiService, ScanHistoryRepository scanHistoryRepository, UserRepository userRepository, ObjectMapper objectMapper) {
+        this.geminiService = geminiService;
+        this.scanHistoryRepository = scanHistoryRepository;
+        this.userRepository = userRepository;
+        this.objectMapper = objectMapper;
+    }
+
+    @PostMapping("/analyze")
+    public ResponseEntity<?> analyzeImage(@RequestParam("file") MultipartFile file) {
+        try {
+            // Convert image to base64
+            byte[] bytes = file.getBytes();
+            String base64Image = Base64.getEncoder().encodeToString(bytes);
+
+            // Call Gemini Service
+            WhoAssessmentDTO assessment = geminiService.analyzeIngredients(base64Image);
+
+            // Check if user is authenticated (Optional Bearer Token)
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
+                String email = auth.getName();
+                Optional<User> userOpt = userRepository.findByEmail(email);
+                
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    
+                    // Parse health status (fallback to YELLOW if invalid)
+                    HealthStatus status;
+                    try {
+                        status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
+                    } catch (IllegalArgumentException e) {
+                        status = HealthStatus.YELLOW;
+                    }
+
+                    // Save to scan history
+                    ScanHistory history = ScanHistory.builder()
+                            .user(user)
+                            .productName(assessment.productName())
+                            .rawOcrText("") // Can be populated if separate OCR is used
+                            .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
+                            .healthStatus(status)
+                            .build();
+                            
+                    scanHistoryRepository.save(history);
+                }
+            }
+
+            return ResponseEntity.ok(assessment);
+            
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body("Failed to process image file.");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("An error occurred during analysis: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<?> getScanHistory() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+            return ResponseEntity.status(401).body("Unauthorized");
+        }
+
+        String email = auth.getName();
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        
+        if (userOpt.isPresent()) {
+            List<ScanHistory> history = scanHistoryRepository.findByUserIdOrderByScannedAtDesc(userOpt.get().getId());
+            return ResponseEntity.ok(history);
+        }
+        
+        return ResponseEntity.status(404).body("User not found");
+    }
+}
