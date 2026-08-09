@@ -19,3 +19,10 @@ logging:
     com.digout: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+jwt:
+  # Secret key should be a long, randomly generated secret key (at least 256 bits / 32 bytes for HS256)
+  secret: MySuperSecretKeyForJWTTokenGenerationIngredientDigoutApp2026!
+  # Expiration time in milliseconds (86400000 ms = 24 hours)
+  expiration: 86400000
+
