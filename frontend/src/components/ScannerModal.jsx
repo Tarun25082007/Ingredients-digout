@@ -80,7 +80,8 @@ const ScannerModal = ({ onClose }) => {
       setAssessment(response.data);
       setMode('result');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to analyze image. Please try again.');
+      const serverMsg = err.response?.data?.message || err.response?.data?.error;
+      setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze image. Please try again.');
       setMode('select');
     }
   };
