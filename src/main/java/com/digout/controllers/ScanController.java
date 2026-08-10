@@ -43,7 +43,8 @@ public class ScanController {
             String base64Image = Base64.getEncoder().encodeToString(bytes);
 
             // Call Gemini Service
-            WhoAssessmentDTO assessment = geminiService.analyzeIngredients(base64Image);
+            String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            WhoAssessmentDTO assessment = geminiService.analyzeIngredients(base64Image, mimeType);
 
             // Check if user is authenticated (Optional Bearer Token)
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();

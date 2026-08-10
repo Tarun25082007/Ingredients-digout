@@ -30,7 +30,7 @@ public class GeminiService {
         this.objectMapper = objectMapper;
     }
 
-    public WhoAssessmentDTO analyzeIngredients(String base64Image) {
+    public WhoAssessmentDTO analyzeIngredients(String base64Image, String mimeType) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -41,7 +41,7 @@ public class GeminiService {
                             Map.of("parts", List.of(
                                     Map.of("text", PROMPT),
                                     Map.of("inline_data", Map.of(
-                                            "mime_type", "image/jpeg",
+                                            "mime_type", mimeType,
                                             "data", base64Image
                                     ))
                             ))
@@ -69,7 +69,7 @@ public class GeminiService {
 
             return objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze ingredients with Gemini API", e);
+            throw new RuntimeException("Failed to analyze ingredients with Gemini API: " + e.getMessage(), e);
         }
     }
 }
