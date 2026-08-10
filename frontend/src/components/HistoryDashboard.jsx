@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../api';
+import HealthStatusCard from './HealthStatusCard';
 
 const HistoryDashboard = () => {
   const { token, isGuest } = useContext(AuthContext);
@@ -9,9 +10,9 @@ const HistoryDashboard = () => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedScan, setSelectedScan] = useState(null);
 
   useEffect(() => {
-    // Protected route check: Redirect guests and unauthenticated users to login
     if (!token || isGuest) {
       navigate('/login');
       return;
@@ -21,8 +22,16 @@ const HistoryDashboard = () => {
       try {
         const response = await api.get('/scan/history');
         setHistory(response.data);
+        setError(''); // clear any previous errors
       } catch (err) {
-        setError('Failed to load scan history. Please try again later.');
+        // In dev mode, StrictMode double-fetches might hit the 1req/10s rate limit.
+        // We only show the error if we haven't already successfully loaded the data.
+        setHistory(prev => {
+          if (prev.length === 0) {
+            setError('Failed to load scan history. Please try again later.');
+          }
+          return prev;
+        });
       } finally {
         setLoading(false);
       }
@@ -40,7 +49,7 @@ const HistoryDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-6">
+    <div className="min-h-screen bg-gray-50 py-10 px-6 relative">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-extrabold text-gray-900 mb-8">Your Scan History</h2>
         
@@ -59,7 +68,11 @@ const HistoryDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {history.map((scan) => (
-              <div key={scan.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 transition transform duration-200">
+              <div 
+                key={scan.id} 
+                onClick={() => setSelectedScan(scan)}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition transform duration-200"
+              >
                 <div className="flex justify-between items-start mb-4 gap-4">
                   <h3 className="text-lg font-bold text-gray-800 line-clamp-2 leading-tight">
                     {scan.productName || "Unknown Product"}
@@ -85,6 +98,29 @@ const HistoryDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Details Modal */}
+      {selectedScan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 overflow-y-auto">
+          <div className="relative w-full max-w-3xl my-8">
+            <button
+              onClick={() => setSelectedScan(null)}
+              className="absolute -top-4 -right-4 bg-white text-gray-700 hover:text-gray-900 rounded-full w-10 h-10 shadow-lg flex items-center justify-center font-bold text-xl z-50 border border-gray-200 transition"
+            >
+              ×
+            </button>
+            <div className="max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl">
+              <HealthStatusCard 
+                assessment={
+                  selectedScan.whoAssessmentJson 
+                    ? JSON.parse(selectedScan.whoAssessmentJson) 
+                    : { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus }
+                } 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -31,45 +31,57 @@ public class GeminiService {
     }
 
     public WhoAssessmentDTO analyzeIngredients(String base64Image, String mimeType) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        int maxRetries = 3;
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
 
-            // Construct Gemini API Payload
-            Map<String, Object> payload = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(
-                                    Map.of("text", PROMPT),
-                                    Map.of("inline_data", Map.of(
-                                            "mime_type", mimeType,
-                                            "data", base64Image
-                                    ))
-                            ))
-                    ),
-                    "generationConfig", Map.of(
-                            "responseMimeType", "application/json"
-                    )
-            );
+                // Construct Gemini API Payload
+                Map<String, Object> payload = Map.of(
+                        "contents", List.of(
+                                Map.of("parts", List.of(
+                                        Map.of("text", PROMPT),
+                                        Map.of("inline_data", Map.of(
+                                                "mime_type", mimeType,
+                                                "data", base64Image
+                                        ))
+                                ))
+                        ),
+                        "generationConfig", Map.of(
+                                "responseMimeType", "application/json"
+                        )
+                );
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
+                HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+                ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
 
-            // Parse the response
-            JsonNode root = objectMapper.readTree(response.getBody());
-            String jsonText = root.path("candidates").get(0)
-                    .path("content").path("parts").get(0)
-                    .path("text").asText();
+                // Parse the response
+                JsonNode root = objectMapper.readTree(response.getBody());
+                String jsonText = root.path("candidates").get(0)
+                        .path("content").path("parts").get(0)
+                        .path("text").asText();
 
-            // Clean markdown JSON formatting if Gemini includes it despite responseMimeType
-            if (jsonText.startsWith("```json")) {
-                jsonText = jsonText.substring(7, jsonText.length() - 3).trim();
-            } else if (jsonText.startsWith("```")) {
-                jsonText = jsonText.substring(3, jsonText.length() - 3).trim();
+                // Clean markdown JSON formatting if Gemini includes it despite responseMimeType
+                if (jsonText.startsWith("```json")) {
+                    jsonText = jsonText.substring(7, jsonText.length() - 3).trim();
+                } else if (jsonText.startsWith("```")) {
+                    jsonText = jsonText.substring(3, jsonText.length() - 3).trim();
+                }
+
+                return objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
+            } catch (Exception e) {
+                if (e.getMessage() != null && e.getMessage().contains("503") && i < maxRetries - 1) {
+                    try {
+                        Thread.sleep(2000); // wait 2 seconds before retrying
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                    continue;
+                }
+                throw new RuntimeException("Failed to analyze ingredients with Gemini API: " + e.getMessage(), e);
             }
-
-            return objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze ingredients with Gemini API: " + e.getMessage(), e);
         }
+        throw new RuntimeException("Failed to analyze ingredients with Gemini API after retries.");
     }
 }
