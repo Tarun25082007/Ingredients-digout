@@ -21,7 +21,7 @@ public class GeminiService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
     private static final String PROMPT = "Extract the ingredients from this image. Evaluate them strictly against WHO guidelines. Flag artificial sweeteners (even in 'zero sugar' drinks), preservatives, and carcinogens. Output ONLY a raw JSON object with keys: 'productName' (string), 'ingredientsFound' (array of strings), 'whoFlags' (array of objects with 'name', 'status', 'explanation'), 'overallIndicator' (string: RED, YELLOW, or GREEN).";
 
     public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
