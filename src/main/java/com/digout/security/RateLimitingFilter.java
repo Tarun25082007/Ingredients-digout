@@ -47,12 +47,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private Bucket createNewBucket(String key) {
-        // Strict rule: 1 request per 60 seconds.
-        // Support for Bucket4j v8.x API as well as older syntax using classic.
-        // Assuming Bucket4j 8+ API:
+        // 1 request per 10 seconds
         Bandwidth limit = Bandwidth.builder()
                 .capacity(1)
-                .refillIntervally(1, Duration.ofSeconds(60))
+                .refillIntervally(1, Duration.ofSeconds(10))
                 .build();
         return Bucket.builder().addLimit(limit).build();
     }

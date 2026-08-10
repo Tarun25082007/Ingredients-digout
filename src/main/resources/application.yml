@@ -26,3 +26,6 @@ jwt:
   # Expiration time in milliseconds (86400000 ms = 24 hours)
   expiration: 86400000
 
+gemini:
+  api:
+    key: AQ.Ab8RN6LQ0Dlgyby3CjrEW1pFbt-D4JyVWokjP9RJgNd1WaxaxQ

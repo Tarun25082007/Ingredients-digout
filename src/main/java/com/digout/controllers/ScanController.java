@@ -78,9 +78,9 @@ public class ScanController {
             return ResponseEntity.ok(assessment);
             
         } catch (IOException e) {
-            return ResponseEntity.internalServerError().body("Failed to process image file.");
+            return ResponseEntity.internalServerError().body(java.util.Map.of("message", "Failed to process image file."));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("An error occurred during analysis: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage()));
         }
     }
 
