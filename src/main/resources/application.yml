@@ -28,7 +28,7 @@ jwt:
 
 gemini:
   api:
-    key: AQ.Ab8RN6I10aEetToCW_tQVkS-1cxu9uEZYLLFTpuEHPNCSGjjew
+    key: ${GEMINI_API_KEY}
 
 spring.servlet.multipart:
   max-file-size: 10MB
