@@ -15,10 +15,10 @@ public class ComparisonController {
         this.openFoodFactsService = openFoodFactsService;
     }
 
-    @GetMapping("/{barcode}")
-    public ResponseEntity<?> compareProduct(@PathVariable String barcode) {
+    @GetMapping("/search")
+    public ResponseEntity<?> compareProductByName(@RequestParam String name) {
         try {
-            OpenFoodFactsDTO data = openFoodFactsService.fetchInternationalVariants(barcode);
+            OpenFoodFactsDTO data = openFoodFactsService.searchProductByName(name);
             return ResponseEntity.ok(data);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

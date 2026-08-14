@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 
-const ScannerModal = ({ onClose }) => {
+const ScannerModal = ({ onClose, onScanComplete }) => {
   const [mode, setMode] = useState('select'); // 'select', 'camera', 'uploading', 'result'
   const [error, setError] = useState('');
   const [assessment, setAssessment] = useState(null);
@@ -71,7 +71,7 @@ const ScannerModal = ({ onClose }) => {
     setError('');
     
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file); // Backend expects @RequestParam("file")
 
     try {
       const response = await api.post('/scan/analyze', formData, {
@@ -79,6 +79,9 @@ const ScannerModal = ({ onClose }) => {
       });
       setAssessment(response.data);
       setMode('result');
+      if (onScanComplete) {
+        onScanComplete(response.data);
+      }
     } catch (err) {
       const serverMsg = err.response?.data?.message || err.response?.data?.error;
       setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze image. Please try again.');

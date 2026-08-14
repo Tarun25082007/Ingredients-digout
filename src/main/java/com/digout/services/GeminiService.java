@@ -22,7 +22,7 @@ public class GeminiService {
     private final ObjectMapper objectMapper;
 
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=";
-    private static final String PROMPT = "Extract the ingredients from this image. Evaluate them strictly against WHO guidelines. Flag artificial sweeteners (even in 'zero sugar' drinks), preservatives, and carcinogens. Output ONLY a raw JSON object with keys: 'productName' (string), 'ingredientsFound' (array of strings), 'whoFlags' (array of objects with 'name', 'status', 'explanation'), 'overallIndicator' (string: RED, YELLOW, or GREEN).";
+    private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
     public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.geminiApiKey = geminiApiKey;
@@ -31,7 +31,7 @@ public class GeminiService {
     }
 
     public WhoAssessmentDTO analyzeIngredients(String base64Image, String mimeType) {
-        int maxRetries = 3;
+        int maxRetries = 10;
         for (int i = 0; i < maxRetries; i++) {
             try {
                 HttpHeaders headers = new HttpHeaders();
@@ -71,9 +71,10 @@ public class GeminiService {
 
                 return objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
             } catch (Exception e) {
-                if (e.getMessage() != null && e.getMessage().contains("503") && i < maxRetries - 1) {
+                if (e.getMessage() != null && (e.getMessage().contains("503") || e.getMessage().toLowerCase().contains("timed out") || e.getMessage().toLowerCase().contains("timeout")) && i < maxRetries - 1) {
                     try {
-                        Thread.sleep(2000); // wait 2 seconds before retrying
+                        System.out.println("Gemini Overload or Timeout! Retrying in 10s... (Attempt " + (i+1) + "/" + maxRetries + ")");
+                        Thread.sleep(10000); // wait 10 seconds before retrying
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }

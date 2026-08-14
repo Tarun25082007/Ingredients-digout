@@ -50,11 +50,13 @@ const Login = () => {
         setError('Registration successful! Please log in.');
       }
     } catch (err) {
-      if (err.response?.data?.message) {
+      if (typeof err.response?.data === 'string') {
+        setError(err.response.data);
+      } else if (err.response?.data?.message) {
         setError(err.response.data.message);
       } else if (err.response?.status === 401) {
         setError("Invalid email or password.");
-      } else if (err.response?.status === 400) {
+      } else if (err.response?.status === 409 || err.response?.status === 400) {
         setError("Registration failed. Email might already be in use.");
       } else {
         setError("An unexpected error occurred. Please check your connection and try again.");

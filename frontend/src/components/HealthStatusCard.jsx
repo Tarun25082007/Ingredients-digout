@@ -20,6 +20,18 @@ const HealthStatusCard = ({ assessment }) => {
     statusText = "SAFE - Meets WHO Guidelines";
   }
 
+  const getStatusColor = (statusStr) => {
+    if (!statusStr) return 'bg-gray-200 text-gray-800';
+    const s = statusStr.toUpperCase();
+    if (s === 'RED' || s.includes('CONCERN') || s.includes('AVOID') || s.includes('DANGER') || s.includes('HIGH')) {
+      return 'bg-red-200 text-red-900';
+    }
+    if (s === 'YELLOW' || s.includes('MODERATE') || s.includes('CAUTION') || s.includes('PRESERVATIVE') || s.includes('ADDITIVE')) {
+      return 'bg-yellow-200 text-yellow-900';
+    }
+    return 'bg-green-200 text-green-900';
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border border-gray-100 animate-fadeIn">
       {/* Header Banner */}
@@ -42,11 +54,7 @@ const HealthStatusCard = ({ assessment }) => {
               <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition">
                 <div className="flex items-center space-x-3 mb-2">
                   <span className="text-md font-extrabold text-gray-800 capitalize">{flag.name}</span>
-                  <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${
-                    flag.status === 'RED' ? 'bg-red-200 text-red-900' :
-                    flag.status === 'YELLOW' ? 'bg-yellow-200 text-yellow-900' :
-                    'bg-green-200 text-green-900'
-                  }`}>
+                  <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${getStatusColor(flag.status)}`}>
                     {flag.status}
                   </span>
                 </div>
@@ -64,13 +72,33 @@ const HealthStatusCard = ({ assessment }) => {
         {/* Ingredients Found */}
         {ingredientsFound && ingredientsFound.length > 0 && (
           <div className="mt-8">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Raw Ingredients Detected</h3>
-            <div className="flex flex-wrap gap-2">
-              {ingredientsFound.map((ing, idx) => (
-                <span key={idx} className="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-md border border-gray-200">
-                  {ing}
-                </span>
-              ))}
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">All Ingredients Detected</h3>
+            <div className="space-y-3">
+              {ingredientsFound.map((ing, idx) => {
+                // Backwards compatibility: if it's just a string from old history
+                if (typeof ing === 'string') {
+                  return (
+                    <span key={idx} className="inline-block bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-md border border-gray-200 mr-2 mb-2">
+                      {ing}
+                    </span>
+                  );
+                }
+                
+                // New format: Detailed ingredient object
+                return (
+                  <div key={idx} className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-gray-800 capitalize">{ing.name}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(ing.status)}`}>
+                        {ing.status || 'UNKNOWN'}
+                      </span>
+                    </div>
+                    {ing.explanation && (
+                      <p className="text-xs text-gray-600 leading-relaxed">{ing.explanation}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

@@ -3,28 +3,30 @@ import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../api';
 
-const VariantComparison = ({ barcode, scannedIngredients }) => {
+const VariantComparison = ({ scannedIngredients, productName }) => {
   const { token, isGuest } = useContext(AuthContext);
   const [internationalData, setInternationalData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (token && !isGuest && barcode) {
+    if (token && !isGuest && productName) {
       const fetchComparison = async () => {
         setLoading(true);
+        setError('');
         try {
-          const response = await api.get(`/compare/${barcode}`);
+          const response = await api.get(`/compare/search?name=${encodeURIComponent(productName)}`);
           setInternationalData(response.data);
         } catch (err) {
-          setError('Failed to load international comparison data.');
+          setError('Failed to load international comparison data. This product might not be available outside India, or it is not listed in the OpenFoodFacts database.');
+          setInternationalData(null);
         } finally {
           setLoading(false);
         }
       };
       fetchComparison();
     }
-  }, [token, isGuest, barcode]);
+  }, [token, isGuest, productName]);
 
   // Guest view - Blurred background with lock overlay
   if (isGuest || !token) {
@@ -76,14 +78,14 @@ const VariantComparison = ({ barcode, scannedIngredients }) => {
             <div className="flex-1">
               <h4 className="font-bold text-gray-800 mb-4 flex items-center text-lg">
                 <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">1</span>
-                Your Scanned Product
+                Your Scanned Product {productName && `(${productName})`}
               </h4>
-              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-full shadow-inner">
+              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-64 overflow-y-auto shadow-inner">
                 <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm md:text-base">
                   {scannedIngredients && scannedIngredients.length > 0 ? (
-                    scannedIngredients.map((ing, idx) => <li key={idx} className="capitalize">{ing}</li>)
+                    scannedIngredients.map((ing, idx) => <li key={idx} className="capitalize">{typeof ing === 'string' ? ing : ing.name}</li>)
                   ) : (
-                    <li className="text-gray-400 italic list-none">No ingredients provided.</li>
+                    <li className="text-gray-400 italic list-none">No ingredients provided. Scan a product first.</li>
                   )}
                 </ul>
               </div>
@@ -91,22 +93,25 @@ const VariantComparison = ({ barcode, scannedIngredients }) => {
 
             {/* Column 2: International Data */}
             <div className="flex-1">
-              <h4 className="font-bold text-gray-800 mb-4 flex items-center text-lg">
-                <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
-                Global Version
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center text-lg justify-between">
+                <div className="flex items-center">
+                  <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
+                  Global Version {internationalData && `(${internationalData.productName})`}
+                </div>
               </h4>
-              <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 h-full shadow-inner">
-                {internationalData && internationalData.ingredients && internationalData.ingredients.length > 0 ? (
+              
+              <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 h-64 overflow-y-auto shadow-inner">
+                {internationalData && internationalData.ingredientsText ? (
                   <ul className="list-disc pl-5 space-y-2 text-gray-800 text-sm md:text-base">
-                    {internationalData.ingredients.map((ing, idx) => (
-                      <li key={idx} className="capitalize">{ing}</li>
+                    {internationalData.ingredientsText.split(',').map((ing, idx) => (
+                      <li key={idx} className="capitalize">{ing.trim()}</li>
                     ))}
                   </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center text-blue-400">
                     <span className="text-4xl mb-3">🌍</span>
                     <p className="italic text-sm">
-                      {barcode ? "No international data found for this barcode." : "Barcode not provided."}
+                      {productName ? "No ingredients listed for this product name." : "Scan a product to fetch data."}
                     </p>
                   </div>
                 )}

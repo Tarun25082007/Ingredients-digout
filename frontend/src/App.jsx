@@ -10,11 +10,7 @@ import Login from './components/Login';
 // A simple wrapper for the Home Route
 const HomeRoute = () => {
   const [showScanner, setShowScanner] = useState(false);
-  
-  // Note: To fully satisfy the "conditionally render HealthStatusCard and VariantComparison on successful scan" 
-  // at this level, we would typically lift the 'assessment' state out of ScannerModal. 
-  // For now, ScannerModal handles its own internal HealthStatusCard rendering, 
-  // and we render the VariantComparison directly underneath when a scan completes.
+  const [lastScan, setLastScan] = useState(null);
   
   return (
     <div className="flex flex-col items-center justify-center p-6 mt-10 w-full max-w-5xl mx-auto">
@@ -34,12 +30,18 @@ const HomeRoute = () => {
         </button>
       </div>
 
-      {showScanner && <ScannerModal onClose={() => setShowScanner(false)} />}
+      {showScanner && (
+        <ScannerModal 
+          onClose={() => setShowScanner(false)} 
+          onScanComplete={(assessment) => setLastScan(assessment)}
+        />
+      )}
       
-      {/* We are showing the VariantComparison component here. In a fully connected app, 
-          you would pass the actual 'barcode' and 'scannedIngredients' retrieved from the ScannerModal. */}
       <div className="w-full mt-10">
-        <VariantComparison barcode="" scannedIngredients={[]} />
+        <VariantComparison 
+          scannedIngredients={lastScan?.ingredientsFound || []} 
+          productName={lastScan?.productName || ''}
+        />
       </div>
     </div>
   );

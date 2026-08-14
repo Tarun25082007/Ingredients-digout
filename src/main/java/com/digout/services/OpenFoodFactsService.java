@@ -15,33 +15,36 @@ public class OpenFoodFactsService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String API_URL_TEMPLATE = "https://world.openfoodfacts.org/api/v2/product/%s.json";
+    private static final String SEARCH_API_URL_TEMPLATE = "https://world.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1";
 
     public OpenFoodFactsService(RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
 
-    public OpenFoodFactsDTO fetchInternationalVariants(String barcode) {
-        String url = String.format(API_URL_TEMPLATE, barcode);
+    public OpenFoodFactsDTO searchProductByName(String productName) {
+        // Replace spaces with + for URL encoding
+        String encodedName = productName.replace(" ", "+");
+        String url = String.format(SEARCH_API_URL_TEMPLATE, encodedName);
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
 
-            String status = root.path("status").asText();
-            if (!"1".equals(status) && !"success".equalsIgnoreCase(status)) {
-                throw new RuntimeException("Product not found in OpenFoodFacts");
+            JsonNode products = root.path("products");
+            if (products.isMissingNode() || !products.isArray() || products.size() == 0) {
+                throw new RuntimeException("No products found matching name: " + productName);
             }
 
-            JsonNode productNode = root.path("product");
-            String productName = productNode.path("product_name").asText(null);
+            // Take the best match (first product)
+            JsonNode productNode = products.get(0);
+            String foundProductName = productNode.path("product_name").asText(null);
             String ingredientsText = productNode.path("ingredients_text").asText(null);
 
-            return new OpenFoodFactsDTO(productName, ingredientsText);
+            return new OpenFoodFactsDTO(foundProductName, ingredientsText);
 
         } catch (HttpClientErrorException.NotFound e) {
-            throw new RuntimeException("Product not found (404) for barcode: " + barcode, e);
+            throw new RuntimeException("Product not found (404) for name: " + productName, e);
         } catch (ResourceAccessException e) {
             throw new RuntimeException("Timeout or connection error when calling OpenFoodFacts", e);
         } catch (Exception e) {

@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: 'http://localhost:8080/api', // Pointing to Spring Boot backend
-  timeout: 15000,
+  timeout: 300000,
 });
 
 api.interceptors.request.use(

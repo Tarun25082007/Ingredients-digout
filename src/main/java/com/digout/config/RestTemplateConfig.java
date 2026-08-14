@@ -14,7 +14,7 @@ public class RestTemplateConfig {
     public RestTemplate restTemplate(RestTemplateBuilder builder) {
         return builder
                 .setConnectTimeout(Duration.ofSeconds(10))
-                .setReadTimeout(Duration.ofSeconds(15))
+                .setReadTimeout(Duration.ofSeconds(300)) // Increased to 300s (5m) for Gemini API processing
                 .build();
     }
 }
