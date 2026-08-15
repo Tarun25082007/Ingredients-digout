@@ -1,0 +1,37 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: jdbc:mysql://localhost:3306/digout_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+logging:
+  level:
+    org.springframework: INFO
+    com.digout: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+jwt:
+  # Secret key should be a long, randomly generated secret key (at least 256 bits / 32 bytes for HS256)
+  secret: MySuperSecretKeyForJWTTokenGenerationIngredientDigoutApp2026!
+  # Expiration time in milliseconds (86400000 ms = 24 hours)
+  expiration: 86400000
+
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+
+spring.servlet.multipart:
+  max-file-size: 10MB
+  max-request-size: 10MB
