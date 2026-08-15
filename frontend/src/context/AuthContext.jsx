@@ -3,18 +3,37 @@ import React, { createContext, useState, useEffect } from 'react';
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    try {
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [token, setToken] = useState(() => {
+    const savedToken = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    // Only restore token if we also have a valid user object to prevent corrupted state
+    if (savedToken && savedUser) {
+      return savedToken;
+    }
+    return null;
+  });
+
   const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => {
-    if (token) {
+    if (token && user) {
       localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
       setIsGuest(false);
-    } else {
+    } else if (!token) {
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
-  }, [token]);
+  }, [token, user]);
 
   const login = (jwtToken, userData) => {
     setToken(jwtToken);
