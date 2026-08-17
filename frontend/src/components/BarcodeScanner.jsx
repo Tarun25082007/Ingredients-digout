@@ -6,30 +6,33 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [cameras, setCameras] = useState([]);
   const [activeCameraId, setActiveCameraId] = useState(null);
+  const scannerRef = useRef(null);
 
   useEffect(() => {
-    let html5QrCode;
+    let isMounted = true;
     
     Html5Qrcode.getCameras().then(devices => {
+      if (!isMounted) return;
+
       if (devices && devices.length) {
         setCameras(devices);
         // default to the last camera (often the back camera on mobile)
         const defaultCam = devices.length > 1 ? devices[devices.length - 1].id : devices[0].id;
         setActiveCameraId(defaultCam);
         
-        html5QrCode = new Html5Qrcode("barcode-reader-element");
+        scannerRef.current = new Html5Qrcode("barcode-reader-element");
         setIsScanning(true);
         
-        html5QrCode.start(
+        scannerRef.current.start(
           defaultCam, 
           {
             fps: 10,
             qrbox: { width: 250, height: 150 }
           },
           (decodedText, decodedResult) => {
-            if (html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    setIsScanning(false);
+            if (scannerRef.current && scannerRef.current.isScanning) {
+                scannerRef.current.stop().then(() => {
+                    if (isMounted) setIsScanning(false);
                     onResult(decodedText);
                 }).catch(err => {
                     console.error("Failed to stop scanner.", err);
@@ -40,20 +43,28 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
           (errorMessage) => {
             // Ignore scan failure, it happens constantly while searching for barcode
           }
-        ).catch(err => {
-          setIsScanning(false);
-          onError("Failed to start camera for barcode scanning.");
+        ).then(() => {
+          // Check if unmounted while camera was starting
+          if (!isMounted && scannerRef.current && scannerRef.current.isScanning) {
+            scannerRef.current.stop().catch(console.error);
+          }
+        }).catch(err => {
+          if (isMounted) {
+            setIsScanning(false);
+            onError("Failed to start camera for barcode scanning.");
+          }
         });
       } else {
-        onError("No cameras found on your device.");
+        if (isMounted) onError("No cameras found on your device.");
       }
     }).catch(err => {
-      onError("Error getting cameras: " + err);
+      if (isMounted) onError("Error getting cameras: " + err);
     });
 
     return () => {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(err => console.error("Failed to stop scanner on unmount.", err));
+      isMounted = false;
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => console.error("Failed to stop scanner on unmount.", err));
       }
     };
   }, [onResult, onError]);
