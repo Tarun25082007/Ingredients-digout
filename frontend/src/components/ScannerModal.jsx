@@ -138,15 +138,19 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     }
   };
 
-  const searchByProductName = async (e) => {
-    e.preventDefault();
-    if (!searchName.trim()) return;
+  const searchByProductName = async (e, customName = null) => {
+    if (e) e.preventDefault();
+    const query = customName !== null ? customName : searchName;
+    if (!query.trim()) return;
+    
+    // Sanitize: remove special characters, collapse multiple spaces, trim
+    const sanitizedSearch = query.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
     
     setMode('uploading');
     setError('');
     
     try {
-      const response = await api.post('/scan/analyze-name', { productName: searchName.trim() });
+      const response = await api.post('/scan/analyze-name', { productName: sanitizedSearch });
       setAssessment(response.data);
       setMode('result');
       if (onScanComplete) {
@@ -198,10 +202,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const handleSuggestionClick = (suggestionName) => {
     setSearchName(suggestionName);
     setShowSuggestions(false);
-    // Automatically trigger search
-    setTimeout(() => {
-      searchByProductName({ preventDefault: () => {} });
-    }, 0);
+    searchByProductName(null, suggestionName);
   };
 
   return (

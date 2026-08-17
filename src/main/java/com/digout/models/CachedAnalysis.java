@@ -17,7 +17,7 @@ public class CachedAnalysis {
     private String productName;
 
     @Lob
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "LONGTEXT", nullable = false)
     private String analysisResultJson;
 
     @Column(nullable = false, updatable = false)
