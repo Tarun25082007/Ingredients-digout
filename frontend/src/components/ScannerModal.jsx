@@ -6,6 +6,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const [mode, setMode] = useState('select'); // 'select', 'camera', 'uploading', 'result'
   const [error, setError] = useState('');
   const [assessment, setAssessment] = useState(null);
+  const [hasCamera, setHasCamera] = useState(true);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -19,6 +20,18 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   };
 
   useEffect(() => {
+    // Check if camera is available
+    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+          const cameras = devices.filter(device => device.kind === 'videoinput');
+          setHasCamera(cameras.length > 0);
+        })
+        .catch(() => setHasCamera(false));
+    } else {
+      setHasCamera(false);
+    }
+
     return () => stopCamera();
   }, []);
 
@@ -123,12 +136,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                <button 
-                  onClick={startCamera}
-                  className="w-full sm:w-auto px-8 py-4 bg-primary-dark hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center space-x-2"
-                >
-                  <span>📷 Take Photo</span>
-                </button>
+                {hasCamera && (
+                  <button 
+                    onClick={startCamera}
+                    className="w-full sm:w-auto px-8 py-4 bg-primary-dark hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center space-x-2"
+                  >
+                    <span>📷 Take Photo</span>
+                  </button>
+                )}
                 
                 <div className="relative w-full sm:w-auto">
                   <input 

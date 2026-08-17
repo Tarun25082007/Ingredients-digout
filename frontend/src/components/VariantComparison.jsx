@@ -111,7 +111,7 @@ const VariantComparison = ({ scannedIngredients, productName }) => {
                   <div className="flex flex-col items-center justify-center h-full text-center text-blue-400">
                     <span className="text-4xl mb-3">🌍</span>
                     <p className="italic text-sm">
-                      {productName ? "No ingredients listed for this product name." : "Scan a product to fetch data."}
+                      {productName ? "Ingredients for this product are not listed in the global database yet." : "Scan a product to fetch data."}
                     </p>
                   </div>
                 )}
