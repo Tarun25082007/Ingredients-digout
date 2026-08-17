@@ -8,11 +8,13 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class GeminiService {
@@ -30,8 +32,9 @@ public class GeminiService {
         this.objectMapper = objectMapper;
     }
 
-    public WhoAssessmentDTO analyzeIngredients(String base64Image, String mimeType) {
-        int maxRetries = 10;
+    @Async
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType) {
+        int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
                 HttpHeaders headers = new HttpHeaders();
@@ -69,12 +72,12 @@ public class GeminiService {
                     jsonText = jsonText.substring(3, jsonText.length() - 3).trim();
                 }
 
-                return objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
+                return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
             } catch (Exception e) {
                 if (e.getMessage() != null && (e.getMessage().contains("503") || e.getMessage().toLowerCase().contains("timed out") || e.getMessage().toLowerCase().contains("timeout")) && i < maxRetries - 1) {
                     try {
-                        System.out.println("Gemini Overload or Timeout! Retrying in 10s... (Attempt " + (i+1) + "/" + maxRetries + ")");
-                        Thread.sleep(10000); // wait 10 seconds before retrying
+                        System.out.println("Gemini Overload or Timeout! Retrying in 2s... (Attempt " + (i+1) + "/" + maxRetries + ")");
+                        Thread.sleep(2000); // wait 2 seconds before retrying
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                     }

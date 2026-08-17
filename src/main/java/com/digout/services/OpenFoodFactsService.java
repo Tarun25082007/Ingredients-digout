@@ -23,8 +23,7 @@ public class OpenFoodFactsService {
     }
 
     public OpenFoodFactsDTO searchProductByName(String productName) {
-        // Replace spaces with + for URL encoding
-        String encodedName = productName.replace(" ", "+");
+        String encodedName = java.net.URLEncoder.encode(productName, java.nio.charset.StandardCharsets.UTF_8);
         String url = String.format(SEARCH_API_URL_TEMPLATE, encodedName);
 
         try {

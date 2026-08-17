@@ -24,7 +24,7 @@ logging:
 
 jwt:
   # Secret key should be a long, randomly generated secret key (at least 256 bits / 32 bytes for HS256)
-  secret: MySuperSecretKeyForJWTTokenGenerationIngredientDigoutApp2026!
+  secret: ${JWT_SECRET}
   # Expiration time in milliseconds (86400000 ms = 24 hours)
   expiration: 86400000
 

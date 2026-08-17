@@ -36,7 +36,7 @@ public class ScanController {
     }
 
     @PostMapping("/analyze")
-    public ResponseEntity<?> analyzeImage(@RequestParam("file") MultipartFile file) {
+    public java.util.concurrent.CompletableFuture<ResponseEntity<?>> analyzeImage(@RequestParam("file") MultipartFile file) {
         try {
             // Convert image to base64
             byte[] bytes = file.getBytes();
@@ -44,44 +44,52 @@ public class ScanController {
 
             // Call Gemini Service
             String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
-            WhoAssessmentDTO assessment = geminiService.analyzeIngredients(base64Image, mimeType);
-
-            // Check if user is authenticated (Optional Bearer Token)
+            
+            // Capture SecurityContext since @Async runs in a different thread
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
-                String email = auth.getName();
-                Optional<User> userOpt = userRepository.findByEmail(email);
-                
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    
-                    // Parse health status (fallback to YELLOW if invalid)
-                    HealthStatus status;
-                    try {
-                        status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
-                    } catch (IllegalArgumentException e) {
-                        status = HealthStatus.YELLOW;
-                    }
 
-                    // Save to scan history
-                    ScanHistory history = ScanHistory.builder()
-                            .user(user)
-                            .productName(assessment.productName())
-                            .rawOcrText("") // Can be populated if separate OCR is used
-                            .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
-                            .healthStatus(status)
-                            .build();
+            return geminiService.analyzeIngredients(base64Image, mimeType)
+                    .thenApply(assessment -> {
+                        // Check if user is authenticated (Optional Bearer Token)
+                        if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
+                            String email = auth.getName();
+                            Optional<User> userOpt = userRepository.findByEmail(email);
                             
-                    scanHistoryRepository.save(history);
-                }
-            }
+                            if (userOpt.isPresent()) {
+                                User user = userOpt.get();
+                                
+                                // Parse health status (fallback to YELLOW if invalid)
+                                HealthStatus status;
+                                try {
+                                    status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
+                                } catch (IllegalArgumentException e) {
+                                    status = HealthStatus.YELLOW;
+                                }
 
-            return ResponseEntity.ok(assessment);
+                                // Save to scan history
+                                try {
+                                    ScanHistory history = ScanHistory.builder()
+                                            .user(user)
+                                            .productName(assessment.productName())
+                                            .rawOcrText("") // Can be populated if separate OCR is used
+                                            .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
+                                            .healthStatus(status)
+                                            .build();
+                                            
+                                    scanHistoryRepository.save(history);
+                                } catch (Exception dbEx) {
+                                    System.err.println("Failed to save scan history: " + dbEx.getMessage());
+                                }
+                            }
+                        }
+                        return ResponseEntity.ok((Object) assessment);
+                    })
+                    .exceptionally(ex -> ResponseEntity.internalServerError().body(java.util.Map.of("message", "An error occurred during analysis: " + ex.getMessage())));
             
         } catch (IOException e) {
-            return ResponseEntity.internalServerError().body(java.util.Map.of("message", "Failed to process image file."));
+            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body(java.util.Map.of("message", "Failed to process image file.")));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage()));
+            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body(java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage())));
         }
     }
 
