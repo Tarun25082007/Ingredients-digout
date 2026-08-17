@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -37,8 +38,14 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/api/scan/public").permitAll()
-                        .requestMatchers("/api/scan/history/**", "/api/compare/**").authenticated()
+                        .requestMatchers(
+                                new AntPathRequestMatcher("/api/auth/**"),
+                                new AntPathRequestMatcher("/api/scan/public")
+                        ).permitAll()
+                        .requestMatchers(
+                                new AntPathRequestMatcher("/api/scan/history/**"),
+                                new AntPathRequestMatcher("/api/compare/**")
+                        ).authenticated()
                         .anyRequest().permitAll()
                 )
                 // Add JWT filter before the standard authentication filter
