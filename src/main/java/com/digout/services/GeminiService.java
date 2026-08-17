@@ -63,6 +63,7 @@ public class GeminiService {
                 // Parse the response
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode steps = root.path("steps");
+                String jsonText = "";
                 
                 for (JsonNode step : steps) {
                     if ("model_output".equals(step.path("type").asText()) && step.has("content")) {
