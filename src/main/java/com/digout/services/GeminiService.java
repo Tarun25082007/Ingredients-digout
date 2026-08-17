@@ -45,11 +45,16 @@ public class GeminiService {
                         "model", "gemini-2.5-flash",
                         "store", false,
                         "input", List.of(
-                                Map.of("text", PROMPT),
-                                Map.of("inlineData", Map.of(
-                                        "mimeType", mimeType,
-                                        "data", base64Image
-                                ))
+                                Map.of(
+                                        "role", "user",
+                                        "parts", List.of(
+                                                Map.of("text", PROMPT),
+                                                Map.of("inlineData", Map.of(
+                                                        "mimeType", mimeType,
+                                                        "data", base64Image
+                                                ))
+                                        )
+                                )
                         )
                 );
 
