@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
+import { Upload, Camera, X, Barcode } from 'lucide-react';
+import BarcodeScanner from './BarcodeScanner';
 
 const ScannerModal = ({ onClose, onScanComplete }) => {
-  const [mode, setMode] = useState('select'); // 'select', 'camera', 'uploading', 'result'
+  const [mode, setMode] = useState('select'); // 'select', 'camera', 'barcode', 'uploading', 'result'
   const [error, setError] = useState('');
   const [searchName, setSearchName] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -166,6 +168,33 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setShowSuggestions(false);
   };
 
+  const handleBarcodeResult = async (barcode) => {
+    setMode('uploading');
+    setError('');
+    try {
+      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const data = await response.json();
+      
+      if (data.status === 1 && data.product && data.product.product_name) {
+        setSearchName(data.product.product_name);
+        
+        // Use our backend API to analyze the name
+        const analyzeResponse = await api.post('/scan/analyze-name', { productName: data.product.product_name });
+        setAssessment(analyzeResponse.data);
+        setMode('result');
+        if (onScanComplete) {
+          onScanComplete(analyzeResponse.data);
+        }
+      } else {
+        setError(`Barcode ${barcode} found, but product name is not in the database. Please type the name or upload an image.`);
+        setMode('select');
+      }
+    } catch (err) {
+      setError('Failed to look up barcode. Please try again.');
+      setMode('select');
+    }
+  };
+
   const handleSuggestionClick = (suggestionName) => {
     setSearchName(suggestionName);
     setShowSuggestions(false);
@@ -202,27 +231,46 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                 Take a clear photo of an ingredient list or upload an image to evaluate it against WHO guidelines.
               </p>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                {hasCamera && (
-                  <button 
-                    onClick={startCamera}
-                    className="w-full sm:w-auto px-8 py-4 bg-primary-dark hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center space-x-2"
-                  >
-                    <span>📷 Take Photo</span>
-                  </button>
-                )}
-                
-                <div className="relative w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4">
+                <button 
+                  onClick={() => setMode('barcode')}
+                  className="flex-1 group flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300"
+                >
+                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <Barcode className="w-6 h-6" />
+                  </div>
+                  <span className="font-medium text-gray-700">Scan Barcode</span>
+                  <span className="text-xs text-gray-400 mt-1">Fast & accurate</span>
+                </button>
+
+                <div className="flex-1 relative">
                   <input 
                     type="file" 
                     accept="image/*"
                     onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className="px-8 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold shadow-sm transition flex items-center justify-center space-x-2">
-                    <span>📁 Upload File</span>
+                  <div className="w-full h-full group flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300">
+                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <span className="font-medium text-gray-700">Upload Image</span>
+                    <span className="text-xs text-gray-400 mt-1">Ingredients list</span>
                   </div>
                 </div>
+
+                {hasCamera && (
+                  <button 
+                    onClick={startCamera}
+                    className="flex-1 group flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300"
+                  >
+                    <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <span className="font-medium text-gray-700">Take Photo</span>
+                    <span className="text-xs text-gray-400 mt-1">Ingredients list</span>
+                  </button>
+                )}
               </div>
 
               <div className="mt-10 flex items-center justify-center">
@@ -293,6 +341,21 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                   </form>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Mode: Barcode Scanner */}
+          {mode === 'barcode' && (
+            <div className="py-6">
+              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Scan Barcode</h2>
+              <BarcodeScanner 
+                onResult={handleBarcodeResult} 
+                onError={(errMsg) => {
+                  setError(errMsg);
+                  setMode('select');
+                }}
+                onClose={resetScanner} 
+              />
             </div>
           )}
 
