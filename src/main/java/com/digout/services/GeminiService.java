@@ -104,6 +104,8 @@ public class GeminiService {
                         Thread.currentThread().interrupt();
                     }
                     continue;
+                } else if (e.getMessage() != null && e.getMessage().contains("429")) {
+                     throw new RuntimeException("AI usage limit reached for the free tier. Please wait a minute before scanning again.", e);
                 }
                 throw new RuntimeException("Failed to analyze ingredients with Gemini API: " + e.getMessage(), e);
             }
@@ -176,6 +178,8 @@ public class GeminiService {
                         Thread.currentThread().interrupt();
                     }
                     continue;
+                } else if (e.getMessage() != null && e.getMessage().contains("429")) {
+                     throw new RuntimeException("AI usage limit reached for the free tier. Please wait a minute before scanning again.", e);
                 }
                 throw new RuntimeException("Failed to analyze product by name with Gemini API: " + e.getMessage(), e);
             }
