@@ -87,13 +87,7 @@ public class GeminiService {
                     throw new RuntimeException("No model_output found in response: " + response.getBody());
                 }
 
-                // Clean markdown JSON formatting if Gemini includes it despite responseMimeType
-                if (jsonText.startsWith("```json")) {
-                    jsonText = jsonText.substring(7, jsonText.length() - 3).trim();
-                } else if (jsonText.startsWith("```")) {
-                    jsonText = jsonText.substring(3, jsonText.length() - 3).trim();
-                }
-
+                jsonText = extractJson(jsonText);
                 return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
             } catch (Exception e) {
                 if (e.getMessage() != null && (e.getMessage().contains("503") || e.getMessage().toLowerCase().contains("timed out") || e.getMessage().toLowerCase().contains("timeout")) && i < maxRetries - 1) {
@@ -162,12 +156,7 @@ public class GeminiService {
                     throw new RuntimeException("No model_output found in response: " + response.getBody());
                 }
 
-                if (jsonText.startsWith("```json")) {
-                    jsonText = jsonText.substring(7, jsonText.length() - 3).trim();
-                } else if (jsonText.startsWith("```")) {
-                    jsonText = jsonText.substring(3, jsonText.length() - 3).trim();
-                }
-
+                jsonText = extractJson(jsonText);
                 return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
             } catch (Exception e) {
                 if (e.getMessage() != null && (e.getMessage().contains("503") || e.getMessage().toLowerCase().contains("timed out") || e.getMessage().toLowerCase().contains("timeout")) && i < maxRetries - 1) {
@@ -185,5 +174,13 @@ public class GeminiService {
             }
         }
         throw new RuntimeException("Failed to analyze product by name with Gemini API after retries.");
+    }
+
+    private String extractJson(String rawText) {
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL).matcher(rawText);
+        if (matcher.find()) {
+            return matcher.group();
+        }
+        return rawText;
     }
 }
