@@ -42,7 +42,7 @@ public class GeminiService {
 
                 // Construct Gemini Interactions API Payload
                 Map<String, Object> payload = Map.of(
-                        "model", "gemini-2.5-flash",
+                        "model", "gemini-3.7-flash",
                         "store", false,
                         "input", List.of(
                                 Map.of(
