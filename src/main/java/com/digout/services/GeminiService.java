@@ -44,13 +44,11 @@ public class GeminiService {
                 Map<String, Object> payload = Map.of(
                         "model", "gemini-2.5-flash",
                         "store", false,
-                        "contents", List.of(
-                                Map.of("role", "user", "parts", List.of(
-                                        Map.of("text", PROMPT),
-                                        Map.of("inlineData", Map.of(
-                                                "mimeType", mimeType,
-                                                "data", base64Image
-                                        ))
+                        "input", List.of(
+                                Map.of("text", PROMPT),
+                                Map.of("inlineData", Map.of(
+                                        "mimeType", mimeType,
+                                        "data", base64Image
                                 ))
                         )
                 );
