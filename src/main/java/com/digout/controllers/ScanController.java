@@ -106,41 +106,69 @@ public class ScanController {
 
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
+            // Check cache first
+            Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCase(productName.trim());
+            if (cachedOpt.isPresent()) {
+                try {
+                    WhoAssessmentDTO cachedAssessment = objectMapper.readValue(cachedOpt.get().getAnalysisResultJson(), WhoAssessmentDTO.class);
+                    saveScanHistory(auth, cachedAssessment);
+                    return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.ok((Object) cachedAssessment));
+                } catch (Exception e) {
+                    System.err.println("Failed to parse cached JSON: " + e.getMessage());
+                }
+            }
+
             return geminiService.analyzeIngredientsByName(productName)
                     .thenApply(assessment -> {
-                        if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
-                            String email = auth.getName();
-                            Optional<User> userOpt = userRepository.findByEmail(email);
-                            
-                            if (userOpt.isPresent()) {
-                                User user = userOpt.get();
-                                HealthStatus status;
-                                try {
-                                    status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
-                                } catch (IllegalArgumentException e) {
-                                    status = HealthStatus.YELLOW;
-                                }
-
-                                try {
-                                    ScanHistory history = ScanHistory.builder()
-                                            .user(user)
-                                            .productName(assessment.productName())
-                                            .rawOcrText("Searched by Name")
-                                            .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
-                                            .healthStatus(status)
-                                            .build();
-                                    scanHistoryRepository.save(history);
-                                } catch (Exception dbEx) {
-                                    System.err.println("Failed to save scan history: " + dbEx.getMessage());
-                                }
-                            }
+                        // Save to cache
+                        try {
+                            String json = objectMapper.writeValueAsString(assessment);
+                            CachedAnalysis cacheEntry = new CachedAnalysis();
+                            cacheEntry.setProductName(productName);
+                            cacheEntry.setAnalysisResultJson(json);
+                            cachedAnalysisRepository.save(cacheEntry);
+                        } catch (Exception e) {
+                            System.err.println("Failed to cache analysis: " + e.getMessage());
                         }
+
+                        saveScanHistory(auth, assessment);
                         return ResponseEntity.ok((Object) assessment);
                     })
                     .exceptionally(ex -> ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "An error occurred during analysis: " + ex.getMessage())));
             
         } catch (Exception e) {
             return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage())));
+        }
+    }
+
+    private void saveScanHistory(Authentication auth, WhoAssessmentDTO assessment) {
+        if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
+            String email = auth.getName();
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                HealthStatus status;
+                try {
+                    status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    status = HealthStatus.YELLOW;
+                }
+
+                try {
+                    ScanHistory history = ScanHistory.builder()
+                            .user(user)
+                            .productName(assessment.productName())
+                            .rawOcrText("") 
+                            .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
+                            .healthStatus(status)
+                            .build();
+                            
+                    scanHistoryRepository.save(history);
+                } catch (Exception dbEx) {
+                    System.err.println("Failed to save scan history: " + dbEx.getMessage());
+                }
+            }
         }
     }
 
