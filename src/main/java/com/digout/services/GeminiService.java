@@ -63,19 +63,26 @@ public class GeminiService {
                 // Parse the response
                 JsonNode root = objectMapper.readTree(response.getBody());
                 JsonNode steps = root.path("steps");
-                String jsonText = "";
+                
                 for (JsonNode step : steps) {
-                    if (step.has("modelOutput") && step.path("modelOutput").has("text")) {
+                    if ("model_output".equals(step.path("type").asText()) && step.has("content")) {
+                        JsonNode contentArray = step.path("content");
+                        if (contentArray.isArray() && contentArray.size() > 0) {
+                            JsonNode firstContent = contentArray.get(0);
+                            if (firstContent.has("text")) {
+                                jsonText = firstContent.path("text").asText();
+                                break;
+                            }
+                        }
+                    } else if (step.has("modelOutput") && step.path("modelOutput").has("text")) {
+                        // Fallback for mock responses or older schema
                         jsonText = step.path("modelOutput").path("text").asText();
-                        break;
-                    } else if (step.has("model_output") && step.path("model_output").has("text")) {
-                        jsonText = step.path("model_output").path("text").asText();
                         break;
                     }
                 }
 
-                if (jsonText.isEmpty()) {
-                    throw new RuntimeException("No modelOutput found in response: " + response.getBody());
+                if (jsonText == null || jsonText.trim().isEmpty()) {
+                    throw new RuntimeException("No model_output found in response: " + response.getBody());
                 }
 
                 // Clean markdown JSON formatting if Gemini includes it despite responseMimeType
