@@ -23,7 +23,7 @@ public class GeminiService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=";
+    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/interactions?key=";
     private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
     public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
@@ -40,19 +40,18 @@ public class GeminiService {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
 
-                // Construct Gemini API Payload
+                // Construct Gemini Interactions API Payload
                 Map<String, Object> payload = Map.of(
+                        "model", "gemini-2.5-flash",
+                        "store", false,
                         "contents", List.of(
-                                Map.of("parts", List.of(
+                                Map.of("role", "user", "parts", List.of(
                                         Map.of("text", PROMPT),
-                                        Map.of("inline_data", Map.of(
-                                                "mime_type", mimeType,
+                                        Map.of("inlineData", Map.of(
+                                                "mimeType", mimeType,
                                                 "data", base64Image
                                         ))
                                 ))
-                        ),
-                        "generationConfig", Map.of(
-                                "responseMimeType", "application/json"
                         )
                 );
 
@@ -61,9 +60,21 @@ public class GeminiService {
 
                 // Parse the response
                 JsonNode root = objectMapper.readTree(response.getBody());
-                String jsonText = root.path("candidates").get(0)
-                        .path("content").path("parts").get(0)
-                        .path("text").asText();
+                JsonNode steps = root.path("steps");
+                String jsonText = "";
+                for (JsonNode step : steps) {
+                    if (step.has("modelOutput") && step.path("modelOutput").has("text")) {
+                        jsonText = step.path("modelOutput").path("text").asText();
+                        break;
+                    } else if (step.has("model_output") && step.path("model_output").has("text")) {
+                        jsonText = step.path("model_output").path("text").asText();
+                        break;
+                    }
+                }
+
+                if (jsonText.isEmpty()) {
+                    throw new RuntimeException("No modelOutput found in response: " + response.getBody());
+                }
 
                 // Clean markdown JSON formatting if Gemini includes it despite responseMimeType
                 if (jsonText.startsWith("```json")) {
