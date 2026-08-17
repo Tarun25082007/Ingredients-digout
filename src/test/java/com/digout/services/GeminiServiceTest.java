@@ -39,7 +39,7 @@ public class GeminiServiceTest {
     @Test
     void testAnalyzeIngredients_Success() throws Exception {
         // Arrange
-        String mockResponseJson = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"```json\\n{\\\"productName\\\":\\\"Test Product\\\",\\\"ingredientsFound\\\":[],\\\"whoFlags\\\":[],\\\"overallIndicator\\\":\\\"GREEN\\\"}\\n```\"}]}}]}";
+        String mockResponseJson = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"```json\\n{\\\"productName\\\":\\\"Test Product\\\",\\\"globalEquivalent\\\":\\\"Test Product\\\",\\\"ingredientsFound\\\":[],\\\"whoFlags\\\":[],\\\"overallIndicator\\\":\\\"GREEN\\\"}\\n```\"}]}}]}";
         
         ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
         when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))

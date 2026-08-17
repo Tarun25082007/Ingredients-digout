@@ -35,6 +35,7 @@ const Home = () => {
         <VariantComparison 
           scannedIngredients={lastScan?.ingredientsFound || []} 
           productName={lastScan?.productName || ''}
+          globalEquivalent={lastScan?.globalEquivalent || ''}
         />
       </div>
     </div>

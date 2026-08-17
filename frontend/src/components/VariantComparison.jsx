@@ -3,7 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../api';
 
-const VariantComparison = ({ scannedIngredients, productName }) => {
+const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }) => {
   const { token, isGuest } = useContext(AuthContext);
   const [internationalData, setInternationalData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -18,6 +18,17 @@ const VariantComparison = ({ scannedIngredients, productName }) => {
           const response = await api.get(`/compare/search?name=${encodeURIComponent(productName)}`);
           setInternationalData(response.data);
         } catch (err) {
+          // If original fails, try global equivalent
+          if (globalEquivalent && globalEquivalent !== productName) {
+            try {
+              const response2 = await api.get(`/compare/search?name=${encodeURIComponent(globalEquivalent)}`);
+              setInternationalData(response2.data);
+              setLoading(false);
+              return;
+            } catch (err2) {
+              // Fall through to error
+            }
+          }
           setError('Failed to load international comparison data. This product might not be available outside India, or it is not listed in the OpenFoodFacts database.');
           setInternationalData(null);
         } finally {
@@ -26,7 +37,7 @@ const VariantComparison = ({ scannedIngredients, productName }) => {
       };
       fetchComparison();
     }
-  }, [token, isGuest, productName]);
+  }, [token, isGuest, productName, globalEquivalent]);
 
   // Guest view - Blurred background with lock overlay
   if (isGuest || !token) {
@@ -111,7 +122,7 @@ const VariantComparison = ({ scannedIngredients, productName }) => {
                   <div className="flex flex-col items-center justify-center h-full text-center text-blue-400">
                     <span className="text-4xl mb-3">🌍</span>
                     <p className="italic text-sm">
-                      {productName ? "Ingredients for this product are not listed in the global database yet." : "Scan a product to fetch data."}
+                      {productName ? "Ingredients for this product (or its global equivalent) are not listed in the database yet." : "Scan a product to fetch data."}
                     </p>
                   </div>
                 )}
