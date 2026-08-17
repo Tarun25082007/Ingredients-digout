@@ -46,14 +46,13 @@ public class GeminiService {
                         "store", false,
                         "input", List.of(
                                 Map.of(
-                                        "role", "user",
-                                        "parts", List.of(
-                                                Map.of("text", PROMPT),
-                                                Map.of("inlineData", Map.of(
-                                                        "mimeType", mimeType,
-                                                        "data", base64Image
-                                                ))
-                                        )
+                                        "type", "text",
+                                        "text", PROMPT
+                                ),
+                                Map.of(
+                                        "type", "image",
+                                        "mime_type", mimeType,
+                                        "data", base64Image
                                 )
                         )
                 );
