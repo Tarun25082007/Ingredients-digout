@@ -36,7 +36,7 @@ public class ScanController {
     }
 
     @PostMapping("/analyze")
-    public java.util.concurrent.CompletableFuture<ResponseEntity<?>> analyzeImage(@RequestParam("file") MultipartFile file) {
+    public java.util.concurrent.CompletableFuture<ResponseEntity<Object>> analyzeImage(@RequestParam("file") MultipartFile file) {
         try {
             // Convert image to base64
             byte[] bytes = file.getBytes();
@@ -84,12 +84,12 @@ public class ScanController {
                         }
                         return ResponseEntity.ok((Object) assessment);
                     })
-                    .exceptionally(ex -> ResponseEntity.internalServerError().body(java.util.Map.of("message", "An error occurred during analysis: " + ex.getMessage())));
+                    .exceptionally(ex -> ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "An error occurred during analysis: " + ex.getMessage())));
             
         } catch (IOException e) {
-            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body(java.util.Map.of("message", "Failed to process image file.")));
+            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "Failed to process image file.")));
         } catch (Exception e) {
-            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body(java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage())));
+            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage())));
         }
     }
 
