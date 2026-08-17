@@ -1,10 +1,24 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const Navbar = () => {
   const { user, token, isGuest, logout, continueAsGuest } = useContext(AuthContext);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const isLoggedIn = !!token;
 
@@ -49,7 +63,7 @@ const Navbar = () => {
 
         {/* State 3: Logged In */}
         {isLoggedIn && (
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-dark text-white hover:bg-emerald-700 transition font-bold shadow-sm"
