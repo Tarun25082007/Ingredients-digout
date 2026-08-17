@@ -1,6 +1,7 @@
 package com.digout.services;
 
 import com.digout.dto.OpenFoodFactsDTO;
+import com.digout.dto.ProductSuggestionDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +49,38 @@ public class OpenFoodFactsService {
             throw new RuntimeException("Timeout or connection error when calling OpenFoodFacts", e);
         } catch (Exception e) {
             throw new RuntimeException("Error fetching data from OpenFoodFacts", e);
+        }
+    }
+
+    public java.util.List<ProductSuggestionDTO> autocompleteProducts(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        
+        String encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
+        String url = String.format(SEARCH_API_URL_TEMPLATE, encodedQuery) + "&page_size=5";
+
+        try {
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+
+            JsonNode products = root.path("products");
+            java.util.List<ProductSuggestionDTO> suggestions = new java.util.ArrayList<>();
+            
+            if (!products.isMissingNode() && products.isArray()) {
+                for (JsonNode productNode : products) {
+                    String name = productNode.path("product_name").asText(null);
+                    if (name != null && !name.trim().isEmpty()) {
+                        String imageUrl = productNode.path("image_thumb_url").asText(null);
+                        suggestions.add(new ProductSuggestionDTO(name, imageUrl));
+                        if (suggestions.size() >= 5) break;
+                    }
+                }
+            }
+            return suggestions;
+        } catch (Exception e) {
+            System.err.println("Failed to autocomplete from OpenFoodFacts: " + e.getMessage());
+            return java.util.Collections.emptyList();
         }
     }
 }

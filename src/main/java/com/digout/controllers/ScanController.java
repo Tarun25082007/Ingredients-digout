@@ -1,12 +1,13 @@
 package com.digout.controllers;
 
-import com.digout.dto.WhoAssessmentDTO;
+import com.digout.dto.ProductSuggestionDTO;
 import com.digout.models.HealthStatus;
 import com.digout.models.ScanHistory;
 import com.digout.models.User;
 import com.digout.repositories.ScanHistoryRepository;
 import com.digout.repositories.UserRepository;
 import com.digout.services.GeminiService;
+import com.digout.services.OpenFoodFactsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -24,12 +25,14 @@ import java.util.Optional;
 public class ScanController {
 
     private final GeminiService geminiService;
+    private final OpenFoodFactsService openFoodFactsService;
     private final ScanHistoryRepository scanHistoryRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    public ScanController(GeminiService geminiService, ScanHistoryRepository scanHistoryRepository, UserRepository userRepository, ObjectMapper objectMapper) {
+    public ScanController(GeminiService geminiService, OpenFoodFactsService openFoodFactsService, ScanHistoryRepository scanHistoryRepository, UserRepository userRepository, ObjectMapper objectMapper) {
         this.geminiService = geminiService;
+        this.openFoodFactsService = openFoodFactsService;
         this.scanHistoryRepository = scanHistoryRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
@@ -93,6 +96,54 @@ public class ScanController {
         }
     }
 
+    @PostMapping("/analyze-name")
+    public java.util.concurrent.CompletableFuture<ResponseEntity<Object>> analyzeName(@RequestBody java.util.Map<String, String> payload) {
+        try {
+            String productName = payload.get("productName");
+            if (productName == null || productName.trim().isEmpty()) {
+                return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.badRequest().body((Object) java.util.Map.of("message", "Product name is required")));
+            }
+
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+            return geminiService.analyzeIngredientsByName(productName)
+                    .thenApply(assessment -> {
+                        if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
+                            String email = auth.getName();
+                            Optional<User> userOpt = userRepository.findByEmail(email);
+                            
+                            if (userOpt.isPresent()) {
+                                User user = userOpt.get();
+                                HealthStatus status;
+                                try {
+                                    status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
+                                } catch (IllegalArgumentException e) {
+                                    status = HealthStatus.YELLOW;
+                                }
+
+                                try {
+                                    ScanHistory history = ScanHistory.builder()
+                                            .user(user)
+                                            .productName(assessment.productName())
+                                            .rawOcrText("Searched by Name")
+                                            .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
+                                            .healthStatus(status)
+                                            .build();
+                                    scanHistoryRepository.save(history);
+                                } catch (Exception dbEx) {
+                                    System.err.println("Failed to save scan history: " + dbEx.getMessage());
+                                }
+                            }
+                        }
+                        return ResponseEntity.ok((Object) assessment);
+                    })
+                    .exceptionally(ex -> ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "An error occurred during analysis: " + ex.getMessage())));
+            
+        } catch (Exception e) {
+            return java.util.concurrent.CompletableFuture.completedFuture(ResponseEntity.internalServerError().body((Object) java.util.Map.of("message", "An error occurred during analysis: " + e.getMessage())));
+        }
+    }
+
     @GetMapping("/history")
     public ResponseEntity<?> getScanHistory() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -109,5 +160,15 @@ public class ScanController {
         }
         
         return ResponseEntity.status(404).body("User not found");
+    }
+
+    @GetMapping("/autocomplete")
+    public ResponseEntity<List<ProductSuggestionDTO>> autocomplete(@RequestParam("query") String query) {
+        try {
+            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(query);
+            return ResponseEntity.ok(suggestions);
+        } catch (Exception e) {
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
     }
 }
