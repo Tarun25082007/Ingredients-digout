@@ -5,7 +5,7 @@ import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 
 const HistoryDashboard = () => {
-  const { token, isGuest } = useContext(AuthContext);
+  const { token, isGuest, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,13 @@ const HistoryDashboard = () => {
         setHistory(response.data);
         setError(''); // clear any previous errors
       } catch (err) {
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          // Token is likely expired or invalid
+          logout();
+          navigate('/login');
+          return;
+        }
+        
         // In dev mode, StrictMode double-fetches might hit the 1req/10s rate limit.
         // We only show the error if we haven't already successfully loaded the data.
         setHistory(prev => {

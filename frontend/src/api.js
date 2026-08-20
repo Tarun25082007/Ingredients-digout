@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://localhost:8443/api', // Pointing to Spring Boot backend
+  baseURL: '/api', // Proxied by Vite to bypass local SSL certificate issues
   timeout: 300000,
 });
 

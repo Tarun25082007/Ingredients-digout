@@ -15,12 +15,14 @@ public class OpenFoodFactsService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final UsdaFoodDataService usdaFoodDataService;
 
     private static final String SEARCH_API_URL_TEMPLATE = "https://world.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1";
 
-    public OpenFoodFactsService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public OpenFoodFactsService(RestTemplate restTemplate, ObjectMapper objectMapper, UsdaFoodDataService usdaFoodDataService) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.usdaFoodDataService = usdaFoodDataService;
     }
 
     public OpenFoodFactsDTO searchProductByName(String productName) {
@@ -44,11 +46,14 @@ public class OpenFoodFactsService {
             return new OpenFoodFactsDTO(foundProductName, ingredientsText);
 
         } catch (HttpClientErrorException.NotFound e) {
-            throw new RuntimeException("Product not found (404) for name: " + productName, e);
+            System.out.println("Product not found (404) for name: " + productName + ". Falling back to USDA database...");
+            return usdaFoodDataService.getIngredientsDatabaseFallback(productName);
         } catch (ResourceAccessException e) {
-            throw new RuntimeException("Timeout or connection error when calling OpenFoodFacts", e);
+            System.out.println("Timeout or connection error when calling OpenFoodFacts. Falling back to USDA database...");
+            return usdaFoodDataService.getIngredientsDatabaseFallback(productName);
         } catch (Exception e) {
-            throw new RuntimeException("Error fetching data from OpenFoodFacts", e);
+            System.out.println("Error fetching data from OpenFoodFacts: " + e.getMessage() + ". Falling back to USDA database...");
+            return usdaFoodDataService.getIngredientsDatabaseFallback(productName);
         }
     }
 

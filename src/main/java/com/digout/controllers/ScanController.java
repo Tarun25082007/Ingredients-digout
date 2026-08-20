@@ -104,17 +104,19 @@ public class ScanController {
             
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
-                HealthStatus status;
+                HealthStatus status = HealthStatus.YELLOW;
                 try {
-                    status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
-                } catch (IllegalArgumentException e) {
+                    if (assessment.overallIndicator() != null) {
+                        status = HealthStatus.valueOf(assessment.overallIndicator().toUpperCase());
+                    }
+                } catch (Exception e) {
                     status = HealthStatus.YELLOW;
                 }
 
                 try {
                     ScanHistory history = ScanHistory.builder()
                             .user(user)
-                            .productName(assessment.productName())
+                            .productName(assessment.productName() != null ? assessment.productName() : "Unknown Product")
                             .rawOcrText("") 
                             .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
                             .healthStatus(status)

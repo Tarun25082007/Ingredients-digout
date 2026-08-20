@@ -22,15 +22,17 @@ public class GeminiService {
     private final String geminiApiKey;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final GroqService groqService;
 
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/interactions?key=";
     private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
     private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. Note that the name provided may be misspelled, incomplete, or inexact. Please intelligently deduce the intended product. Use your knowledge base to infer its typical ingredients. If it is a highly regional product, identify its globally popular equivalent and base the ingredients and analysis on that. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
-    public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper, GroqService groqService) {
         this.geminiApiKey = geminiApiKey;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.groqService = groqService;
     }
 
     @Async
@@ -99,12 +101,16 @@ public class GeminiService {
                     }
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
-                     throw new RuntimeException("AI usage limit reached for the free tier. Please wait a minute before scanning again.", e);
+                     System.out.println("Gemini Rate Limit reached! Falling back to GroqService...");
+                     return groqService.analyzeIngredients(base64Image, mimeType);
                 }
-                throw new RuntimeException("Failed to analyze ingredients with Gemini API: " + e.getMessage(), e);
+                
+                System.out.println("Gemini failed, falling back to GroqService: " + e.getMessage());
+                return groqService.analyzeIngredients(base64Image, mimeType);
             }
         }
-        throw new RuntimeException("Failed to analyze ingredients with Gemini API after retries.");
+        System.out.println("Gemini exhausted retries, falling back to GroqService...");
+        return groqService.analyzeIngredients(base64Image, mimeType);
     }
 
     @Async
@@ -168,12 +174,15 @@ public class GeminiService {
                     }
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
-                     throw new RuntimeException("AI usage limit reached for the free tier. Please wait a minute before scanning again.", e);
+                     System.out.println("Gemini Rate Limit reached! Falling back to GroqService for name analysis...");
+                     return groqService.analyzeIngredientsByName(productName);
                 }
-                throw new RuntimeException("Failed to analyze product by name with Gemini API: " + e.getMessage(), e);
+                System.out.println("Gemini failed for name analysis, falling back to GroqService: " + e.getMessage());
+                return groqService.analyzeIngredientsByName(productName);
             }
         }
-        throw new RuntimeException("Failed to analyze product by name with Gemini API after retries.");
+        System.out.println("Gemini exhausted retries for name analysis, falling back to GroqService...");
+        return groqService.analyzeIngredientsByName(productName);
     }
 
     private String extractJson(String rawText) {
@@ -182,5 +191,48 @@ public class GeminiService {
             return matcher.group();
         }
         return rawText;
+    }
+
+    public com.digout.dto.OpenFoodFactsDTO getIngredientsDatabaseFallback(String productName) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            String dbPrompt = "You are a product ingredient database. The user is searching for '" + productName.replace("'", "") + "'. Output a JSON object containing 'product_name' and 'ingredients_text' (a comma separated string of typical ingredients for the global/popular version of this product) based on your knowledge. Output RAW JSON ONLY.";
+            
+            Map<String, Object> payload = Map.of(
+                    "model", "gemini-3.7-flash",
+                    "store", false,
+                    "input", List.of(
+                            Map.of("type", "text", "text", dbPrompt)
+                    )
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
+
+            JsonNode root = objectMapper.readTree(response.getBody());
+            JsonNode steps = root.path("steps");
+            String jsonText = "";
+
+            for (JsonNode step : steps) {
+                if (("model_output".equals(step.path("type").asText()) || step.has("modelOutput")) && (step.has("content") || step.path("modelOutput").has("text"))) {
+                    if (step.has("content")) {
+                         jsonText = step.path("content").get(0).path("text").asText();
+                    } else {
+                         jsonText = step.path("modelOutput").path("text").asText();
+                    }
+                    break;
+                }
+            }
+            jsonText = extractJson(jsonText);
+            JsonNode parsedJson = objectMapper.readTree(jsonText);
+            return new com.digout.dto.OpenFoodFactsDTO(
+                parsedJson.path("product_name").asText(productName),
+                parsedJson.path("ingredients_text").asText("")
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Fallback database AI failed: " + e.getMessage(), e);
+        }
     }
 }

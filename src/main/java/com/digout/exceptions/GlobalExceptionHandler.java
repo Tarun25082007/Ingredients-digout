@@ -14,13 +14,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception ex) {
         Throwable cause = ex;
-        if (ex instanceof CompletionException && ex.getCause() != null) {
+        if (ex instanceof java.util.concurrent.CompletionException && ex.getCause() != null) {
             cause = ex.getCause();
         }
         
-        System.err.println("Unhandled Exception: " + cause.getMessage());
+        cause.printStackTrace(); // Log full stack trace
+        String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("message", "An error occurred: " + cause.getMessage()));
+                .body(Map.of("message", "An error occurred: " + msg));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

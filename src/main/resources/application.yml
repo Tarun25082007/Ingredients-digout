@@ -32,6 +32,14 @@ gemini:
   api:
     key: ${GEMINI_API_KEY}
 
+groq:
+  api:
+    key: ${GROQ_API_KEY}
+
+usda:
+  api:
+    key: ${USDA_API_KEY}
+
 spring.servlet.multipart:
   max-file-size: 10MB
   max-request-size: 10MB
