@@ -17,7 +17,7 @@ public class OpenFoodFactsService {
     private final ObjectMapper objectMapper;
     private final UsdaFoodDataService usdaFoodDataService;
 
-    private static final String SEARCH_API_URL_TEMPLATE = "https://%s.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1";
+    private static final String SEARCH_API_URL_TEMPLATE = "https://%s.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key";
 
     public OpenFoodFactsService(RestTemplate restTemplate, ObjectMapper objectMapper, UsdaFoodDataService usdaFoodDataService) {
         this.restTemplate = restTemplate;
@@ -58,13 +58,14 @@ public class OpenFoodFactsService {
         }
     }
 
-    public java.util.List<ProductSuggestionDTO> autocompleteProducts(String query) {
+    public java.util.List<ProductSuggestionDTO> autocompleteProducts(String query, String countryCode) {
         if (query == null || query.trim().isEmpty()) {
             return java.util.Collections.emptyList();
         }
         
+        String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
         String encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
-        String url = String.format(SEARCH_API_URL_TEMPLATE, "world", encodedQuery) + "&page_size=5";
+        String url = String.format(SEARCH_API_URL_TEMPLATE, cc, encodedQuery) + "&page_size=10";
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
@@ -79,7 +80,7 @@ public class OpenFoodFactsService {
                     if (name != null && !name.trim().isEmpty()) {
                         String imageUrl = productNode.path("image_thumb_url").asText(null);
                         suggestions.add(new ProductSuggestionDTO(name, imageUrl));
-                        if (suggestions.size() >= 5) break;
+                        if (suggestions.size() >= 8) break;
                     }
                 }
             }

@@ -63,7 +63,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setIsTyping(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}`);
+        const countryCode = getUserCountry();
+        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${countryCode}`);
         setSuggestions(response.data || []);
         setShowSuggestions(true);
       } catch (err) {
