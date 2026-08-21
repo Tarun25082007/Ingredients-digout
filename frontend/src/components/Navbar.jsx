@@ -14,7 +14,6 @@ const Navbar = () => {
     setCountry(selected.toUpperCase());
     setUserCountry(selected);
   };
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {

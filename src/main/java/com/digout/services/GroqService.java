@@ -29,15 +29,14 @@ public class GroqService {
     private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
     private static final String[] TEXT_MODELS = {
-            "llama-3.1-8b-instant",
-            "llama-3.3-70b-versatile",
-            "mixtral-8x7b-32768",
-            "gemma2-9b-it"
+            "openai/gpt-oss-20b",
+            "openai/gpt-oss-120b",
+            "qwen/qwen3.6-27b",
+            "groq/compound"
     };
 
     private static final String[] VISION_MODELS = {
-            "llama-3.2-11b-vision-preview",
-            "llama-3.2-90b-vision-preview"
+            "qwen/qwen3.6-27b"
     };
 
     public GroqService(@Value("${groq.api.key}") String groqApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
