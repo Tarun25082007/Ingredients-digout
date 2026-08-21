@@ -13,6 +13,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [promptCountry, setPromptCountry] = useState(getUserCountry().toUpperCase());
+  const [scanRegion, setScanRegion] = useState(getUserCountry());
   const countries = getAllCountries();
   
   const [assessment, setAssessment] = useState(null);
@@ -162,6 +163,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     
     try {
       const activeCountryCode = customCountry !== null ? customCountry : getUserCountry();
+      setScanRegion(activeCountryCode);
       const response = await api.post('/scan/analyze-name', { 
         productName: sanitizedSearch,
         countryCode: activeCountryCode
@@ -473,6 +475,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
           {mode === 'result' && assessment && (
             <div className="animate-fadeIn">
               <HealthStatusCard assessment={assessment} />
+              
+              {scanRegion !== 'world' && (
+                <VariantComparison 
+                  scannedIngredients={assessment.ingredientsFound} 
+                  productName={assessment.productName}
+                  globalEquivalent={assessment.globalEquivalent}
+                />
+              )}
               
               <div className="mt-8 text-center">
                 <button 
