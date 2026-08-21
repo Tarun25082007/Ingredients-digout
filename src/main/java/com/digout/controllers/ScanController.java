@@ -89,6 +89,11 @@ public class ScanController {
             exactIngredients = dbProduct.getIngredientsText();
         } catch (Exception e) {
             System.err.println("Could not fetch exact ingredients from OpenFoodFacts: " + e.getMessage());
+            if (!"world".equalsIgnoreCase(countryCode)) {
+                return CompletableFuture.completedFuture(ResponseEntity.status(404).body(
+                    java.util.Map.of("error", "REGION_NOT_FOUND", "message", "Product not found in selected region.")
+                ));
+            }
         }
 
         return geminiService.analyzeIngredientsByName(productName, exactIngredients)

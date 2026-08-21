@@ -3,7 +3,7 @@ import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 import { Upload, Camera, X, Barcode } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
-import { getUserCountry } from '../utils/countryUtils';
+import { getUserCountry, getAllCountries } from '../utils/countryUtils';
 
 const ScannerModal = ({ onClose, onScanComplete }) => {
   const [mode, setMode] = useState('select'); // 'select', 'camera', 'barcode', 'uploading', 'result'
@@ -12,6 +12,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [promptCountry, setPromptCountry] = useState(getUserCountry().toUpperCase());
+  const countries = getAllCountries();
   
   const [assessment, setAssessment] = useState(null);
   const [hasCamera, setHasCamera] = useState(true);
@@ -139,7 +141,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     }
   };
 
-  const searchByProductName = async (e, customName = null) => {
+  const searchByProductName = async (e, customName = null, customCountry = null) => {
     if (e) e.preventDefault();
     const query = customName !== null ? customName : searchName;
     if (!query.trim()) return;
@@ -153,7 +155,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     try {
       const response = await api.post('/scan/analyze-name', { 
         productName: sanitizedSearch,
-        countryCode: getUserCountry()
+        countryCode: customCountry || getUserCountry()
       });
       setAssessment(response.data);
       setMode('result');
@@ -161,6 +163,10 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
         onScanComplete(response.data);
       }
     } catch (err) {
+      if (err.response?.data?.error === 'REGION_NOT_FOUND') {
+        setMode('country_prompt');
+        return;
+      }
       const serverMsg = err.response?.data?.message || err.response?.data?.error;
       setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze product. Please try again.');
       setMode('select');
@@ -400,6 +406,57 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
               <div className="w-16 h-16 border-4 border-gray-200 border-t-primary-dark rounded-full animate-spin mb-6"></div>
               <h3 className="text-xl font-bold text-gray-800">Analyzing Ingredients...</h3>
               <p className="text-gray-500 mt-2">Checking WHO guidelines and flagging additives.</p>
+            </div>
+          )}
+
+          {/* Mode: Country Prompt (Region Not Found) */}
+          {mode === 'country_prompt' && (
+            <div className="text-center py-12 px-6">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">Product Not Found in Your Region</h3>
+              <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                We couldn't find <strong>"{searchName}"</strong> in the database for your current country. Where is this product from?
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
+                <div className="relative w-full sm:w-auto flex-1">
+                  <select 
+                    value={promptCountry.toLowerCase()} 
+                    onChange={(e) => setPromptCountry(e.target.value.toUpperCase())}
+                    className="w-full appearance-none bg-white border border-gray-300 text-gray-700 py-3 pl-4 pr-10 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-primary-light transition shadow-sm"
+                  >
+                    <option value="world">🌍 Global (World)</option>
+                    {countries.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => searchByProductName(null, searchName, promptCountry.toLowerCase())}
+                  className="w-full sm:w-auto px-6 py-3 bg-primary-dark hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition"
+                >
+                  Search Again
+                </button>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-center gap-4">
+                <button 
+                  onClick={() => searchByProductName(null, searchName, 'world')}
+                  className="text-gray-600 hover:text-primary-dark font-medium underline"
+                >
+                  Just search Global database
+                </button>
+                <span className="text-gray-300">|</span>
+                <button 
+                  onClick={resetScanner}
+                  className="text-gray-500 hover:text-gray-800 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
