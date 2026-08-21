@@ -74,7 +74,7 @@ public class OpenFoodFactsService {
             String globalUrl = String.format(SEARCH_API_URL_TEMPLATE, "world", encodedQuery) + "&page_size=5";
             java.util.List<ProductSuggestionDTO> globalSuggestions = fetchAutocomplete(globalUrl);
             for (ProductSuggestionDTO dto : globalSuggestions) {
-                boolean exists = suggestions.stream().anyMatch(s -> s.getProductName().equalsIgnoreCase(dto.getProductName()));
+                boolean exists = suggestions.stream().anyMatch(s -> s.productName().equalsIgnoreCase(dto.productName()));
                 if (!exists) {
                     suggestions.add(dto);
                 }

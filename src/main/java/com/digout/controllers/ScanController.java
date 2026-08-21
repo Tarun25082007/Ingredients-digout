@@ -86,7 +86,7 @@ public class ScanController {
         String exactIngredients = null;
         try {
             com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
-            exactIngredients = dbProduct.getIngredientsText();
+            exactIngredients = dbProduct.ingredientsText();
         } catch (Exception e) {
             System.err.println("Could not fetch exact ingredients from OpenFoodFacts: " + e.getMessage());
             if (!"world".equalsIgnoreCase(countryCode)) {
