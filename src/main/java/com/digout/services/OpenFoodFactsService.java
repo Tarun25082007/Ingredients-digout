@@ -36,6 +36,10 @@ public class OpenFoodFactsService {
 
             JsonNode products = root.path("products");
             if (products.isMissingNode() || !products.isArray() || products.size() == 0) {
+                if (!"world".equals(cc)) {
+                    System.out.println("No products found in " + cc + " for name: " + productName + ". Falling back to world data.");
+                    return searchProductByName(productName, "world");
+                }
                 throw new RuntimeException("No products found matching name: " + productName);
             }
 
@@ -47,12 +51,21 @@ public class OpenFoodFactsService {
             return new OpenFoodFactsDTO(foundProductName, ingredientsText);
 
         } catch (HttpClientErrorException.NotFound e) {
+            if (!"world".equals(cc)) {
+                return searchProductByName(productName, "world");
+            }
             System.out.println("Product not found (404) for name: " + productName + ". Falling back to USDA database...");
             return usdaFoodDataService.getIngredientsDatabaseFallback(productName);
         } catch (ResourceAccessException e) {
+            if (!"world".equals(cc)) {
+                return searchProductByName(productName, "world");
+            }
             System.out.println("Timeout or connection error when calling OpenFoodFacts. Falling back to USDA database...");
             return usdaFoodDataService.getIngredientsDatabaseFallback(productName);
         } catch (Exception e) {
+            if (!"world".equals(cc)) {
+                return searchProductByName(productName, "world");
+            }
             System.out.println("Error fetching data from OpenFoodFacts: " + e.getMessage() + ". Falling back to USDA database...");
             return usdaFoodDataService.getIngredientsDatabaseFallback(productName);
         }
