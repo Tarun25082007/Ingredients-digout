@@ -96,16 +96,29 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                   {scannedIngredients && scannedIngredients.length > 0 ? (
                     scannedIngredients.map((ing, idx) => {
                       const text = typeof ing === 'string' ? ing : ing.name;
+                      const status = typeof ing === 'string' ? null : ing.status;
                       const match = text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i);
+                      
+                      const getStatusColor = (statusStr) => {
+                        if (!statusStr) return 'bg-gray-200 text-gray-800';
+                        const s = statusStr.toUpperCase();
+                        if (s === 'RED' || s.includes('CONCERN')) return 'bg-red-200 text-red-900';
+                        if (s === 'YELLOW' || s.includes('CAUTION')) return 'bg-yellow-200 text-yellow-900';
+                        return 'bg-green-200 text-green-900';
+                      };
+
                       return (
                         <li key={idx} className="capitalize flex items-center justify-between border-b border-gray-100 last:border-0 pb-2 mb-2">
-                          {match ? (
-                            <>
-                              <span>{match[1].trim()}</span>
-                              <span className="bg-primary-light/10 text-primary-dark text-xs px-2 py-1 rounded-md font-bold">{match[2]}</span>
-                            </>
-                          ) : (
-                            <span>{text}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{match ? match[1].trim() : text}</span>
+                            {status && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(status)}`}>
+                                {status}
+                              </span>
+                            )}
+                          </div>
+                          {match && (
+                            <span className="bg-primary-light/10 text-primary-dark text-xs px-2 py-1 rounded-md font-bold ml-2 shrink-0">{match[2]}</span>
                           )}
                         </li>
                       );
