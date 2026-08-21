@@ -67,6 +67,25 @@ public class OpenFoodFactsService {
         String encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
         String url = String.format(SEARCH_API_URL_TEMPLATE, cc, encodedQuery) + "&page_size=10";
 
+        java.util.List<ProductSuggestionDTO> suggestions = fetchAutocomplete(url);
+
+        // Augment with global search if regional results are sparse
+        if (suggestions.size() < 4 && !"world".equals(cc)) {
+            String globalUrl = String.format(SEARCH_API_URL_TEMPLATE, "world", encodedQuery) + "&page_size=5";
+            java.util.List<ProductSuggestionDTO> globalSuggestions = fetchAutocomplete(globalUrl);
+            for (ProductSuggestionDTO dto : globalSuggestions) {
+                boolean exists = suggestions.stream().anyMatch(s -> s.getProductName().equalsIgnoreCase(dto.getProductName()));
+                if (!exists) {
+                    suggestions.add(dto);
+                }
+                if (suggestions.size() >= 8) break;
+            }
+        }
+        
+        return suggestions;
+    }
+
+    private java.util.List<ProductSuggestionDTO> fetchAutocomplete(String url) {
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -86,8 +105,8 @@ public class OpenFoodFactsService {
             }
             return suggestions;
         } catch (Exception e) {
-            System.err.println("Failed to autocomplete from OpenFoodFacts: " + e.getMessage());
-            return java.util.Collections.emptyList();
+            System.err.println("Failed to fetch autocomplete from OpenFoodFacts: " + e.getMessage());
+            return new java.util.ArrayList<>();
         }
     }
 }
