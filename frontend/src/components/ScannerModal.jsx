@@ -306,12 +306,12 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                         placeholder="e.g. Campa Orange, Lay's Classic"
                         value={searchName}
                         onChange={(e) => setSearchName(e.target.value)}
-                        onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                        onFocus={() => { if (searchName.trim().length >= 2) setShowSuggestions(true); }}
                         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-dark shadow-sm"
                       />
                       {/* Autocomplete Dropdown */}
-                      {showSuggestions && (suggestions.length > 0 || isTyping) && (
+                      {showSuggestions && searchName.trim().length >= 2 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
                           {isTyping && suggestions.length === 0 ? (
                             <div className="p-4 text-center text-sm text-gray-500">Loading suggestions...</div>
