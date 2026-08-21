@@ -103,7 +103,12 @@ public class GroqService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(groqApiKey);
 
-            String formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText != null ? ingredientsText.replace("'", "") : "No ingredients available");
+            String formattedPrompt;
+            if (ingredientsText != null && !ingredientsText.trim().isEmpty() && !ingredientsText.equals("No ingredients available")) {
+                formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText.replace("'", ""));
+            } else {
+                formattedPrompt = "The user is asking for the health assessment of a product named '" + productName.replace("'", "") + "'. We DO NOT have the ingredient list. Use your internal knowledge base to identify this product and its standard globally popular ingredients. Evaluate these assumed ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
+            }
             
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> java.util.Map.of(
                     "model", model,
