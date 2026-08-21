@@ -51,6 +51,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
   // Debounce autocomplete search
   useEffect(() => {
+    let isActive = true;
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     
     if (searchName.trim().length < 2) {
@@ -65,14 +66,20 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       try {
         const countryCode = getUserCountry();
         const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${countryCode}`);
-        setSuggestions(response.data || []);
-        setShowSuggestions(true);
+        if (isActive) {
+          setSuggestions(response.data || []);
+          setShowSuggestions(true);
+        }
       } catch (err) {
-        console.error('Autocomplete failed:', err);
+        if (isActive) console.error('Autocomplete failed:', err);
       } finally {
-        setIsTyping(false);
+        if (isActive) setIsTyping(false);
       }
     }, 300);
+    
+    return () => {
+      isActive = false;
+    };
   }, [searchName]);
 
   const startCamera = async () => {
