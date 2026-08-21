@@ -94,7 +94,22 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-64 overflow-y-auto shadow-inner">
                 <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm md:text-base">
                   {scannedIngredients && scannedIngredients.length > 0 ? (
-                    scannedIngredients.map((ing, idx) => <li key={idx} className="capitalize">{typeof ing === 'string' ? ing : ing.name}</li>)
+                    scannedIngredients.map((ing, idx) => {
+                      const text = typeof ing === 'string' ? ing : ing.name;
+                      const match = text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i);
+                      return (
+                        <li key={idx} className="capitalize flex items-center justify-between border-b border-gray-100 last:border-0 pb-2 mb-2">
+                          {match ? (
+                            <>
+                              <span>{match[1].trim()}</span>
+                              <span className="bg-primary-light/10 text-primary-dark text-xs px-2 py-1 rounded-md font-bold">{match[2]}</span>
+                            </>
+                          ) : (
+                            <span>{text}</span>
+                          )}
+                        </li>
+                      );
+                    })
                   ) : (
                     <li className="text-gray-400 italic list-none">No ingredients provided. Scan a product first.</li>
                   )}
@@ -114,9 +129,22 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
               <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 h-64 overflow-y-auto shadow-inner">
                 {internationalData && internationalData.ingredientsText ? (
                   <ul className="list-disc pl-5 space-y-2 text-gray-800 text-sm md:text-base">
-                    {internationalData.ingredientsText.split(',').map((ing, idx) => (
-                      <li key={idx} className="capitalize">{ing.trim()}</li>
-                    ))}
+                    {internationalData.ingredientsText.split(',').map((ing, idx) => {
+                      const text = ing.trim();
+                      const match = text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i);
+                      return (
+                        <li key={idx} className="capitalize flex items-center justify-between border-b border-blue-100 last:border-0 pb-2 mb-2">
+                          {match ? (
+                            <>
+                              <span>{match[1].trim()}</span>
+                              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-bold">{match[2]}</span>
+                            </>
+                          ) : (
+                            <span>{text}</span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-center text-blue-400">

@@ -3,6 +3,7 @@ import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 import { Upload, Camera, X, Barcode } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
+import { getUserCountry } from '../utils/countryUtils';
 
 const ScannerModal = ({ onClose, onScanComplete }) => {
   const [mode, setMode] = useState('select'); // 'select', 'camera', 'barcode', 'uploading', 'result'
@@ -150,7 +151,10 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setError('');
     
     try {
-      const response = await api.post('/scan/analyze-name', { productName: sanitizedSearch });
+      const response = await api.post('/scan/analyze-name', { 
+        productName: sanitizedSearch,
+        countryCode: getUserCountry()
+      });
       setAssessment(response.data);
       setMode('result');
       if (onScanComplete) {

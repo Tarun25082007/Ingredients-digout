@@ -62,6 +62,8 @@ public class ScanController {
     @PostMapping("/analyze-name")
     public CompletableFuture<ResponseEntity<Object>> analyzeName(@RequestBody java.util.Map<String, String> payload) {
         String productName = payload.get("productName");
+        String countryCode = payload.getOrDefault("countryCode", "world");
+        
         if (productName == null || productName.trim().isEmpty()) {
             throw new IllegalArgumentException("Product name is required");
         }
@@ -80,7 +82,16 @@ public class ScanController {
             }
         }
 
-        return geminiService.analyzeIngredientsByName(productName)
+        // Fetch exact ingredients from database first based on country
+        String exactIngredients = null;
+        try {
+            com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
+            exactIngredients = dbProduct.getIngredientsText();
+        } catch (Exception e) {
+            System.err.println("Could not fetch exact ingredients from OpenFoodFacts: " + e.getMessage());
+        }
+
+        return geminiService.analyzeIngredientsByName(productName, exactIngredients)
                 .thenApply(assessment -> {
                     try {
                         String json = objectMapper.writeValueAsString(assessment);

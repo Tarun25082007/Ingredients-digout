@@ -17,7 +17,7 @@ public class OpenFoodFactsService {
     private final ObjectMapper objectMapper;
     private final UsdaFoodDataService usdaFoodDataService;
 
-    private static final String SEARCH_API_URL_TEMPLATE = "https://world.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1";
+    private static final String SEARCH_API_URL_TEMPLATE = "https://%s.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1";
 
     public OpenFoodFactsService(RestTemplate restTemplate, ObjectMapper objectMapper, UsdaFoodDataService usdaFoodDataService) {
         this.restTemplate = restTemplate;
@@ -25,9 +25,10 @@ public class OpenFoodFactsService {
         this.usdaFoodDataService = usdaFoodDataService;
     }
 
-    public OpenFoodFactsDTO searchProductByName(String productName) {
+    public OpenFoodFactsDTO searchProductByName(String productName, String countryCode) {
         String encodedName = java.net.URLEncoder.encode(productName, java.nio.charset.StandardCharsets.UTF_8);
-        String url = String.format(SEARCH_API_URL_TEMPLATE, encodedName);
+        String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
+        String url = String.format(SEARCH_API_URL_TEMPLATE, cc, encodedName);
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
@@ -63,7 +64,7 @@ public class OpenFoodFactsService {
         }
         
         String encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
-        String url = String.format(SEARCH_API_URL_TEMPLATE, encodedQuery) + "&page_size=5";
+        String url = String.format(SEARCH_API_URL_TEMPLATE, "world", encodedQuery) + "&page_size=5";
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);

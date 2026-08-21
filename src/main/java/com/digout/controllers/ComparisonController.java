@@ -18,7 +18,7 @@ public class ComparisonController {
     @GetMapping("/search")
     public ResponseEntity<?> compareProductByName(@RequestParam String name) {
         try {
-            OpenFoodFactsDTO data = openFoodFactsService.searchProductByName(name);
+            OpenFoodFactsDTO data = openFoodFactsService.searchProductByName(name, "world");
             return ResponseEntity.ok(data);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
