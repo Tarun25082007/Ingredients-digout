@@ -81,6 +81,31 @@ public class OpenFoodFactsService {
                 if (suggestions.size() >= 8) break;
             }
         }
+        // Sort suggestions to prioritize closer string matches, keeping popularity as secondary
+        suggestions.sort((a, b) -> {
+            String nameA = a.productName().toLowerCase();
+            String nameB = b.productName().toLowerCase();
+            String q = query.toLowerCase().trim();
+            
+            boolean aExact = nameA.equals(q);
+            boolean bExact = nameB.equals(q);
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+            
+            boolean aStartsWith = nameA.startsWith(q);
+            boolean bStartsWith = nameB.startsWith(q);
+            if (aStartsWith && !bStartsWith) return -1;
+            if (!aStartsWith && bStartsWith) return 1;
+            
+            // Length penalty: shorter names that contain the query are preferred (e.g. "Kit Kat" over "Kit Kat x 10")
+            boolean aContains = nameA.contains(q);
+            boolean bContains = nameB.contains(q);
+            if (aContains && bContains) {
+                return Integer.compare(nameA.length(), nameB.length());
+            }
+            
+            return 0;
+        });
         
         return suggestions;
     }

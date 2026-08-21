@@ -161,9 +161,10 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setError('');
     
     try {
+      const activeCountryCode = customCountry !== null ? customCountry : getUserCountry();
       const response = await api.post('/scan/analyze-name', { 
         productName: sanitizedSearch,
-        countryCode: customCountry || getUserCountry()
+        countryCode: activeCountryCode
       });
       setAssessment(response.data);
       setMode('result');
