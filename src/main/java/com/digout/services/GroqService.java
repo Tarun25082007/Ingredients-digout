@@ -75,14 +75,15 @@ public class GroqService {
 
             String formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText != null ? ingredientsText.replace("'", "") : "No ingredients available");
             
-            Map<String, Object> payload = Map.of(
-                    "model", "llama3-8b-8192",
-                    "messages", List.of(
-                            Map.of("role", "user", "content", formattedPrompt)
-                    )
+            java.util.Map<String, Object> requestBody = java.util.Map.of(
+                    "model", "llama-3.1-8b-instant",
+                    "messages", new Object[]{
+                            java.util.Map.of("role", "system", "content", "You are an expert nutritionist."),
+                            java.util.Map.of("role", "user", "content", formattedPrompt)
+                    },
+                    "temperature", 0.1
             );
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(GROQ_API_URL, request, String.class);
 
             String jsonText = extractResponseText(response.getBody());
