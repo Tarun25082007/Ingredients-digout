@@ -28,11 +28,40 @@ public class GeminiService {
     private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
     private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
+    private static final String[] GEMINI_MODELS = {
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-1.0-pro",
+            "gemini-pro"
+    };
+
     public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper, GroqService groqService) {
         this.geminiApiKey = geminiApiKey;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.groqService = groqService;
+    }
+
+    private ResponseEntity<String> executeWithModelFallback(HttpHeaders headers, java.util.function.Function<String, java.util.Map<String, Object>> payloadBuilder) {
+        Exception lastException = null;
+        for (String model : GEMINI_MODELS) {
+            try {
+                java.util.Map<String, Object> payload = payloadBuilder.apply(model);
+                HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(payload, headers);
+                return restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
+            } catch (org.springframework.web.client.HttpClientErrorException e) {
+                String responseBody = e.getResponseBodyAsString();
+                if (responseBody.contains("not found") || responseBody.contains("invalid model") || responseBody.contains("decommissioned")) {
+                    System.err.println("Gemini model '" + model + "' is unavailable. Upgrading to next model...");
+                    lastException = e;
+                    continue;
+                }
+                throw e; // Other 4xx errors
+            } catch (Exception e) {
+                throw new RuntimeException("Gemini API error: " + e.getMessage(), e);
+            }
+        }
+        throw new RuntimeException("All fallback Gemini models failed.", lastException);
     }
 
     @Async
@@ -43,9 +72,8 @@ public class GeminiService {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
 
-                // Construct Gemini Interactions API Payload
-                Map<String, Object> payload = Map.of(
-                        "model", "gemini-3.7-flash",
+                ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
+                        "model", model,
                         "store", false,
                         "input", List.of(
                                 Map.of(
@@ -58,10 +86,7 @@ public class GeminiService {
                                         "data", base64Image
                                 )
                         )
-                );
-
-                HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-                ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
+                ));
 
                 // Parse the response
                 JsonNode root = objectMapper.readTree(response.getBody());
@@ -123,8 +148,8 @@ public class GeminiService {
 
                 // Construct Gemini Interactions API Payload for Text-Only
                 String formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText != null ? ingredientsText.replace("'", "") : "No ingredients available");
-                Map<String, Object> payload = Map.of(
-                        "model", "gemini-3.7-flash",
+                ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
+                        "model", model,
                         "store", false,
                         "input", List.of(
                                 Map.of(
@@ -132,10 +157,7 @@ public class GeminiService {
                                         "text", formattedPrompt
                                 )
                         )
-                );
-
-                HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-                ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
+                ));
 
                 // Parse the response
                 JsonNode root = objectMapper.readTree(response.getBody());
@@ -200,16 +222,13 @@ public class GeminiService {
 
             String dbPrompt = "You are a product ingredient database. The user is searching for '" + productName.replace("'", "") + "'. Output a JSON object containing 'product_name' and 'ingredients_text' (a comma separated string of typical ingredients for the global/popular version of this product) based on your knowledge. Output RAW JSON ONLY.";
             
-            Map<String, Object> payload = Map.of(
-                    "model", "gemini-3.7-flash",
+            ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
+                    "model", model,
                     "store", false,
                     "input", List.of(
                             Map.of("type", "text", "text", dbPrompt)
                     )
-            );
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
+            ));
 
             JsonNode root = objectMapper.readTree(response.getBody());
             JsonNode steps = root.path("steps");

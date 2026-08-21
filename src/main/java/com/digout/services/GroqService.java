@@ -28,10 +28,44 @@ public class GroqService {
     private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
     private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
+    private static final String[] TEXT_MODELS = {
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it"
+    };
+
+    private static final String[] VISION_MODELS = {
+            "llama-3.2-11b-vision-preview",
+            "llama-3.2-90b-vision-preview"
+    };
+
     public GroqService(@Value("${groq.api.key}") String groqApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.groqApiKey = groqApiKey;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    private ResponseEntity<String> executeWithModelFallback(HttpHeaders headers, java.util.function.Function<String, java.util.Map<String, Object>> payloadBuilder, String[] models) {
+        Exception lastException = null;
+        for (String model : models) {
+            try {
+                java.util.Map<String, Object> payload = payloadBuilder.apply(model);
+                HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(payload, headers);
+                return restTemplate.postForEntity(GROQ_API_URL, request, String.class);
+            } catch (org.springframework.web.client.HttpClientErrorException e) {
+                String responseBody = e.getResponseBodyAsString();
+                if (responseBody.contains("model_decommissioned") || responseBody.contains("does not exist") || responseBody.contains("not found")) {
+                    System.err.println("Groq model '" + model + "' is decommissioned or unavailable. Automatically upgrading to next model...");
+                    lastException = e;
+                    continue;
+                }
+                throw e; // Throw other client errors like 401 Unauthorized
+            } catch (Exception e) {
+                throw new RuntimeException("Error calling Groq API: " + e.getMessage(), e);
+            }
+        }
+        throw new RuntimeException("All fallback Groq models failed. Last error: " + (lastException != null ? lastException.getMessage() : "Unknown"), lastException);
     }
 
     @Async
@@ -43,8 +77,8 @@ public class GroqService {
 
             String base64Prefix = "data:" + mimeType + ";base64,";
             
-            Map<String, Object> payload = Map.of(
-                    "model", "llama-3.2-11b-vision-preview",
+            ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
+                    "model", model,
                     "messages", List.of(
                             Map.of(
                                     "role", "user",
@@ -54,10 +88,7 @@ public class GroqService {
                                     )
                             )
                     )
-            );
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(GROQ_API_URL, request, String.class);
+            ), VISION_MODELS);
 
             String jsonText = extractResponseText(response.getBody());
             return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
@@ -75,16 +106,14 @@ public class GroqService {
 
             String formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText != null ? ingredientsText.replace("'", "") : "No ingredients available");
             
-            java.util.Map<String, Object> requestBody = java.util.Map.of(
-                    "model", "llama-3.1-8b-instant",
+            ResponseEntity<String> response = executeWithModelFallback(headers, model -> java.util.Map.of(
+                    "model", model,
                     "messages", new Object[]{
                             java.util.Map.of("role", "system", "content", "You are an expert nutritionist."),
                             java.util.Map.of("role", "user", "content", formattedPrompt)
                     },
                     "temperature", 0.1
-            );
-            HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(GROQ_API_URL, request, String.class);
+            ), TEXT_MODELS);
 
             String jsonText = extractResponseText(response.getBody());
             return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
