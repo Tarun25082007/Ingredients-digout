@@ -320,7 +320,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                               {suggestions.map((item, idx) => (
                                 <div 
                                   key={idx} 
-                                  onClick={() => handleSuggestionClick(item.productName)}
+                                  onMouseDown={() => handleSuggestionClick(item.productName)}
                                   className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                                 >
                                   {item.imageUrl ? (
@@ -335,7 +335,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                               ))}
                               {/* Always show the AI fallback option */}
                               <div 
-                                onClick={() => handleSuggestionClick(searchName)}
+                                onMouseDown={() => handleSuggestionClick(searchName)}
                                 className="flex items-center gap-3 p-3 hover:bg-indigo-50 cursor-pointer border-t border-gray-200 bg-gray-50"
                               >
                                 <div className="w-10 h-10 flex items-center justify-center bg-indigo-100 rounded text-indigo-600">
