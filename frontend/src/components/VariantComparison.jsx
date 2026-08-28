@@ -95,9 +95,9 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                 <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm md:text-base">
                   {scannedIngredients && scannedIngredients.length > 0 ? (
                     scannedIngredients.map((ing, idx) => {
-                      const text = typeof ing === 'string' ? ing : ing.name;
-                      const status = typeof ing === 'string' ? null : ing.status;
-                      const match = text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i);
+                      const text = (typeof ing === 'string' ? ing : ing?.name) || '';
+                      const status = typeof ing === 'string' ? null : ing?.status;
+                      const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i)) : null;
                       
                       const getStatusColor = (statusStr) => {
                         if (!statusStr) return 'bg-gray-200 text-gray-800';
