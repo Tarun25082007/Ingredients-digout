@@ -25,8 +25,8 @@ public class GeminiService {
     private final GroqService groqService;
 
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/interactions?key=";
-    private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
-    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
+    private static final String PROMPT = "Extract every ingredient from this image. Extract the total quantity and serving size if visible. Evaluate ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"servingSize\": \"String (e.g. 200ml)\", \"quantity\": \"String (e.g. 1L)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
+    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
     private static final String[] GEMINI_MODELS = {
             "gemini-1.5-flash",
@@ -139,7 +139,7 @@ public class GeminiService {
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity) {
         int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
@@ -189,7 +189,17 @@ public class GeminiService {
                 }
 
                 jsonText = extractJson(jsonText);
-                return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
+                WhoAssessmentDTO parsed = objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
+                WhoAssessmentDTO augmented = new WhoAssessmentDTO(
+                    parsed.productName(),
+                    parsed.ingredientsFound(),
+                    parsed.whoFlags(),
+                    parsed.overallIndicator(),
+                    parsed.globalEquivalent(),
+                    servingSize,
+                    quantity
+                );
+                return CompletableFuture.completedFuture(augmented);
             } catch (Exception e) {
                 if (e.getMessage() != null && (e.getMessage().contains("503") || e.getMessage().toLowerCase().contains("timed out") || e.getMessage().toLowerCase().contains("timeout")) && i < maxRetries - 1) {
                     try {
@@ -201,14 +211,14 @@ public class GeminiService {
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
                      System.out.println("Gemini Rate Limit reached! Falling back to GroqService for name analysis...");
-                     return groqService.analyzeIngredientsByName(productName, ingredientsText);
+                     return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity);
                 }
                 System.out.println("Gemini failed for name analysis, falling back to GroqService: " + e.getMessage());
-                return groqService.analyzeIngredientsByName(productName, ingredientsText);
+                return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity);
             }
         }
         System.out.println("Gemini exhausted retries for name analysis, falling back to GroqService...");
-        return groqService.analyzeIngredientsByName(productName, ingredientsText);
+        return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity);
     }
 
     private String extractJson(String rawText) {
