@@ -177,4 +177,10 @@ public class ScanController {
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
     }
+
+    @GetMapping("/clear-cache")
+    public ResponseEntity<?> clearCache() {
+        cachedAnalysisRepository.deleteAll();
+        return ResponseEntity.ok(java.util.Map.of("message", "Cache cleared successfully!"));
+    }
 }
