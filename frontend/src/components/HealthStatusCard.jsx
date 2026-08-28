@@ -22,7 +22,7 @@ const HealthStatusCard = ({ assessment }) => {
 
   const getStatusColor = (statusStr) => {
     if (!statusStr) return 'bg-gray-200 text-gray-800';
-    const s = statusStr.toUpperCase();
+    const s = String(statusStr).toUpperCase();
     if (s === 'RED' || s.includes('CONCERN') || s.includes('AVOID') || s.includes('DANGER') || s.includes('HIGH')) {
       return 'bg-red-200 text-red-900';
     }
