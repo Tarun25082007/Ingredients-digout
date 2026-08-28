@@ -23,13 +23,20 @@ const HealthStatusCard = ({ assessment }) => {
   const getStatusColor = (statusStr) => {
     if (!statusStr) return 'bg-gray-200 text-gray-800';
     const s = String(statusStr).toUpperCase();
+    if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) {
+      return 'bg-gray-900 text-white';
+    }
     if (s === 'RED' || s.includes('CONCERN') || s.includes('AVOID') || s.includes('DANGER') || s.includes('HIGH')) {
       return 'bg-red-200 text-red-900';
     }
     if (s === 'YELLOW' || s.includes('MODERATE') || s.includes('CAUTION') || s.includes('PRESERVATIVE') || s.includes('ADDITIVE')) {
       return 'bg-yellow-200 text-yellow-900';
     }
-    return 'bg-green-200 text-green-900';
+    if (s === 'GREEN' || s.includes('SAFE')) {
+      return 'bg-green-200 text-green-900';
+    }
+    // Default fallback if it doesn't match known statuses
+    return 'bg-gray-900 text-white';
   };
 
   return (
@@ -37,7 +44,7 @@ const HealthStatusCard = ({ assessment }) => {
       {/* Header Banner */}
       <div className={`p-6 border-b-4 ${bannerClass}`}>
         <h2 className="text-2xl font-bold capitalize text-gray-900">
-          {productName || "Unknown Product"}
+          {productName ? String(productName) : "Unknown Product"}
         </h2>
         <p className="text-sm font-bold mt-2 uppercase tracking-wide">
           {statusText}
@@ -48,18 +55,19 @@ const HealthStatusCard = ({ assessment }) => {
         <h3 className="text-lg font-bold text-gray-800 mb-4">WHO Health Assessment</h3>
         
         {/* Flags List */}
-        {whoFlags && whoFlags.length > 0 ? (
+        {Array.isArray(whoFlags) && whoFlags.length > 0 ? (
           <div className="space-y-4">
-            {whoFlags.map((flag, index) => (
+            {whoFlags.filter(f => f != null).map((flag, index) => (
               <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition">
                 <div className="flex items-center space-x-3 mb-2">
-                  <span className="text-md font-extrabold text-gray-800 capitalize">{flag.name}</span>
+                  <span className="text-md font-extrabold text-gray-800 capitalize">{String(flag.name || '')}</span>
                   <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider ${getStatusColor(flag.status)}`}>
-                    {flag.status}
+                    {String(flag.status || 'UNKNOWN')}
                   </span>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed">{flag.explanation}</p>
-              </div>
+                {flag.explanation && (
+                  <p className="text-sm text-gray-600 mt-2 leading-snug">{String(flag.explanation)}</p>
+                )}</div>
             ))}
           </div>
         ) : (
@@ -70,11 +78,11 @@ const HealthStatusCard = ({ assessment }) => {
         )}
 
         {/* Ingredients Found */}
-        {ingredientsFound && ingredientsFound.length > 0 && (
+        {Array.isArray(ingredientsFound) && ingredientsFound.length > 0 && (
           <div className="mt-8">
             <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">All Ingredients Detected</h3>
             <div className="space-y-3">
-              {ingredientsFound.map((ing, idx) => {
+              {ingredientsFound.filter(i => i != null).map((ing, idx) => {
                 // Backwards compatibility: if it's just a string from old history
                 if (typeof ing === 'string') {
                   return (
@@ -88,13 +96,13 @@ const HealthStatusCard = ({ assessment }) => {
                 return (
                   <div key={idx} className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-gray-800 capitalize">{ing.name}</span>
+                      <span className="font-bold text-gray-800 capitalize">{String(ing.name || '')}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(ing.status)}`}>
-                        {ing.status || 'UNKNOWN'}
+                        {String(ing.status || 'UNKNOWN')}
                       </span>
                     </div>
                     {ing.explanation && (
-                      <p className="text-xs text-gray-600 leading-relaxed">{ing.explanation}</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">{String(ing.explanation)}</p>
                     )}
                   </div>
                 );

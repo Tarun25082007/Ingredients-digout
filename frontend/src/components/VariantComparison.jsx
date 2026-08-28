@@ -15,13 +15,13 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
         setLoading(true);
         setError('');
         try {
-          const response = await api.get(`/compare/search?name=${encodeURIComponent(productName)}`);
+          const response = await api.post('/scan/analyze-name', { productName: productName, countryCode: 'world' });
           setInternationalData(response.data);
         } catch (err) {
           // If original fails, try global equivalent
           if (globalEquivalent && globalEquivalent !== productName) {
             try {
-              const response2 = await api.get(`/compare/search?name=${encodeURIComponent(globalEquivalent)}`);
+              const response2 = await api.post('/scan/analyze-name', { productName: globalEquivalent, countryCode: 'world' });
               setInternationalData(response2.data);
               setLoading(false);
               return;
@@ -91,20 +91,22 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                 <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">1</span>
                 Your Scanned Product {productName && `(${productName})`}
               </h4>
-              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 h-64 overflow-y-auto shadow-inner">
-                <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm md:text-base">
-                  {scannedIngredients && scannedIngredients.length > 0 ? (
-                    scannedIngredients.map((ing, idx) => {
+              <div className="bg-white p-6 rounded-xl border border-gray-100 h-64 overflow-y-auto shadow-inner">
+                {Array.isArray(scannedIngredients) && scannedIngredients.length > 0 ? (
+                  <ul className="list-disc pl-5 space-y-2 text-gray-800 text-sm md:text-base">
+                    {scannedIngredients.filter(i => i != null).map((ing, idx) => {
                       const text = String((typeof ing === 'string' ? ing : ing?.name) || '');
                       const status = typeof ing === 'string' ? null : ing?.status;
                       const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i)) : null;
-                      
+
                       const getStatusColor = (statusStr) => {
                         if (!statusStr) return 'bg-gray-200 text-gray-800';
                         const s = String(statusStr).toUpperCase();
+                        if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) return 'bg-gray-900 text-white';
                         if (s === 'RED' || s.includes('CONCERN')) return 'bg-red-200 text-red-900';
                         if (s === 'YELLOW' || s.includes('CAUTION')) return 'bg-yellow-200 text-yellow-900';
-                        return 'bg-green-200 text-green-900';
+                        if (s === 'GREEN' || s.includes('SAFE')) return 'bg-green-200 text-green-900';
+                        return 'bg-gray-900 text-white';
                       };
 
                       return (
@@ -122,11 +124,13 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                           )}
                         </li>
                       );
-                    })
-                  ) : (
+                    })}
+                  </ul>
+                ) : (
+                  <ul className="list-disc pl-5 space-y-2 text-gray-700 text-sm md:text-base">
                     <li className="text-gray-400 italic list-none">No ingredients provided. Scan a product first.</li>
-                  )}
-                </ul>
+                  </ul>
+                )}
               </div>
             </div>
 
@@ -140,20 +144,35 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
               </h4>
               
               <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 h-64 overflow-y-auto shadow-inner">
-                {internationalData && internationalData.ingredientsText ? (
+                {Array.isArray(internationalData?.ingredientsFound) && internationalData.ingredientsFound.length > 0 ? (
                   <ul className="list-disc pl-5 space-y-2 text-gray-800 text-sm md:text-base">
-                    {internationalData.ingredientsText.split(',').map((ing, idx) => {
-                      const text = ing.trim();
-                      const match = text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i);
+                    {internationalData.ingredientsFound.filter(i => i != null).map((ing, idx) => {
+                      const text = String((typeof ing === 'string' ? ing : ing?.name) || '');
+                      const status = typeof ing === 'string' ? null : ing?.status;
+                      const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i)) : null;
+
+                      const getStatusColor = (statusStr) => {
+                        if (!statusStr) return 'bg-blue-100 text-blue-800'; // Default blue for global
+                        const s = String(statusStr).toUpperCase();
+                        if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) return 'bg-gray-900 text-white';
+                        if (s === 'RED' || s.includes('CONCERN')) return 'bg-red-200 text-red-900';
+                        if (s === 'YELLOW' || s.includes('CAUTION')) return 'bg-yellow-200 text-yellow-900';
+                        if (s === 'GREEN' || s.includes('SAFE')) return 'bg-green-200 text-green-900';
+                        return 'bg-blue-100 text-blue-800';
+                      };
+
                       return (
                         <li key={idx} className="capitalize flex items-center justify-between border-b border-blue-100 last:border-0 pb-2 mb-2">
-                          {match ? (
-                            <>
-                              <span>{match[1].trim()}</span>
-                              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-bold">{match[2]}</span>
-                            </>
-                          ) : (
-                            <span>{text}</span>
+                          <div className="flex items-center gap-2">
+                            <span>{match ? match[1].trim() : text}</span>
+                            {status && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(status)}`}>
+                                {String(status)}
+                              </span>
+                            )}
+                          </div>
+                          {match && (
+                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-bold shrink-0">{match[2]}</span>
                           )}
                         </li>
                       );

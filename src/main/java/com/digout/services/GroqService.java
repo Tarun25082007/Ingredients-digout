@@ -36,7 +36,9 @@ public class GroqService {
     };
 
     private static final String[] VISION_MODELS = {
-            "qwen/qwen3.6-27b"
+            "llama-3.2-90b-vision-preview",
+            "llama-3.2-11b-vision-preview",
+            "qwen/qwen3.6-27b" // Fallback if user is using a custom endpoint
     };
 
     public GroqService(@Value("${groq.api.key}") String groqApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
@@ -50,7 +52,7 @@ public class GroqService {
         for (String model : models) {
             try {
                 java.util.Map<String, Object> payload = payloadBuilder.apply(model);
-                // Force max tokens to be large enough just in case it still thinks
+                // Force max tokens to be large enough just in case it still thinks, but not too large to exceed TPM limits
                 if (!payload.containsKey("max_tokens")) {
                     java.util.Map<String, Object> newPayload = new java.util.HashMap<>(payload);
                     newPayload.put("max_tokens", 4096);
@@ -85,6 +87,7 @@ public class GroqService {
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,
                     "messages", List.of(
+                            Map.of("role", "system", "content", "You are an expert nutritionist. DO NOT output <think> tags. Output ONLY valid JSON."),
                             Map.of(
                                     "role", "user",
                                     "content", List.of(
@@ -92,7 +95,8 @@ public class GroqService {
                                             Map.of("type", "image_url", "image_url", Map.of("url", base64Prefix + base64Image))
                                     )
                             )
-                    )
+                    ),
+                    "temperature", 0.1
             ), VISION_MODELS);
 
             String jsonText = extractResponseText(response.getBody());
@@ -144,7 +148,7 @@ public class GroqService {
 
     private String extractJson(String rawText) {
         // Clean out think tags and their content if the model ignored the prompt
-        String cleanedText = rawText.replaceAll("(?s)<think>.*?(?:</think>|$)", "").trim();
+        String cleanedText = rawText.replaceAll("(?s)\\s*<think>.*?(?:</think>|$)", "").trim();
         
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL).matcher(cleanedText);
         if (matcher.find()) {
@@ -155,6 +159,11 @@ public class GroqService {
         if (matcher.find()) {
             return matcher.group();
         }
+        
+        if (cleanedText.isEmpty()) {
+            throw new RuntimeException("AI model generated reasoning but failed to output JSON before hitting the token limit.");
+        }
+        
         return cleanedText.isEmpty() ? rawText : cleanedText;
     }
 }

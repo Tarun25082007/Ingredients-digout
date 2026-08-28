@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
+import VariantComparison from './VariantComparison';
 import { Upload, Camera, X, Barcode } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import { getUserCountry, getAllCountries } from '../utils/countryUtils';
@@ -65,9 +66,9 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setIsTyping(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const countryCode = getUserCountry();
-        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${countryCode}`);
-        if (isActive) {
+        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${encodeURIComponent(promptCountry)}`);
+        // Ensure response is an array of strings
+        if (isActive && Array.isArray(response.data)) {
           setSuggestions(response.data || []);
           setShowSuggestions(true);
         }
