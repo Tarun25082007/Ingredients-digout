@@ -84,9 +84,13 @@ public class ScanController {
 
         // Fetch exact ingredients from database first based on country
         String exactIngredients = null;
+        String servingSize = null;
+        String quantity = null;
         try {
             com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
             exactIngredients = dbProduct.ingredientsText();
+            servingSize = dbProduct.servingSize();
+            quantity = dbProduct.quantity();
         } catch (Exception e) {
             System.err.println("Could not fetch exact ingredients from OpenFoodFacts: " + e.getMessage());
             if (!"world".equalsIgnoreCase(countryCode)) {
@@ -96,7 +100,7 @@ public class ScanController {
             }
         }
 
-        return geminiService.analyzeIngredientsByName(productName, exactIngredients)
+        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity)
                 .thenApply(assessment -> {
                     try {
                         String json = objectMapper.writeValueAsString(assessment);

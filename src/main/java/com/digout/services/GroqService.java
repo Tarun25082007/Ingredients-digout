@@ -25,8 +25,8 @@ public class GroqService {
 
     private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
     
-    private static final String PROMPT = "Extract every ingredient from this image. Evaluate them against WHO guidelines. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
-    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
+    private static final String PROMPT = "Extract every ingredient from this image. Extract the total quantity and serving size if visible. Evaluate ingredients against WHO guidelines. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"servingSize\": \"String (e.g. 200ml)\", \"quantity\": \"String (e.g. 1L)\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
+    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name with percentage if available)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
 
     private static final String[] TEXT_MODELS = {
             "llama-3.3-70b-versatile",
@@ -107,7 +107,7 @@ public class GroqService {
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -117,7 +117,7 @@ public class GroqService {
             if (ingredientsText != null && !ingredientsText.trim().isEmpty() && !ingredientsText.equals("No ingredients available")) {
                 formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText.replace("'", ""));
             } else {
-                formattedPrompt = "The user is asking for the health assessment of a product named '" + productName.replace("'", "") + "'. We DO NOT have the ingredient list. Use your internal knowledge base to identify this product and its standard globally popular ingredients. Evaluate these assumed ingredients against WHO guidelines. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
+                formattedPrompt = "The user is asking for the health assessment of a product named '" + productName.replace("'", "") + "'. We DO NOT have the ingredient list. Use your internal knowledge base to identify this product and its standard globally popular ingredients. IF THIS IS A REGIONAL PRODUCT (e.g. Campa Orange), you MUST identify the most popular global equivalent (e.g. Fanta Orange) and use THAT product's ingredients instead, and set 'productName' to the global equivalent's name. Evaluate these assumed ingredients against WHO guidelines. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }. Ensure 'status' is strictly RED, YELLOW, or GREEN.";
             }
             
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> java.util.Map.of(
@@ -130,7 +130,17 @@ public class GroqService {
             ), TEXT_MODELS);
 
             String jsonText = extractResponseText(response.getBody());
-            return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
+            WhoAssessmentDTO parsed = objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
+            WhoAssessmentDTO augmented = new WhoAssessmentDTO(
+                parsed.productName(),
+                parsed.ingredientsFound(),
+                parsed.whoFlags(),
+                parsed.overallIndicator(),
+                parsed.globalEquivalent(),
+                servingSize,
+                quantity
+            );
+            return CompletableFuture.completedFuture(augmented);
         } catch (Exception e) {
             throw new RuntimeException("Fallback Groq AI failed to analyze name: " + e.getMessage(), e);
         }

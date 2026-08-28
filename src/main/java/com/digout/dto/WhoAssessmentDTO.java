@@ -7,7 +7,9 @@ public record WhoAssessmentDTO(
         List<IngredientDetail> ingredientsFound,
         List<WhoFlag> whoFlags,
         String overallIndicator,
-        String globalEquivalent
+        String globalEquivalent,
+        String servingSize,
+        String quantity
 ) {
     public record IngredientDetail(
             String name,

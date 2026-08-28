@@ -46,6 +46,16 @@ const HealthStatusCard = ({ assessment }) => {
         <h2 className="text-2xl font-bold capitalize text-gray-900">
           {productName ? String(productName) : "Unknown Product"}
         </h2>
+        
+        {/* Quantity and Serving Size */}
+        {(assessment.quantity || assessment.servingSize) && (
+          <p className="text-sm text-gray-700 mt-1 mb-2 font-medium bg-white/50 inline-block px-3 py-1 rounded-md">
+            {assessment.quantity && <span>Size: {String(assessment.quantity)}</span>}
+            {assessment.quantity && assessment.servingSize && <span className="mx-2">|</span>}
+            {assessment.servingSize && <span>Serving: {String(assessment.servingSize)}</span>}
+          </p>
+        )}
+
         <p className="text-sm font-bold mt-2 uppercase tracking-wide">
           {statusText}
         </p>

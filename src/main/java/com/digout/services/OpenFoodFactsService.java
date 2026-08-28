@@ -43,8 +43,10 @@ public class OpenFoodFactsService {
             JsonNode productNode = products.get(0);
             String foundProductName = productNode.path("product_name").asText(null);
             String ingredientsText = productNode.path("ingredients_text").asText(null);
+            String servingSize = productNode.path("serving_size").asText(null);
+            String quantity = productNode.path("quantity").asText(null);
 
-            return new OpenFoodFactsDTO(foundProductName, ingredientsText);
+            return new OpenFoodFactsDTO(foundProductName, ingredientsText, servingSize, quantity);
 
         } catch (HttpClientErrorException.NotFound e) {
             System.out.println("Product not found (404) for name: " + productName);
