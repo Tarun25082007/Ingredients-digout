@@ -139,7 +139,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
               <h4 className="font-bold text-gray-800 mb-4 flex items-center text-lg justify-between">
                 <div className="flex items-center">
                   <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
-                  Global Version {internationalData && `(${internationalData.productName})`}
+                  Global Version {internationalData && `(${internationalData.globalEquivalent || internationalData.productName})`}
                 </div>
               </h4>
               
