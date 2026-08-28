@@ -40,11 +40,11 @@ public class UsdaFoodDataService {
             String foundProductName = firstFood.path("description").asText(productName);
             String ingredientsText = firstFood.path("ingredients").asText("");
 
-            return new OpenFoodFactsDTO(foundProductName, ingredientsText);
+            return new OpenFoodFactsDTO(foundProductName, ingredientsText, null, null);
         } catch (Exception e) {
             System.err.println("Fallback USDA database failed: " + e.getMessage());
             // If even the fallback fails, return empty ingredients so the AI attempts to guess them
-            return new OpenFoodFactsDTO(productName, "");
+            return new OpenFoodFactsDTO(productName, "", null, null);
         }
     }
 }

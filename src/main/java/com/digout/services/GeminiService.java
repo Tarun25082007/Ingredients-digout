@@ -262,7 +262,9 @@ public class GeminiService {
             JsonNode parsedJson = objectMapper.readTree(jsonText);
             return new com.digout.dto.OpenFoodFactsDTO(
                 parsedJson.path("product_name").asText(productName),
-                parsedJson.path("ingredients_text").asText("")
+                parsedJson.path("ingredients_text").asText(""),
+                null,
+                null
             );
         } catch (Exception e) {
             throw new RuntimeException("Fallback database AI failed: " + e.getMessage(), e);
