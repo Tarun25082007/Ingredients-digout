@@ -151,7 +151,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     }
   };
 
-  const searchByProductName = async (e, customName = null, customCountry = null) => {
+  const searchByProductName = async (e, customName = null, customCountry = null, forceAi = false) => {
     if (e) e.preventDefault();
     const query = customName !== null ? customName : searchName;
     if (!query.trim()) return;
@@ -167,7 +167,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       setScanRegion(activeCountryCode);
       const response = await api.post('/scan/analyze-name', { 
         productName: sanitizedSearch,
-        countryCode: activeCountryCode
+        countryCode: activeCountryCode,
+        forceAi: forceAi
       });
       setAssessment(response.data);
       setMode('result');
@@ -221,10 +222,10 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     }
   };
 
-  const handleSuggestionClick = (suggestionName) => {
+  const handleSuggestionClick = (suggestionName, forceAi = false) => {
     setSearchName(suggestionName);
     setShowSuggestions(false);
-    searchByProductName(null, suggestionName);
+    searchByProductName(null, suggestionName, null, forceAi);
   };
 
   return (
@@ -339,7 +340,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                               ))}
                               {/* Always show the AI fallback option */}
                               <div 
-                                onMouseDown={() => handleSuggestionClick(searchName)}
+                                onMouseDown={() => handleSuggestionClick(searchName, true)}
                                 className="flex items-center gap-3 p-3 hover:bg-indigo-50 cursor-pointer border-t border-gray-200 bg-gray-50"
                               >
                                 <div className="w-10 h-10 flex items-center justify-center bg-indigo-100 rounded text-indigo-600">
@@ -463,6 +464,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                 </button>
                 <span className="text-gray-300">|</span>
                 <button 
+                  onClick={() => searchByProductName(null, searchName, promptCountry.toLowerCase(), true)}
+                  className="text-indigo-600 hover:text-indigo-800 font-medium underline flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                  Analyze with AI instead
+                </button>
+                <span className="text-gray-300">|</span>
+                <button 
                   onClick={resetScanner}
                   className="text-gray-500 hover:text-gray-800 font-medium"
                 >
@@ -475,6 +484,23 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
           {/* Mode: Result */}
           {mode === 'result' && assessment && (
             <div className="animate-fadeIn">
+              {assessment.dataSourceRegion === 'world_fallback' ? (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg text-sm text-center">
+                  ⚠️ <strong>Not available in your region.</strong> Displaying results from the <strong>Global Database</strong>.
+                </div>
+              ) : assessment.dataSourceRegion === 'world' ? (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm text-center uppercase tracking-wide">
+                  🌍 Sourced from <strong>Global (World)</strong> database
+                </div>
+              ) : assessment.dataSourceRegion ? (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm text-center uppercase tracking-wide">
+                  📍 Sourced from <strong>{assessment.dataSourceRegion}</strong> database
+                </div>
+              ) : (
+                <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-lg text-sm text-center">
+                  ✨ Analyzed using <strong>AI Fallback</strong>
+                </div>
+              )}
               <HealthStatusCard assessment={assessment} />
               
               {scanRegion !== 'world' && (

@@ -9,7 +9,8 @@ public record WhoAssessmentDTO(
         String overallIndicator,
         String globalEquivalent,
         String servingSize,
-        String quantity
+        String quantity,
+        String dataSourceRegion
 ) {
     public record IngredientDetail(
             String name,

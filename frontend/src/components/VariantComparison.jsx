@@ -97,7 +97,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                     {scannedIngredients.filter(i => i != null).map((ing, idx) => {
                       const text = String((typeof ing === 'string' ? ing : ing?.name) || '');
                       const status = typeof ing === 'string' ? null : ing?.status;
-                      const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i)) : null;
+                      const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?\s*(?:%|g|mg|ml|mcg|kcal|l))\)?/i)) : null;
 
                       const getStatusColor = (statusStr) => {
                         if (!statusStr) return 'bg-gray-200 text-gray-800';
@@ -149,7 +149,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                     {internationalData.ingredientsFound.filter(i => i != null).map((ing, idx) => {
                       const text = String((typeof ing === 'string' ? ing : ing?.name) || '');
                       const status = typeof ing === 'string' ? null : ing?.status;
-                      const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?%)\)?/i) || text.match(/(.+)[\s_]+(\d+(?:\.\d+)?%)/i)) : null;
+                      const match = text ? (text.match(/(.+)[\s_]+\(?(\d+(?:\.\d+)?\s*(?:%|g|mg|ml|mcg|kcal|l))\)?/i)) : null;
 
                       const getStatusColor = (statusStr) => {
                         if (!statusStr) return 'bg-blue-100 text-blue-800'; // Default blue for global

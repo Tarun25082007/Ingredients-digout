@@ -82,38 +82,61 @@ public class ScanController {
             }
         }
 
-        // Fetch exact ingredients from database first based on country
+        boolean forceAi = Boolean.parseBoolean(payload.getOrDefault("forceAi", "false"));
+
+        // Fetch exact ingredients from database first based on country (skip if forceAi)
         String exactIngredients = null;
         String servingSize = null;
         String quantity = null;
-        try {
-            com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
-            exactIngredients = dbProduct.ingredientsText();
-            servingSize = dbProduct.servingSize();
-            quantity = dbProduct.quantity();
-        } catch (Exception e) {
-            System.err.println("Could not fetch exact ingredients from OpenFoodFacts: " + e.getMessage());
-            if (!"world".equalsIgnoreCase(countryCode)) {
-                return CompletableFuture.completedFuture(ResponseEntity.status(404).body(
-                    java.util.Map.of("error", "REGION_NOT_FOUND", "message", "Product not found in selected region.")
-                ));
+        String dataSourceRegion = forceAi ? null : countryCode;
+        
+        if (!forceAi) {
+            try {
+                com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
+                exactIngredients = dbProduct.ingredientsText();
+                servingSize = dbProduct.servingSize();
+                quantity = dbProduct.quantity();
+            } catch (Exception e) {
+                System.err.println("Could not fetch exact ingredients from OpenFoodFacts for region " + countryCode + ": " + e.getMessage());
+                if (!"world".equalsIgnoreCase(countryCode)) {
+                    try {
+                        System.out.println("Falling back to global database for " + productName);
+                        com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
+                        exactIngredients = globalProduct.ingredientsText();
+                        servingSize = globalProduct.servingSize();
+                        quantity = globalProduct.quantity();
+                        dataSourceRegion = "world_fallback";
+                    } catch (Exception globalE) {
+                        return CompletableFuture.completedFuture(ResponseEntity.status(404).body(
+                            java.util.Map.of("error", "REGION_NOT_FOUND", "message", "Product not found in selected region or global database.")
+                        ));
+                    }
+                }
             }
         }
-
         return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity)
                 .thenApply(assessment -> {
+                    WhoAssessmentDTO finalAssessment = new WhoAssessmentDTO(
+                            assessment.productName(),
+                            assessment.ingredientsFound(),
+                            assessment.whoFlags(),
+                            assessment.overallIndicator(),
+                            assessment.globalEquivalent(),
+                            assessment.servingSize(),
+                            assessment.quantity(),
+                            dataSourceRegion
+                    );
                     try {
-                        String json = objectMapper.writeValueAsString(assessment);
+                        String json = objectMapper.writeValueAsString(finalAssessment);
                         CachedAnalysis cacheEntry = new CachedAnalysis();
-                        cacheEntry.setProductName(productName);
+                        cacheEntry.setProductName(productName.trim());
                         cacheEntry.setAnalysisResultJson(json);
                         cachedAnalysisRepository.save(cacheEntry);
                     } catch (Exception e) {
                         System.err.println("Failed to cache analysis: " + e.getMessage());
                     }
-
-                    saveScanHistory(auth, assessment);
-                    return ResponseEntity.ok((Object) assessment);
+                    saveScanHistory(auth, finalAssessment);
+                    return ResponseEntity.ok((Object) finalAssessment);
                 });
     }
 
