@@ -45,14 +45,14 @@ public class ScanController {
     }
 
     @PostMapping("/analyze")
-    public CompletableFuture<ResponseEntity<Object>> analyzeImage(@RequestParam("file") MultipartFile file) throws IOException {
+    public CompletableFuture<ResponseEntity<Object>> analyzeImage(@RequestParam("file") MultipartFile file, @RequestParam(value = "foodCategory", defaultValue = "packaged") String foodCategory) throws IOException {
         byte[] bytes = file.getBytes();
         String base64Image = Base64.getEncoder().encodeToString(bytes);
         String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
         
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        return geminiService.analyzeIngredients(base64Image, mimeType)
+        return geminiService.analyzeIngredients(base64Image, mimeType, foodCategory)
                 .thenApply(assessment -> {
                     saveScanHistory(auth, assessment);
                     return ResponseEntity.ok((Object) assessment);
@@ -82,6 +82,7 @@ public class ScanController {
             }
         }
 
+        String foodCategory = payload.getOrDefault("foodCategory", "packaged");
         boolean forceAi = Boolean.parseBoolean(payload.getOrDefault("forceAi", "false"));
 
         // Fetch exact ingredients from database first based on country (skip if forceAi)
@@ -91,30 +92,43 @@ public class ScanController {
         String dataSourceRegion = forceAi ? null : countryCode;
         
         if (!forceAi) {
-            try {
-                com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
-                exactIngredients = dbProduct.ingredientsText();
-                servingSize = dbProduct.servingSize();
-                quantity = dbProduct.quantity();
-            } catch (Exception e) {
-                System.err.println("Could not fetch exact ingredients from OpenFoodFacts for region " + countryCode + ": " + e.getMessage());
-                if (!"world".equalsIgnoreCase(countryCode)) {
-                    try {
-                        System.out.println("Falling back to global database for " + productName);
-                        com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
-                        exactIngredients = globalProduct.ingredientsText();
-                        servingSize = globalProduct.servingSize();
-                        quantity = globalProduct.quantity();
-                        dataSourceRegion = "world_fallback";
-                    } catch (Exception globalE) {
-                        return CompletableFuture.completedFuture(ResponseEntity.status(404).body(
-                            java.util.Map.of("error", "REGION_NOT_FOUND", "message", "Product not found in selected region or global database.")
-                        ));
+            if ("fresh".equals(foodCategory)) {
+                try {
+                    com.digout.dto.OpenFoodFactsDTO dbProduct = usdaFoodDataService.searchFreshProductByName(productName);
+                    exactIngredients = dbProduct.ingredientsText();
+                    servingSize = dbProduct.servingSize();
+                    quantity = dbProduct.quantity();
+                    dataSourceRegion = "usda_foundation";
+                } catch (Exception e) {
+                    System.err.println("Could not fetch exact ingredients from USDA for fresh food: " + e.getMessage());
+                    dataSourceRegion = null; // AI fallback
+                }
+            } else {
+                try {
+                    com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
+                    exactIngredients = dbProduct.ingredientsText();
+                    servingSize = dbProduct.servingSize();
+                    quantity = dbProduct.quantity();
+                } catch (Exception e) {
+                    System.err.println("Could not fetch exact ingredients from OpenFoodFacts for region " + countryCode + ": " + e.getMessage());
+                    if (!"world".equalsIgnoreCase(countryCode)) {
+                        try {
+                            System.out.println("Falling back to global database for " + productName);
+                            com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
+                            exactIngredients = globalProduct.ingredientsText();
+                            servingSize = globalProduct.servingSize();
+                            quantity = globalProduct.quantity();
+                            dataSourceRegion = "world_fallback";
+                        } catch (Exception globalE) {
+                            return CompletableFuture.completedFuture(ResponseEntity.status(404).body(
+                                java.util.Map.of("error", "REGION_NOT_FOUND", "message", "Product not found in selected region or global database.")
+                            ));
+                        }
                     }
                 }
             }
         }
-        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity)
+        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory)
                 .thenApply(assessment -> {
                     WhoAssessmentDTO finalAssessment = new WhoAssessmentDTO(
                             assessment.productName(),

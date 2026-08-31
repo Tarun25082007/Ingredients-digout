@@ -7,7 +7,8 @@ import BarcodeScanner from './BarcodeScanner';
 import { getUserCountry, getAllCountries } from '../utils/countryUtils';
 
 const ScannerModal = ({ onClose, onScanComplete }) => {
-  const [mode, setMode] = useState('select'); // 'select', 'camera', 'barcode', 'uploading', 'result'
+  const [mode, setMode] = useState('category_select'); // 'category_select', 'select', 'camera', 'barcode', 'uploading', 'result'
+  const [foodCategory, setFoodCategory] = useState(null); // 'fresh' or 'packaged'
   const [error, setError] = useState('');
   const [searchName, setSearchName] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -134,6 +135,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     
     const formData = new FormData();
     formData.append('file', file); // Backend expects @RequestParam("file")
+    if (foodCategory) formData.append('foodCategory', foodCategory);
 
     try {
       const response = await api.post('/scan/analyze', formData, {
@@ -168,7 +170,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       const response = await api.post('/scan/analyze-name', { 
         productName: sanitizedSearch,
         countryCode: activeCountryCode,
-        forceAi: forceAi
+        forceAi: forceAi,
+        foodCategory: foodCategory
       });
       setAssessment(response.data);
       setMode('result');
@@ -247,25 +250,67 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
             </div>
           )}
 
+          {/* Mode: Category Selection */}
+          {mode === 'category_select' && (
+            <div className="text-center py-12 animate-fadeIn">
+              <h2 className="text-3xl font-extrabold text-gray-800 mb-4">What are you analyzing?</h2>
+              <p className="text-gray-600 mb-10 max-w-md mx-auto">
+                Select the type of food to get the most accurate health assessment.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-stretch justify-center gap-6">
+                <button 
+                  onClick={() => { setFoodCategory('fresh'); setMode('select'); }}
+                  className="flex-1 group flex flex-col items-center justify-center p-8 border border-gray-200 rounded-2xl hover:border-emerald-500 hover:shadow-lg transition-all duration-300 bg-emerald-50/30"
+                >
+                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">🥗</div>
+                  <span className="font-bold text-gray-800 text-lg">Fresh / Prepared Meals</span>
+                  <span className="text-sm text-gray-500 mt-2">Dosa, Idli, Fruits, Homemade</span>
+                </button>
+
+                <button 
+                  onClick={() => { setFoodCategory('packaged'); setMode('select'); }}
+                  className="flex-1 group flex flex-col items-center justify-center p-8 border border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300 bg-blue-50/30"
+                >
+                  <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">🥫</div>
+                  <span className="font-bold text-gray-800 text-lg">Packaged Goods</span>
+                  <span className="text-sm text-gray-500 mt-2">Items with a barcode & label</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Mode: Selection */}
           {mode === 'select' && (
-            <div className="text-center py-12">
-              <h2 className="text-3xl font-extrabold text-gray-800 mb-4">Scan Ingredients</h2>
+            <div className="text-center py-12 animate-fadeIn">
+              <button 
+                onClick={() => setMode('category_select')}
+                className="absolute top-4 left-4 text-sm text-gray-500 hover:text-gray-800 flex items-center"
+              >
+                ← Back
+              </button>
+              <h2 className="text-3xl font-extrabold text-gray-800 mb-4">
+                {foodCategory === 'fresh' ? 'Analyze Fresh Food' : 'Scan Ingredients'}
+              </h2>
               <p className="text-gray-600 mb-10 max-w-md mx-auto">
-                Take a clear photo of an ingredient list or upload an image to evaluate it against WHO guidelines.
+                {foodCategory === 'fresh' 
+                  ? 'Take a photo of your food or search by name to evaluate it.' 
+                  : 'Take a clear photo of an ingredient list, scan a barcode, or search by name.'}
               </p>
               
               <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4">
-                <button 
-                  onClick={() => setMode('barcode')}
-                  className="flex-1 group flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300"
-                >
-                  <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                    <Barcode className="w-6 h-6" />
-                  </div>
-                  <span className="font-medium text-gray-700">Scan Barcode</span>
-                  <span className="text-xs text-gray-400 mt-1">Fast & accurate</span>
-                </button>
+                {foodCategory === 'packaged' && (
+                  <button 
+                    onClick={() => setMode('barcode')}
+                    className="flex-1 group flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300"
+                  >
+                    <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Barcode className="w-6 h-6" />
+                    </div>
+                    <span className="font-medium text-gray-700">Scan Barcode</span>
+                    <span className="text-xs text-gray-400 mt-1">Fast & accurate</span>
+                  </button>
+                )}
 
                 <div className="flex-1 relative">
                   <input 

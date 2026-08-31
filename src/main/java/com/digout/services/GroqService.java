@@ -75,13 +75,18 @@ public class GroqService {
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType, String foodCategory) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(groqApiKey);
 
             String base64Prefix = "data:" + mimeType + ";base64,";
+            
+            String currentPrompt = PROMPT;
+            if ("fresh".equals(foodCategory)) {
+                currentPrompt += " Note: This is a fresh or prepared food item (like a local dish, fruit, etc). State its place of origin in the explanation if applicable.";
+            }
             
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,
@@ -90,7 +95,7 @@ public class GroqService {
                             Map.of(
                                     "role", "user",
                                     "content", List.of(
-                                            Map.of("type", "text", "text", PROMPT),
+                                            Map.of("type", "text", "text", currentPrompt),
                                             Map.of("type", "image_url", "image_url", Map.of("url", base64Prefix + base64Image))
                                     )
                             )
@@ -106,17 +111,26 @@ public class GroqService {
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity, String foodCategory) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(groqApiKey);
 
             String formattedPrompt;
-            if (ingredientsText != null && !ingredientsText.trim().isEmpty() && !ingredientsText.equals("No ingredients available")) {
-                formattedPrompt = String.format(TEXT_PROMPT, productName.replace("'", ""), ingredientsText.replace("'", ""));
+            if (ingredientsText == null || ingredientsText.isBlank()) {
+                formattedPrompt = "The user is asking for the health assessment of a product named '" + productName + "'. We DO NOT have database ingredients for this, so you MUST use your internal knowledge base to identify this product and assume its standard ingredients. ";
+                if ("fresh".equals(foodCategory)) {
+                    formattedPrompt += "This is a fresh or prepared food (like a local dish, fruit, or homemade meal). If it is a local/regional dish, please state its place of origin in the explanation. ";
+                } else {
+                    formattedPrompt += "If this is a regional packaged product, identify the most popular global equivalent and use THAT product's ingredients instead, setting 'globalEquivalent'. ";
+                }
+                formattedPrompt += "Evaluate the ingredients against WHO guidelines. RULES: 1. Be strictly consistent: Sugar/Sucrose MUST be RED. Preservatives MUST be YELLOW or RED. Natural flavors/water MUST be GREEN. 2. If an ingredient is unknown, its status MUST be BLACK. 3. DO NOT output reasoning or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected name, plus origin if fresh/local)\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name ONLY, no estimated amounts)\", \"explanation\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }.";
             } else {
-                formattedPrompt = "The user is asking for the health assessment of a product named '" + productName.replace("'", "") + "'. We DO NOT have the ingredient list. Use your internal knowledge base to identify this product and its standard globally popular ingredients. IF THIS IS A REGIONAL PRODUCT (e.g. Campa Orange), you MUST identify the most popular global equivalent (e.g. Fanta Orange) and use THAT product's ingredients instead, and set 'productName' to the global equivalent's name. Evaluate these assumed ingredients against WHO guidelines. RULES: 1. Be strictly consistent: Sugar/Sucrose MUST be RED. Preservatives MUST be YELLOW or RED. Natural flavors/water MUST be GREEN. 2. If an ingredient is unknown, its status MUST be BLACK. 3. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name ONLY, no estimated amounts)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }.";
+                formattedPrompt = String.format(TEXT_PROMPT, productName, ingredientsText);
+                if ("fresh".equals(foodCategory)) {
+                    formattedPrompt += " Note: This is a fresh or prepared food. If it's a local dish, mention its place of origin in the explanation.";
+                }
             }
             
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> java.util.Map.of(

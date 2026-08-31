@@ -15,7 +15,7 @@ public class UsdaFoodDataService {
     private final ObjectMapper objectMapper;
     private final String usdaApiKey;
     
-    private static final String USDA_API_URL_TEMPLATE = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=%s&query=%s&dataType=Branded&pageSize=1";
+    private static final String USDA_API_URL_TEMPLATE = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=%s&query=%s&dataType=Foundation,SR%%20Legacy,Survey%%20(FNDDS)&pageSize=1";
 
     public UsdaFoodDataService(RestTemplate restTemplate, ObjectMapper objectMapper, @Value("${usda.api.key}") String usdaApiKey) {
         this.restTemplate = restTemplate;
@@ -23,7 +23,7 @@ public class UsdaFoodDataService {
         this.usdaApiKey = usdaApiKey;
     }
 
-    public OpenFoodFactsDTO getIngredientsDatabaseFallback(String productName) {
+    public OpenFoodFactsDTO searchFreshProductByName(String productName) {
         try {
             String encodedName = java.net.URLEncoder.encode(productName, java.nio.charset.StandardCharsets.UTF_8);
             String url = String.format(USDA_API_URL_TEMPLATE, usdaApiKey, encodedName);
