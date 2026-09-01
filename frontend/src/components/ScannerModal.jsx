@@ -191,7 +191,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
   const resetScanner = () => {
     setAssessment(null);
-    setMode('select');
+    setMode('category_select');
+    setFoodCategory(null);
     setError('');
     setSearchName('');
     setSuggestions([]);

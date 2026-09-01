@@ -98,6 +98,23 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
     setSuccessMsg('');
 
     try {
+      const parsedAge = age ? parseInt(age, 10) : null;
+      if (parsedAge !== null && (parsedAge < 1 || parsedAge > 120)) {
+        setError('Please enter a valid age between 1 and 120.');
+        setSaving(false);
+        return;
+      }
+      if (heightVal && (heightVal < 40 || heightVal > 260)) {
+        setError('Please enter a valid height between 40 cm and 260 cm.');
+        setSaving(false);
+        return;
+      }
+      if (weightVal && (weightVal < 15 || weightVal > 350)) {
+        setError('Please enter a valid weight between 15 kg and 350 kg.');
+        setSaving(false);
+        return;
+      }
+
       const allConditions = [...selectedConditions];
       if (customCondition.trim()) {
         allConditions.push(customCondition.trim());
@@ -105,7 +122,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
 
       const payload = {
         fullName: fullName.trim() || undefined,
-        age: age ? parseInt(age, 10) : null,
+        age: parsedAge,
         gender: gender || 'PREFER_NOT_TO_SAY',
         heightCm: heightVal || null,
         weightKg: weightVal || null,
