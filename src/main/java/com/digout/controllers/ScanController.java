@@ -51,8 +51,9 @@ public class ScanController {
         String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
         
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userProfileSummary = buildUserProfileSummary(auth);
 
-        return geminiService.analyzeIngredients(base64Image, mimeType, foodCategory)
+        return geminiService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary)
                 .thenApply(assessment -> {
                     saveScanHistory(auth, assessment);
                     return ResponseEntity.ok((Object) assessment);
@@ -69,16 +70,19 @@ public class ScanController {
         }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String userProfileSummary = buildUserProfileSummary(auth);
 
-        Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCase(productName.trim());
-        if (cachedOpt.isPresent()) {
-            try {
-                WhoAssessmentDTO cachedAssessment = objectMapper.readValue(cachedOpt.get().getAnalysisResultJson(), WhoAssessmentDTO.class);
-                saveScanHistory(auth, cachedAssessment);
-                return CompletableFuture.completedFuture(ResponseEntity.ok((Object) cachedAssessment));
-            } catch (Exception e) {
-                System.err.println("Failed to parse cached JSON: " + e.getMessage());
-                // Fallthrough to re-analyze if cache parse fails
+        // Only use generic cache if user has no personalized health profile
+        if (userProfileSummary == null) {
+            Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCase(productName.trim());
+            if (cachedOpt.isPresent()) {
+                try {
+                    WhoAssessmentDTO cachedAssessment = objectMapper.readValue(cachedOpt.get().getAnalysisResultJson(), WhoAssessmentDTO.class);
+                    saveScanHistory(auth, cachedAssessment);
+                    return CompletableFuture.completedFuture(ResponseEntity.ok((Object) cachedAssessment));
+                } catch (Exception e) {
+                    System.err.println("Failed to parse cached JSON: " + e.getMessage());
+                }
             }
         }
 
@@ -128,7 +132,7 @@ public class ScanController {
                 }
             }
         }
-        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory)
+        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory, userProfileSummary)
                 .thenApply(assessment -> {
                     WhoAssessmentDTO finalAssessment = new WhoAssessmentDTO(
                             assessment.productName(),
@@ -138,20 +142,51 @@ public class ScanController {
                             assessment.globalEquivalent(),
                             assessment.servingSize(),
                             assessment.quantity(),
-                            dataSourceRegion
+                            dataSourceRegion,
+                            assessment.personalizedAlerts(),
+                            assessment.recommendedServingAdvice()
                     );
-                    try {
-                        String json = objectMapper.writeValueAsString(finalAssessment);
-                        CachedAnalysis cacheEntry = new CachedAnalysis();
-                        cacheEntry.setProductName(productName.trim());
-                        cacheEntry.setAnalysisResultJson(json);
-                        cachedAnalysisRepository.save(cacheEntry);
-                    } catch (Exception e) {
-                        System.err.println("Failed to cache analysis: " + e.getMessage());
+                    if (userProfileSummary == null) {
+                        try {
+                            String json = objectMapper.writeValueAsString(finalAssessment);
+                            CachedAnalysis cacheEntry = new CachedAnalysis();
+                            cacheEntry.setProductName(productName.trim());
+                            cacheEntry.setAnalysisResultJson(json);
+                            cachedAnalysisRepository.save(cacheEntry);
+                        } catch (Exception e) {
+                            System.err.println("Failed to cache analysis: " + e.getMessage());
+                        }
                     }
                     saveScanHistory(auth, finalAssessment);
                     return ResponseEntity.ok((Object) finalAssessment);
                 });
+    }
+
+    private String buildUserProfileSummary(Authentication auth) {
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+            String email = auth.getName();
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                User u = userOpt.get();
+                if (Boolean.TRUE.equals(u.getProfileCompleted())) {
+                    StringBuilder sb = new StringBuilder();
+                    if (u.getAge() != null) sb.append("Age: ").append(u.getAge()).append(", ");
+                    if (u.getGender() != null) sb.append("Gender: ").append(u.getGender()).append(", ");
+                    if (u.getHeightCm() != null && u.getWeightKg() != null && u.getHeightCm() > 0) {
+                        double hm = u.getHeightCm() / 100.0;
+                        double bmi = Math.round((u.getWeightKg() / (hm * hm)) * 10.0) / 10.0;
+                        sb.append("Height: ").append(u.getHeightCm()).append("cm, Weight: ").append(u.getWeightKg()).append("kg (BMI: ").append(bmi).append("), ");
+                    }
+                    if (u.getActivityLevel() != null) sb.append("Activity: ").append(u.getActivityLevel()).append(", ");
+                    if (u.getCalorieGoal() != null) sb.append("Calorie Goal: ").append(u.getCalorieGoal()).append(", ");
+                    if (u.getMedicalConditions() != null && !u.getMedicalConditions().isBlank()) {
+                        sb.append("Conditions/Stages/Allergies: [").append(u.getMedicalConditions()).append("]");
+                    }
+                    return sb.toString();
+                }
+            }
+        }
+        return null;
     }
 
     private void saveScanHistory(Authentication auth, WhoAssessmentDTO assessment) {

@@ -27,6 +27,29 @@ public class User {
 
     private String role;
 
+    private Integer age;
+
+    private String gender;
+
+    @Column(name = "height_cm")
+    private Double heightCm;
+
+    @Column(name = "weight_kg")
+    private Double weightKg;
+
+    @Column(name = "activity_level")
+    private String activityLevel;
+
+    @Column(name = "calorie_goal")
+    private String calorieGoal;
+
+    @Column(name = "medical_conditions", length = 1000)
+    private String medicalConditions;
+
+    @Column(name = "profile_completed")
+    @Builder.Default
+    private Boolean profileCompleted = false;
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

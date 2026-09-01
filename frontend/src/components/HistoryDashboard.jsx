@@ -85,6 +85,7 @@ const HistoryDashboard = () => {
                     {scan.productName || "Unknown Product"}
                   </h3>
                   <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    scan.healthStatus === 'PURPLE' ? 'bg-purple-900 text-white' :
                     scan.healthStatus === 'RED' ? 'bg-red-100 text-red-800' :
                     scan.healthStatus === 'YELLOW' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-green-100 text-green-800'
@@ -104,6 +105,10 @@ const HistoryDashboard = () => {
             ))}
           </div>
         )}
+
+        <div className="mt-12 text-center text-[11px] text-gray-400">
+          ℹ️ Historical health indicators reflect guidelines at the time of scan. AI can make mistakes — always consult healthcare providers for medical advice.
+        </div>
       </div>
 
       {/* Details Modal */}
@@ -118,11 +123,15 @@ const HistoryDashboard = () => {
             </button>
             <div className="max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl">
               <HealthStatusCard 
-                assessment={
-                  selectedScan.whoAssessmentJson 
-                    ? JSON.parse(selectedScan.whoAssessmentJson) 
-                    : { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus }
-                } 
+                assessment={(() => {
+                  try {
+                    return selectedScan.whoAssessmentJson 
+                      ? (typeof selectedScan.whoAssessmentJson === 'string' ? JSON.parse(selectedScan.whoAssessmentJson) : selectedScan.whoAssessmentJson)
+                      : { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus };
+                  } catch (e) {
+                    return { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus };
+                  }
+                })()} 
               />
             </div>
           </div>

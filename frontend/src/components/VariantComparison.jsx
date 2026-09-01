@@ -102,6 +102,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                       const getStatusColor = (statusStr) => {
                         if (!statusStr) return 'bg-gray-200 text-gray-800';
                         const s = String(statusStr).toUpperCase();
+                        if (s === 'PURPLE' || s.includes('PURPLE') || s.includes('STRICTLY') || s.includes('CONTRAINDICATED')) return 'bg-purple-900 text-white';
                         if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) return 'bg-gray-900 text-white';
                         if (s === 'RED' || s.includes('CONCERN')) return 'bg-red-200 text-red-900';
                         if (s === 'YELLOW' || s.includes('CAUTION')) return 'bg-yellow-200 text-yellow-900';
@@ -154,6 +155,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                       const getStatusColor = (statusStr) => {
                         if (!statusStr) return 'bg-blue-100 text-blue-800'; // Default blue for global
                         const s = String(statusStr).toUpperCase();
+                        if (s === 'PURPLE' || s.includes('PURPLE') || s.includes('STRICTLY') || s.includes('CONTRAINDICATED')) return 'bg-purple-900 text-white';
                         if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) return 'bg-gray-900 text-white';
                         if (s === 'RED' || s.includes('CONCERN')) return 'bg-red-200 text-red-900';
                         if (s === 'YELLOW' || s.includes('CAUTION')) return 'bg-yellow-200 text-yellow-900';

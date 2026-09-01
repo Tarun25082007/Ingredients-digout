@@ -25,8 +25,8 @@ public class GeminiService {
     private final GroqService groqService;
 
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/interactions?key=";
-    private static final String PROMPT = "Extract every ingredient from this image. Extract the total quantity and serving size if visible. IF the image does not clearly show the ingredients, you MUST use your internal knowledge base to identify this product and assume its standard globally popular ingredients. IF THIS IS A REGIONAL PRODUCT (e.g. Campa Orange), you MUST identify the most popular global equivalent (e.g. Fanta Orange) and use THAT product's ingredients instead, and set 'globalEquivalent' to that name. Evaluate the ingredients against WHO guidelines. RULES: 1. Be strictly consistent: Sugar/Sucrose MUST be RED. Preservatives MUST be YELLOW or RED. Natural flavors/water MUST be GREEN. 2. If an ingredient is unknown, its status MUST be BLACK. 3. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String (highly popular global equivalent brand/product if this is regional, e.g. 'Fanta Orange' for 'Campa Orange', else same as productName)\", \"servingSize\": \"String (e.g. 200ml, leave null if unknown)\", \"quantity\": \"String (e.g. 1L, leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + exact % or amount from the image if present)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }.";
-    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines. RULES: 1. Be strictly consistent: Sugar/Sucrose MUST be RED. Preservatives MUST be YELLOW or RED. Natural flavors/water MUST be GREEN. 2. If an ingredient is unknown, its status MUST be BLACK. 3. DO NOT output any reasoning, explanations, or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected/identified product name)\", \"globalEquivalent\": \"String (the globally popular equivalent if regional)\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + EXACT %% or amount from the provided database text if present)\", \"explanation\": \"String (health impact)\", \"status\": \"RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }.";
+    private static final String PROMPT = "Extract every ingredient from this image. Extract total quantity and serving size if visible. IF the image does not clearly show the ingredients, use your internal knowledge base to identify this product and assume standard globally popular ingredients. IF THIS IS A REGIONAL PRODUCT (e.g. Campa Orange), identify the most popular global equivalent (e.g. Fanta Orange), use THAT product's ingredients instead, and set 'globalEquivalent'. Evaluate against WHO guidelines and the provided USER HEALTH PROFILE (if any). RULES: 1. Statuses can be GREEN (safe/healthy), YELLOW (moderate/caution), RED (general health risk / avoid), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user's medical conditions, pregnancy, or extreme calorie mismatch), BLACK (unknown). 2. For pregnancy, strictly flag caffeine >200mg, raw/unpasteurized items, saccharin, high nitrates as PURPLE. For ulcers/GERD, flag chili/capsaicin/high-acid as PURPLE or RED. For diabetes, flag high sugar/high glycemic index as PURPLE or RED. 3. Suggest a safe, specific 'recommendedServingAdvice' (or '0 - Strictly Not Recommended' if PURPLE). 4. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + exact % or amount if present)\", \"explanation\": \"String (health impact)\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String (e.g. Pregnancy Safety Alert, Ulcer Hazard Alert, Calorie Deficit Alert)\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String (e.g. Max 100ml / 1 portion, or 0 - Strictly Avoid)\" }.";
+    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines and the provided USER HEALTH PROFILE (if any). RULES: 1. Statuses can be GREEN (safe), YELLOW (caution), RED (high health risk), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user's medical condition, pregnancy, or severe calorie mismatch), BLACK (unknown). 2. For pregnancy, flag high caffeine, unpasteurized items, saccharin, and harmful additives as PURPLE. For ulcers/GERD, flag chili/spices as PURPLE/RED. For diabetes, flag sucrose/high sugar as PURPLE/RED. 3. Formulate a tailored 'recommendedServingAdvice' based on user calorie goal and health profile. 4. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching this structure: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + EXACT %% or amount if present)\", \"explanation\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\" }.";
 
     private static final String[] GEMINI_MODELS = {
             "gemini-1.5-flash",
@@ -65,7 +65,7 @@ public class GeminiService {
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType, String foodCategory) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType, String foodCategory, String userProfileSummary) {
         int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
@@ -75,6 +75,9 @@ public class GeminiService {
                 String currentPrompt = PROMPT;
                 if ("fresh".equals(foodCategory)) {
                     currentPrompt += " Note: This is a fresh or prepared food item (like a local dish, fruit, etc). State its place of origin in the explanation if applicable.";
+                }
+                if (userProfileSummary != null && !userProfileSummary.isBlank()) {
+                    currentPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
                 }
 
                 ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
@@ -132,19 +135,19 @@ public class GeminiService {
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
                      System.out.println("Gemini Rate Limit reached! Falling back to GroqService...");
-                     return groqService.analyzeIngredients(base64Image, mimeType);
+                     return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary);
                 }
                 
                 System.out.println("Gemini failed, falling back to GroqService: " + e.getMessage());
-                return groqService.analyzeIngredients(base64Image, mimeType);
+                return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary);
             }
         }
         System.out.println("Gemini exhausted retries, falling back to GroqService...");
-        return groqService.analyzeIngredients(base64Image, mimeType);
+        return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary);
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity, String foodCategory) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity, String foodCategory, String userProfileSummary) {
         int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
@@ -159,12 +162,15 @@ public class GeminiService {
                     } else {
                         formattedPrompt += "If this is a regional packaged product, identify the most popular global equivalent and use THAT product's ingredients instead, setting 'globalEquivalent'. ";
                     }
-                    formattedPrompt += "Evaluate the ingredients against WHO guidelines. RULES: 1. Be strictly consistent: Sugar/Sucrose MUST be RED. Preservatives MUST be YELLOW or RED. Natural flavors/water MUST be GREEN. 2. If an ingredient is unknown, its status MUST be BLACK. 3. DO NOT output reasoning or <think> tags. You MUST output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String (the actual corrected name, plus origin if fresh/local)\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name ONLY, no estimated amounts)\", \"explanation\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"RED or YELLOW or GREEN\" }.";
+                    formattedPrompt += "Evaluate the ingredients against WHO guidelines and the provided USER HEALTH PROFILE. RULES: 1. Statuses: GREEN (safe), YELLOW (moderate), RED (avoid), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user conditions/pregnancy/calorie goal), BLACK (unknown). 2. For pregnancy, flag caffeine >200mg, raw/unpasteurized items, saccharin as PURPLE. For ulcers, flag chili/spices as PURPLE or RED. For diabetes, flag sugar as PURPLE or RED. 3. Suggest a safe 'recommendedServingAdvice' (or '0 - Strictly Avoid' if PURPLE). 4. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name ONLY, no estimated amounts)\", \"explanation\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\" }.";
                 } else {
                     formattedPrompt = String.format(TEXT_PROMPT, productName, ingredientsText);
                     if ("fresh".equals(foodCategory)) {
                         formattedPrompt += " Note: This is a fresh or prepared food. If it's a local dish, mention its place of origin in the explanation.";
                     }
+                }
+                if (userProfileSummary != null && !userProfileSummary.isBlank()) {
+                    formattedPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
                 }
                 ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                         "model", model,

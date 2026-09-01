@@ -44,7 +44,8 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(
                                 new AntPathRequestMatcher("/api/scan/history/**"),
-                                new AntPathRequestMatcher("/api/compare/**")
+                                new AntPathRequestMatcher("/api/compare/**"),
+                                new AntPathRequestMatcher("/api/user/**")
                         ).authenticated()
                         .anyRequest().permitAll()
                 )

@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { getUserCountry, setUserCountry, getAllCountries } from '../utils/countryUtils';
 
 const Navbar = () => {
-  const { user, token, isGuest, logout, continueAsGuest } = useContext(AuthContext);
+  const { user, token, userProfile, isGuest, logout, continueAsGuest, openProfileModal } = useContext(AuthContext);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [country, setCountry] = useState(getUserCountry().toUpperCase());
   const countries = getAllCountries();
@@ -107,6 +107,20 @@ const Navbar = () => {
                     {user?.name || 'User'}
                   </p>
                 </div>
+                <button 
+                  onClick={() => {
+                    openProfileModal();
+                    setDropdownOpen(false);
+                  }}
+                  className="w-full text-left block px-4 py-2 text-sm text-emerald-700 font-medium hover:bg-emerald-50 flex items-center justify-between"
+                >
+                  <span>🩺 Health Profile</span>
+                  {userProfile?.profileCompleted ? (
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-bold">Active</span>
+                  ) : (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">Setup</span>
+                  )}
+                </button>
                 <Link 
                   to="/history" 
                   className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary-dark"

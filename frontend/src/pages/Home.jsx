@@ -38,6 +38,10 @@ const Home = () => {
           globalEquivalent={lastScan?.globalEquivalent || ''}
         />
       </div>
+
+      <div className="mt-16 text-center text-[11px] text-gray-400">
+        ℹ️ The Ingredient Digout utilizes AI & open databases for health insights. AI can make mistakes — always consult qualified medical practitioners for individual dietary needs.
+      </div>
     </div>
   );
 };

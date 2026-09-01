@@ -563,6 +563,9 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                 >
                   Scan Another Product
                 </button>
+                <p className="text-[11px] text-gray-400 mt-4">
+                  ℹ️ AI-powered analysis. AI can make mistakes — always verify with product packaging or a healthcare provider.
+                </p>
               </div>
             </div>
           )}

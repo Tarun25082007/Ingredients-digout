@@ -34,7 +34,7 @@ public class ScanHistory {
     private String whoAssessmentJson;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "health_status", columnDefinition = "ENUM('RED', 'YELLOW', 'GREEN')")
+    @Column(name = "health_status", length = 20)
     private HealthStatus healthStatus;
 
     @Column(name = "scanned_at", updatable = false)
