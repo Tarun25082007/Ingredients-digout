@@ -157,9 +157,11 @@ public class GroqService {
                 parsed.whoFlags(),
                 parsed.overallIndicator(),
                 parsed.globalEquivalent(),
-                servingSize,
-                quantity,
-                null
+                servingSize != null ? servingSize : parsed.servingSize(),
+                quantity != null ? quantity : parsed.quantity(),
+                null,
+                parsed.personalizedAlerts(),
+                parsed.recommendedServingAdvice()
             );
             return CompletableFuture.completedFuture(augmented);
         } catch (Exception e) {

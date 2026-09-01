@@ -216,9 +216,11 @@ public class GeminiService {
                     parsed.whoFlags(),
                     parsed.overallIndicator(),
                     parsed.globalEquivalent(),
-                    servingSize,
-                    quantity,
-                    null
+                    servingSize != null ? servingSize : parsed.servingSize(),
+                    quantity != null ? quantity : parsed.quantity(),
+                    null,
+                    parsed.personalizedAlerts(),
+                    parsed.recommendedServingAdvice()
                 );
                 return CompletableFuture.completedFuture(augmented);
             } catch (Exception e) {
@@ -232,14 +234,14 @@ public class GeminiService {
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
                      System.out.println("Gemini Rate Limit reached! Falling back to GroqService for name analysis...");
-                     return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity);
+                     return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary);
                 }
                 System.out.println("Gemini failed for name analysis, falling back to GroqService: " + e.getMessage());
-                return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity);
+                return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary);
             }
         }
         System.out.println("Gemini exhausted retries for name analysis, falling back to GroqService...");
-        return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity);
+        return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary);
     }
 
     private String extractJson(String rawText) {
