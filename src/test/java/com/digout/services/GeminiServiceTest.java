@@ -27,13 +27,16 @@ public class GeminiServiceTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private GroqService groqService;
+
     private ObjectMapper objectMapper = new ObjectMapper();
 
     private GeminiService geminiService;
 
     @BeforeEach
     void setUp() {
-        geminiService = new GeminiService("fake-api-key", restTemplate, objectMapper);
+        geminiService = new GeminiService("fake-api-key", restTemplate, objectMapper, groqService);
     }
 
     @Test
@@ -46,7 +49,7 @@ public class GeminiServiceTest {
                 .thenReturn(mockResponseEntity);
 
         // Act
-        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg");
+        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null);
         WhoAssessmentDTO result = future.get();
 
         // Assert
@@ -57,18 +60,22 @@ public class GeminiServiceTest {
     }
 
     @Test
-    void testAnalyzeIngredients_RetryOnTimeoutAndFail() {
+    void testAnalyzeIngredients_FallbackToGroqOnFailure() throws Exception {
         // Arrange
         when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new RuntimeException("503 Service Unavailable"));
 
-        // Act & Assert
-        Exception exception = assertThrows(RuntimeException.class, () -> {
-            geminiService.analyzeIngredients("base64data", "image/jpeg");
-        });
+        WhoAssessmentDTO fallbackAssessment = new WhoAssessmentDTO("Fallback Product", java.util.List.of(), java.util.List.of(), "YELLOW", "Fallback Product", "100ml", "1L", null, null, null);
+        when(groqService.analyzeIngredients(anyString(), anyString(), anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(fallbackAssessment));
 
-        assertTrue(exception.getMessage().contains("Failed to analyze ingredients with Gemini API after retries"));
-        // It should have retried 3 times
-        verify(restTemplate, times(3)).postForEntity(anyString(), any(HttpEntity.class), eq(String.class));
+        // Act
+        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null);
+        WhoAssessmentDTO result = future.get();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals("Fallback Product", result.productName());
+        verify(groqService, times(1)).analyzeIngredients(anyString(), anyString(), anyString(), any());
     }
 }

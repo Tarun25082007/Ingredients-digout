@@ -23,13 +23,16 @@ public class OpenFoodFactsServiceTest {
     @Mock
     private RestTemplate restTemplate;
 
+    @Mock
+    private UsdaFoodDataService usdaFoodDataService;
+
     private ObjectMapper objectMapper = new ObjectMapper();
 
     private OpenFoodFactsService openFoodFactsService;
 
     @BeforeEach
     void setUp() {
-        openFoodFactsService = new OpenFoodFactsService(restTemplate, objectMapper);
+        openFoodFactsService = new OpenFoodFactsService(restTemplate, objectMapper, usdaFoodDataService);
     }
 
     @Test
@@ -40,7 +43,7 @@ public class OpenFoodFactsServiceTest {
         when(restTemplate.getForEntity(anyString(), eq(String.class)))
                 .thenReturn(mockResponseEntity);
 
-        OpenFoodFactsDTO result = openFoodFactsService.searchProductByName("Test Product");
+        OpenFoodFactsDTO result = openFoodFactsService.searchProductByName("Test Product", "world");
 
         assertNotNull(result);
         assertEquals("Test Product", result.productName());
@@ -56,7 +59,7 @@ public class OpenFoodFactsServiceTest {
                 .thenReturn(mockResponseEntity);
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
-            openFoodFactsService.searchProductByName("Unknown Product");
+            openFoodFactsService.searchProductByName("Unknown Product", "world");
         });
 
         assertTrue(exception.getMessage().contains("No products found matching name"));
@@ -68,7 +71,7 @@ public class OpenFoodFactsServiceTest {
                 .thenThrow(new ResourceAccessException("Connection timed out"));
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
-            openFoodFactsService.searchProductByName("Test Product");
+            openFoodFactsService.searchProductByName("Test Product", "world");
         });
 
         assertTrue(exception.getMessage().contains("Timeout or connection error"));
