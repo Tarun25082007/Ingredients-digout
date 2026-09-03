@@ -7,6 +7,7 @@ const Login = () => {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [formData, setFormData] = useState({ fullName: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { login } = useContext(AuthContext);
@@ -46,8 +47,9 @@ const Login = () => {
         });
         
         // Reset form and switch to login mode with success message
+        setFormData({ fullName: '', email: '', password: '' });
         setIsLoginMode(true);
-        setError('Registration successful! Please log in.');
+        setSuccessMsg('Account created! Please log in.');
       }
     } catch (err) {
       if (typeof err.response?.data === 'string') {
@@ -81,12 +83,14 @@ const Login = () => {
           </p>
         </div>
 
+        {successMsg && (
+          <div className="p-4 rounded-xl mb-6 text-sm font-bold text-center border bg-green-50 text-green-700 border-green-200">
+            ✅ {successMsg}
+          </div>
+        )}
+
         {error && (
-          <div className={`p-4 rounded-xl mb-6 text-sm font-bold text-center border ${
-            error.includes('successful') 
-              ? 'bg-green-50 text-green-700 border-green-200' 
-              : 'bg-red-50 text-red-700 border-red-200'
-          }`}>
+          <div className="p-4 rounded-xl mb-6 text-sm font-bold text-center border bg-red-50 text-red-700 border-red-200">
             {error}
           </div>
         )}
@@ -154,6 +158,7 @@ const Login = () => {
               onClick={() => {
                 setIsLoginMode(!isLoginMode);
                 setError('');
+                setSuccessMsg('');
               }}
               className="text-primary-dark font-bold hover:text-emerald-700 hover:underline transition ml-1"
             >

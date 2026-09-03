@@ -15,6 +15,7 @@ public class RestTemplateConfig {
         return builder
                 .setConnectTimeout(Duration.ofSeconds(10))
                 .setReadTimeout(Duration.ofSeconds(300)) // Increased to 300s (5m) for Gemini API processing
+                .defaultHeader("User-Agent", "DigoutApp/1.0 - Java - github.com/digout")
                 .build();
     }
 }

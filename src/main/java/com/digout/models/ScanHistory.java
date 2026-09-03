@@ -7,7 +7,9 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "scan_history")
+@Table(name = "scan_history", indexes = {
+    @Index(name = "idx_user_scanned_at", columnList = "user_id, scanned_at DESC")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

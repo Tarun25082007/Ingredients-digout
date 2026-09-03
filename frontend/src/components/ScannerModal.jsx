@@ -105,6 +105,11 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 8 * 1024 * 1024) {
+        setError('File is too large. Please select an image under 8MB.');
+        e.target.value = ''; // Reset input
+        return;
+      }
       uploadImage(file);
     }
   };
@@ -118,14 +123,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      stopCamera();
-      
+      // Stop camera AFTER drawing to canvas to avoid blank frame on some browsers
       canvas.toBlob((blob) => {
+        stopCamera();
         if (blob) {
           const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
           uploadImage(file);
         }
-      }, 'image/jpeg');
+      }, 'image/jpeg', 0.92);
     }
   };
 

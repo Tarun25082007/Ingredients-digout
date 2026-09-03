@@ -2,12 +2,14 @@ import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { getUserCountry, setUserCountry, getAllCountries } from '../utils/countryUtils';
+import { usePWA } from '../hooks/usePWA';
 
 const Navbar = () => {
   const { user, token, userProfile, isGuest, logout, continueAsGuest, openProfileModal } = useContext(AuthContext);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [country, setCountry] = useState(getUserCountry().toUpperCase());
   const countries = getAllCountries();
+  const { isInstallable, installApp } = usePWA();
 
   const handleCountryChange = (e) => {
     const selected = e.target.value;
@@ -41,6 +43,18 @@ const Navbar = () => {
 
       {/* Right side: Actions */}
       <div className="flex items-center space-x-4">
+        
+        {/* Install App Button */}
+        {isInstallable && (
+          <button 
+            onClick={installApp}
+            className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-sm font-bold transition shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Install App
+          </button>
+        )}
+
         
         {/* Country Selector */}
         <div className="relative mr-2">
@@ -96,7 +110,7 @@ const Navbar = () => {
               className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-dark text-white hover:bg-emerald-700 transition font-bold shadow-sm"
             >
               {/* Fallback avatar letter */}
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {(userProfile?.fullName || user?.fullName || user?.name || 'U').charAt(0).toUpperCase()}
             </button>
 
             {/* Profile Dropdown */}
@@ -104,7 +118,7 @@ const Navbar = () => {
               <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-xl py-2">
                 <div className="px-4 py-2 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.name || 'User'}
+                    {userProfile?.fullName || user?.fullName || user?.name || 'User'}
                   </p>
                 </div>
                 <button 

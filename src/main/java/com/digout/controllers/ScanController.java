@@ -11,6 +11,7 @@ import com.digout.repositories.UserRepository;
 import com.digout.dto.WhoAssessmentDTO;
 import com.digout.services.GeminiService;
 import com.digout.services.OpenFoodFactsService;
+import com.digout.services.UsdaFoodDataService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -30,14 +31,22 @@ public class ScanController {
 
     private final GeminiService geminiService;
     private final OpenFoodFactsService openFoodFactsService;
+    private final UsdaFoodDataService usdaFoodDataService;
     private final ScanHistoryRepository scanHistoryRepository;
     private final UserRepository userRepository;
     private final CachedAnalysisRepository cachedAnalysisRepository;
     private final ObjectMapper objectMapper;
 
-    public ScanController(GeminiService geminiService, OpenFoodFactsService openFoodFactsService, ScanHistoryRepository scanHistoryRepository, UserRepository userRepository, CachedAnalysisRepository cachedAnalysisRepository, ObjectMapper objectMapper) {
+    public ScanController(GeminiService geminiService, 
+                          OpenFoodFactsService openFoodFactsService, 
+                          UsdaFoodDataService usdaFoodDataService,
+                          ScanHistoryRepository scanHistoryRepository, 
+                          UserRepository userRepository, 
+                          CachedAnalysisRepository cachedAnalysisRepository, 
+                          ObjectMapper objectMapper) {
         this.geminiService = geminiService;
         this.openFoodFactsService = openFoodFactsService;
+        this.usdaFoodDataService = usdaFoodDataService;
         this.scanHistoryRepository = scanHistoryRepository;
         this.userRepository = userRepository;
         this.cachedAnalysisRepository = cachedAnalysisRepository;
@@ -132,6 +141,7 @@ public class ScanController {
                 }
             }
         }
+        final String finalDataSourceRegion = dataSourceRegion;
         return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory, userProfileSummary)
                 .thenApply(assessment -> {
                     WhoAssessmentDTO finalAssessment = new WhoAssessmentDTO(
@@ -142,7 +152,7 @@ public class ScanController {
                             assessment.globalEquivalent(),
                             assessment.servingSize(),
                             assessment.quantity(),
-                            dataSourceRegion,
+                            finalDataSourceRegion,
                             assessment.personalizedAlerts(),
                             assessment.recommendedServingAdvice()
                     );
@@ -248,6 +258,28 @@ public class ScanController {
         } catch (Exception e) {
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
+    }
+
+    @DeleteMapping("/history/{id}")
+    public ResponseEntity<?> deleteScanHistory(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
+            return ResponseEntity.status(401).body(java.util.Map.of("message", "Unauthorized"));
+        }
+
+        String email = auth.getName();
+        Optional<User> userOpt = userRepository.findByEmail(email);
+        
+        if (userOpt.isPresent()) {
+            Optional<ScanHistory> historyOpt = scanHistoryRepository.findById(id);
+            if (historyOpt.isPresent() && historyOpt.get().getUser().getId().equals(userOpt.get().getId())) {
+                scanHistoryRepository.deleteById(id);
+                return ResponseEntity.ok(java.util.Map.of("message", "History item deleted."));
+            }
+            return ResponseEntity.status(404).body(java.util.Map.of("message", "History item not found or unauthorized."));
+        }
+        
+        return ResponseEntity.status(404).body(java.util.Map.of("message", "User not found"));
     }
 
     @GetMapping("/clear-cache")

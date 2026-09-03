@@ -80,13 +80,14 @@ public class GeminiService {
                     currentPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
                 }
 
+                final String finalPrompt = currentPrompt;
                 ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                         "model", model,
                         "store", false,
                         "input", List.of(
                                 Map.of(
                                         "type", "text",
-                                        "text", currentPrompt
+                                        "text", finalPrompt
                                 ),
                                 Map.of(
                                         "type", "image",
@@ -172,13 +173,15 @@ public class GeminiService {
                 if (userProfileSummary != null && !userProfileSummary.isBlank()) {
                     formattedPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
                 }
+                
+                final String finalFormattedPrompt = formattedPrompt;
                 ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                         "model", model,
                         "store", false,
                         "input", List.of(
                                 Map.of(
                                         "type", "text",
-                                        "text", formattedPrompt
+                                        "text", finalFormattedPrompt
                                 )
                         )
                 ));

@@ -148,6 +148,21 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
     }
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmation = window.prompt("⚠️ DANGER ZONE: Type 'DELETE' to permanently delete your account, health profile, and all scan history.");
+    if (confirmation === 'DELETE') {
+      try {
+        await api.delete('/user/account');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userProfile');
+        window.location.href = '/login';
+      } catch (err) {
+        setError('Failed to delete account. Please try again.');
+      }
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fadeIn">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto relative border border-gray-100">
@@ -363,8 +378,27 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             </div>
           </div>
 
+          {/* Danger Zone */}
+          {!isMandatoryOnboarding && initialProfile && (
+            <div className="pt-4 mt-2 border-t border-red-100">
+              <div className="bg-red-50 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-red-800">Danger Zone</h4>
+                  <p className="text-xs text-red-600 mt-1">Permanently delete your account, health profile, and all scan data. This action cannot be undone.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  className="mt-3 sm:mt-0 px-4 py-2 bg-red-100 hover:bg-red-600 text-red-700 hover:text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
-          <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+          <div className="pt-4 mt-2 border-t border-gray-100 flex items-center justify-between">
             {!isMandatoryOnboarding ? (
               <button
                 type="button"

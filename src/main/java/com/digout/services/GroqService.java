@@ -91,6 +91,7 @@ public class GroqService {
                 currentPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
             }
             
+            final String finalPrompt = currentPrompt;
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,
                     "messages", List.of(
@@ -98,7 +99,7 @@ public class GroqService {
                             Map.of(
                                     "role", "user",
                                     "content", List.of(
-                                            Map.of("type", "text", "text", currentPrompt),
+                                            Map.of("type", "text", "text", finalPrompt),
                                             Map.of("type", "image_url", "image_url", Map.of("url", base64Prefix + base64Image))
                                     )
                             )
@@ -139,11 +140,12 @@ public class GroqService {
                 formattedPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
             }
             
+            final String finalFormattedPrompt = formattedPrompt;
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> java.util.Map.of(
                     "model", model,
                     "messages", List.of(
                             Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY valid JSON."),
-                            Map.of("role", "user", "content", formattedPrompt)
+                            Map.of("role", "user", "content", finalFormattedPrompt)
                     ),
                     "temperature", 0.1,
                     "response_format", Map.of("type", "json_object")

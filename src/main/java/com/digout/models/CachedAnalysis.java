@@ -61,4 +61,9 @@ public class CachedAnalysis {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    /** Returns true if this entry is older than 30 days and should be evicted. */
+    public boolean isStale() {
+        return createdAt != null && createdAt.isBefore(LocalDateTime.now().minusDays(30));
+    }
 }

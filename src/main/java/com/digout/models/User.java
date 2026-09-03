@@ -43,7 +43,8 @@ public class User {
     @Column(name = "calorie_goal")
     private String calorieGoal;
 
-    @Column(name = "medical_conditions", length = 1000)
+    @Column(name = "medical_conditions", columnDefinition = "TEXT")
+    @jakarta.persistence.Convert(converter = com.digout.security.CryptoConverter.class)
     private String medicalConditions;
 
     @Column(name = "profile_completed")
