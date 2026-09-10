@@ -54,18 +54,37 @@ public class ScanController {
     }
 
     @PostMapping("/analyze")
-    public CompletableFuture<ResponseEntity<Object>> analyzeImage(@RequestParam("file") MultipartFile file, @RequestParam(value = "foodCategory", defaultValue = "packaged") String foodCategory) throws IOException {
+    public CompletableFuture<ResponseEntity<Object>> analyzeImage(
+            @RequestParam("file") MultipartFile file, 
+            @RequestParam(value = "foodCategory", defaultValue = "packaged") String foodCategory,
+            @RequestParam(value = "language", defaultValue = "English") String language,
+            @RequestParam(value = "countryCode", defaultValue = "world") String countryCode) throws IOException {
+        // Validate MIME type - reject non-image files to prevent abuse
+        String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+        if (!mimeType.startsWith("image/")) {
+            return CompletableFuture.completedFuture(
+                ResponseEntity.badRequest().body((Object) java.util.Map.of("message", "Only image files are accepted. Please upload a JPEG, PNG, or WEBP file."))
+            );
+        }
+        
         byte[] bytes = file.getBytes();
         String base64Image = Base64.getEncoder().encodeToString(bytes);
-        String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
         
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userProfileSummary = buildUserProfileSummary(auth);
 
-        return geminiService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary)
-                .thenApply(assessment -> {
+        return geminiService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary, language)
+                .thenCompose(assessment -> {
+                    // Check if the AI returned NO ingredients (front of pack fallback)
+                    if (assessment.ingredientsFound() == null || assessment.ingredientsFound().isEmpty()) {
+                        String identifiedName = assessment.productName();
+                        if (identifiedName == null || identifiedName.isBlank()) {
+                            identifiedName = "Unknown Product";
+                        }
+                        return processAnalyzeNameLogic(identifiedName, countryCode, language, foodCategory, false, userProfileSummary, auth, true);
+                    }
                     saveScanHistory(auth, assessment);
-                    return ResponseEntity.ok((Object) assessment);
+                    return CompletableFuture.completedFuture(ResponseEntity.ok((Object) assessment));
                 });
     }
 
@@ -73,20 +92,38 @@ public class ScanController {
     public CompletableFuture<ResponseEntity<Object>> analyzeName(@RequestBody java.util.Map<String, String> payload) {
         String productName = payload.get("productName");
         String countryCode = payload.getOrDefault("countryCode", "world");
+        String language = payload.getOrDefault("language", "English");
         
         if (productName == null || productName.trim().isEmpty()) {
             throw new IllegalArgumentException("Product name is required");
         }
+        // Sanitize: cap length to prevent DB column overflow attacks
+        productName = productName.trim();
+        if (productName.length() > 255) {
+            productName = productName.substring(0, 255);
+        }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userProfileSummary = buildUserProfileSummary(auth);
+        String foodCategory = payload.getOrDefault("foodCategory", "packaged");
+        boolean forceAi = Boolean.parseBoolean(payload.getOrDefault("forceAi", "false"));
 
-        // Only use generic cache if user has no personalized health profile
-        if (userProfileSummary == null) {
-            Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCase(productName.trim());
+        return processAnalyzeNameLogic(productName, countryCode, language, foodCategory, forceAi, userProfileSummary, auth, false);
+    }
+
+    private CompletableFuture<ResponseEntity<Object>> processAnalyzeNameLogic(
+            String productName, String countryCode, String language, String foodCategory, 
+            boolean forceAi, String userProfileSummary, Authentication auth, boolean fromImageFallback) {
+
+        // Only use generic cache if user has no personalized health profile AND language is English
+        if (userProfileSummary == null && "English".equalsIgnoreCase(language)) {
+            Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(productName.trim(), countryCode);
             if (cachedOpt.isPresent()) {
                 try {
                     WhoAssessmentDTO cachedAssessment = objectMapper.readValue(cachedOpt.get().getAnalysisResultJson(), WhoAssessmentDTO.class);
+                    if (fromImageFallback) {
+                        cachedAssessment = addImageFallbackAlert(cachedAssessment);
+                    }
                     saveScanHistory(auth, cachedAssessment);
                     return CompletableFuture.completedFuture(ResponseEntity.ok((Object) cachedAssessment));
                 } catch (Exception e) {
@@ -94,9 +131,6 @@ public class ScanController {
                 }
             }
         }
-
-        String foodCategory = payload.getOrDefault("foodCategory", "packaged");
-        boolean forceAi = Boolean.parseBoolean(payload.getOrDefault("forceAi", "false"));
 
         // Fetch exact ingredients from database first based on country (skip if forceAi)
         String exactIngredients = null;
@@ -117,32 +151,61 @@ public class ScanController {
                     dataSourceRegion = null; // AI fallback
                 }
             } else {
+                // Tier 1: Regional Open Food Facts Database
                 try {
                     com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
-                    exactIngredients = dbProduct.ingredientsText();
-                    servingSize = dbProduct.servingSize();
-                    quantity = dbProduct.quantity();
-                } catch (Exception e) {
-                    System.err.println("Could not fetch exact ingredients from OpenFoodFacts for region " + countryCode + ": " + e.getMessage());
-                    if (!"world".equalsIgnoreCase(countryCode)) {
-                        try {
-                            System.out.println("Falling back to global database for " + productName);
-                            com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
-                            exactIngredients = globalProduct.ingredientsText();
-                            servingSize = globalProduct.servingSize();
-                            quantity = globalProduct.quantity();
-                            dataSourceRegion = "world_fallback";
-                        } catch (Exception globalE) {
-                            return CompletableFuture.completedFuture(ResponseEntity.status(404).body(
-                                java.util.Map.of("error", "REGION_NOT_FOUND", "message", "Product not found in selected region or global database.")
-                            ));
-                        }
+                    if (dbProduct != null && dbProduct.ingredientsText() != null && !dbProduct.ingredientsText().isBlank()) {
+                        exactIngredients = dbProduct.ingredientsText();
+                        servingSize = dbProduct.servingSize();
+                        quantity = dbProduct.quantity();
+                        dataSourceRegion = countryCode;
                     }
+                } catch (Exception e) {
+                    System.out.println("Tier 1 (Regional database) missed for " + productName + ": " + e.getMessage());
+                }
+
+                // Tier 2: Global Open Food Facts Database
+                if ((exactIngredients == null || exactIngredients.isBlank()) && !"world".equalsIgnoreCase(countryCode)) {
+                    try {
+                        System.out.println("Checking Tier 2 (Global Open Food Facts) for " + productName);
+                        com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
+                        if (globalProduct != null && globalProduct.ingredientsText() != null && !globalProduct.ingredientsText().isBlank()) {
+                            exactIngredients = globalProduct.ingredientsText();
+                            if (servingSize == null) servingSize = globalProduct.servingSize();
+                            if (quantity == null) quantity = globalProduct.quantity();
+                            dataSourceRegion = "world_fallback";
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Tier 2 (Global Open Food Facts) missed for " + productName);
+                    }
+                }
+
+                // Tier 3: USDA FoodData Central (Branded Foods Database)
+                if (exactIngredients == null || exactIngredients.isBlank()) {
+                    try {
+                        System.out.println("Checking Tier 3 (USDA FoodData Central) for " + productName);
+                        com.digout.dto.OpenFoodFactsDTO usdaProduct = usdaFoodDataService.searchAnyProductByName(productName);
+                        if (usdaProduct != null && usdaProduct.ingredientsText() != null && !usdaProduct.ingredientsText().isBlank()) {
+                            exactIngredients = usdaProduct.ingredientsText();
+                            if (servingSize == null) servingSize = usdaProduct.servingSize();
+                            if (quantity == null) quantity = usdaProduct.quantity();
+                            dataSourceRegion = "usda_database";
+                            System.out.println("Tier 3 (USDA FoodData Central) MATCHED for " + productName);
+                        }
+                    } catch (Exception e) {
+                        System.out.println("Tier 3 (USDA FoodData Central) missed for " + productName);
+                    }
+                }
+
+                // Tier 4: Fallback to AI (exactIngredients = null) if no database has the ingredients
+                if (exactIngredients == null || exactIngredients.isBlank()) {
+                    System.out.println("All databases checked without ingredients. Seamlessly falling back to AI for " + productName);
+                    dataSourceRegion = null;
                 }
             }
         }
         final String finalDataSourceRegion = dataSourceRegion;
-        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory, userProfileSummary)
+        return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory, userProfileSummary, language)
                 .thenApply(assessment -> {
                     WhoAssessmentDTO finalAssessment = new WhoAssessmentDTO(
                             assessment.productName(),
@@ -156,11 +219,17 @@ public class ScanController {
                             assessment.personalizedAlerts(),
                             assessment.recommendedServingAdvice()
                     );
-                    if (userProfileSummary == null) {
+                    
+                    if (fromImageFallback) {
+                        finalAssessment = addImageFallbackAlert(finalAssessment);
+                    }
+
+                    if (userProfileSummary == null && "English".equalsIgnoreCase(language)) {
                         try {
                             String json = objectMapper.writeValueAsString(finalAssessment);
                             CachedAnalysis cacheEntry = new CachedAnalysis();
                             cacheEntry.setProductName(productName.trim());
+                            cacheEntry.setCountryCode(countryCode);
                             cacheEntry.setAnalysisResultJson(json);
                             cachedAnalysisRepository.save(cacheEntry);
                         } catch (Exception e) {
@@ -170,6 +239,30 @@ public class ScanController {
                     saveScanHistory(auth, finalAssessment);
                     return ResponseEntity.ok((Object) finalAssessment);
                 });
+    }
+
+    private WhoAssessmentDTO addImageFallbackAlert(WhoAssessmentDTO assessment) {
+        java.util.List<WhoAssessmentDTO.PersonalizedAlert> alerts = new java.util.ArrayList<>();
+        if (assessment.personalizedAlerts() != null) {
+            alerts.addAll(assessment.personalizedAlerts());
+        }
+        alerts.add(0, new WhoAssessmentDTO.PersonalizedAlert(
+            "Visual Ingredients Missing",
+            "Ingredients were not clearly legible on the packaging. Health assessment is based on the official database recipe for this product (which may vary slightly by region).",
+            "YELLOW"
+        ));
+        return new WhoAssessmentDTO(
+            assessment.productName(),
+            assessment.ingredientsFound(),
+            assessment.whoFlags(),
+            assessment.overallIndicator(),
+            assessment.globalEquivalent(),
+            assessment.servingSize(),
+            assessment.quantity(),
+            assessment.dataSourceRegion(),
+            alerts,
+            assessment.recommendedServingAdvice()
+        );
     }
 
     private String buildUserProfileSummary(Authentication auth) {
@@ -216,9 +309,15 @@ public class ScanController {
                 }
 
                 try {
+                    String pName = assessment.productName() != null ? assessment.productName() : "Unknown Product";
+                    
+                    if (!"Unknown Product".equalsIgnoreCase(pName)) {
+                        scanHistoryRepository.deleteByUserIdAndProductNameIgnoreCase(user.getId(), pName);
+                    }
+
                     ScanHistory history = ScanHistory.builder()
                             .user(user)
-                            .productName(assessment.productName() != null ? assessment.productName() : "Unknown Product")
+                            .productName(pName)
                             .rawOcrText("") 
                             .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
                             .healthStatus(status)
@@ -284,6 +383,14 @@ public class ScanController {
 
     @GetMapping("/clear-cache")
     public ResponseEntity<?> clearCache() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return ResponseEntity.status(401).body(java.util.Map.of("message", "Unauthorized"));
+        }
+        Optional<User> userOpt = userRepository.findByEmail(auth.getName());
+        if (userOpt.isEmpty() || !"ADMIN".equalsIgnoreCase(userOpt.get().getRole())) {
+            return ResponseEntity.status(403).body(java.util.Map.of("message", "Forbidden: Admin access required"));
+        }
         cachedAnalysisRepository.deleteAll();
         return ResponseEntity.ok(java.util.Map.of("message", "Cache cleared successfully!"));
     }

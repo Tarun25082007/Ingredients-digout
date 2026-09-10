@@ -26,6 +26,9 @@ public class CryptoConverter implements AttributeConverter<String, String> {
 
     private static byte[] getSecretKey() {
         String envKey = System.getenv("DB_ENCRYPTION_KEY");
+        if (envKey == null || envKey.isBlank()) {
+            envKey = System.getProperty("DB_ENCRYPTION_KEY");
+        }
         if (envKey != null && envKey.length() >= 32) {
             return envKey.substring(0, 32).getBytes(java.nio.charset.StandardCharsets.UTF_8);
         }

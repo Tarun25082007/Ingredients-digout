@@ -23,6 +23,7 @@ public class User {
     private String passwordHash;
 
     @Column(name = "full_name")
+    @jakarta.persistence.Convert(converter = com.digout.security.CryptoConverter.class)
     private String fullName;
 
     private String role;

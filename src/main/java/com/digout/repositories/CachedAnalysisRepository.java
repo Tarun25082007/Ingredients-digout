@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface CachedAnalysisRepository extends JpaRepository<CachedAnalysis, Long> {
-    Optional<CachedAnalysis> findByProductNameIgnoreCase(String productName);
+    Optional<CachedAnalysis> findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(String productName, String countryCode);
 
     @Transactional
     void deleteByCreatedAtBefore(LocalDateTime cutoff);

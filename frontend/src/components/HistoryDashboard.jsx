@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 
 const HistoryDashboard = () => {
   const { token, isGuest, logout } = useContext(AuthContext);
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ const HistoryDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-6 relative">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl font-extrabold text-gray-900 mb-8">Your Scan History</h2>
+        <h2 className="text-3xl font-extrabold text-gray-900 mb-8">{t('scan_history')}</h2>
         
         {error && (
           <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200 font-medium">
@@ -81,8 +83,8 @@ const HistoryDashboard = () => {
         {history.length === 0 && !error ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">No scans yet</h3>
-            <p className="text-gray-500 text-md">Your analyzed products will appear here.</p>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">{t('no_history')}</h3>
+            <p className="text-gray-500 text-md">{t('start_first_scan')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -36,6 +36,10 @@ public class SecurityConfig {
         http
                 .cors(org.springframework.security.config.Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -43,7 +47,9 @@ public class SecurityConfig {
                                 new AntPathRequestMatcher("/api/scan/public")
                         ).permitAll()
                         .requestMatchers(
+                                new AntPathRequestMatcher("/api/scan/history"),
                                 new AntPathRequestMatcher("/api/scan/history/**"),
+                                new AntPathRequestMatcher("/api/scan/clear-cache"),
                                 new AntPathRequestMatcher("/api/compare/**"),
                                 new AntPathRequestMatcher("/api/user/**")
                         ).authenticated()

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import { X, Activity, Heart, ShieldAlert, Sparkles, Check } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const ACTIVITY_LEVELS = [
 ];
 
 const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile = null, isMandatoryOnboarding = false }) => {
+  const { t } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('PREFER_NOT_TO_SAY');
@@ -184,7 +186,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               <Heart className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-black">Personal Health & Diet Profile</h2>
+              <h2 className="text-2xl font-black">{t('health_profile')}</h2>
               <p className="text-emerald-100 text-sm mt-0.5">
                 Tailor food safety alerts, portion advice, and condition warnings to you.
               </p>
@@ -214,7 +216,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Age</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('age')}</label>
                 <input
                   type="number"
                   min="1"
@@ -227,7 +229,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Gender</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('gender')}</label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
@@ -241,7 +243,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Height (cm)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('height')}</label>
                 <input
                   type="number"
                   min="50"
@@ -254,7 +256,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Weight (kg)</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('weight')}</label>
                 <input
                   type="number"
                   min="20"
@@ -270,7 +272,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             {/* Live BMI Display */}
             {computedBmi && (
               <div className="mt-3 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-900">
-                <span>Calculated BMI: <strong className="text-emerald-800 text-sm">{computedBmi}</strong></span>
+                <span>{t('calculated_bmi')}: <strong className="text-emerald-800 text-sm">{computedBmi}</strong></span>
                 <span className="px-2.5 py-0.5 bg-emerald-200/80 font-bold rounded-full">{bmiCategory}</span>
               </div>
             )}
@@ -280,7 +282,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           <div>
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-teal-600" />
-              <span>2. Calorie & Fitness Goal</span>
+              <span>2. {t('calorie_goal')}</span>
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
@@ -329,7 +331,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           <div>
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center space-x-2">
               <ShieldAlert className="w-4 h-4 text-purple-600" />
-              <span>3. Medical Conditions, Pregnancy & Allergies</span>
+              <span>3. {t('medical_conditions')}</span>
             </h3>
             <p className="text-xs text-gray-500 mb-3">
               Select any conditions that apply. The AI will flag dangerous triggers (e.g. ulcer irritants, pregnancy risks, diabetic sugar spikes) in <strong className="text-purple-700">PURPLE</strong> or <strong className="text-red-600">RED</strong>.
@@ -422,7 +424,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               disabled={saving}
               className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 text-sm disabled:opacity-50"
             >
-              {saving ? 'Saving Profile...' : 'Save & Personalize My Scans ✨'}
+              {saving ? 'Saving Profile...' : `${t('save_profile')} ✨`}
             </button>
           </div>
 

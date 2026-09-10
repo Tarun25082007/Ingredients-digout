@@ -6,5 +6,6 @@ public record RegisterRequest(
         String email,
         String password,
         @JsonAlias({"fullName", "name"})
-        String name
+        String name,
+        String turnstileToken
 ) {}

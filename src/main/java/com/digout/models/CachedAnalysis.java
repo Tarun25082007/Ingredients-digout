@@ -5,7 +5,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cached_analysis", indexes = {
-    @Index(name = "idx_product_name", columnList = "productName")
+    @Index(name = "idx_product_country", columnList = "productName, countryCode")
+}, uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"productName", "countryCode"})
 })
 public class CachedAnalysis {
 
@@ -13,8 +15,11 @@ public class CachedAnalysis {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String productName;
+
+    @Column(nullable = false, length = 10)
+    private String countryCode = "world";
 
     @Lob
     @Column(columnDefinition = "LONGTEXT", nullable = false)
@@ -44,6 +49,14 @@ public class CachedAnalysis {
     public void setProductName(String productName) {
         // Store in lowercase for case-insensitive exact matching
         this.productName = productName != null ? productName.toLowerCase().trim() : null;
+    }
+
+    public String getCountryCode() {
+        return countryCode;
+    }
+
+    public void setCountryCode(String countryCode) {
+        this.countryCode = countryCode != null ? countryCode.toLowerCase().trim() : "world";
     }
 
     public String getAnalysisResultJson() {

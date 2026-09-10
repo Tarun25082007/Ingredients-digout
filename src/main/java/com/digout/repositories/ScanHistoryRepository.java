@@ -12,4 +12,7 @@ public interface ScanHistoryRepository extends JpaRepository<ScanHistory, Long> 
     
     @org.springframework.transaction.annotation.Transactional
     void deleteByUserId(Long userId);
+
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByUserIdAndProductNameIgnoreCase(Long userId, String productName);
 }

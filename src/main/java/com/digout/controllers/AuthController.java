@@ -10,6 +10,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpEntity;
+import org.springframework.util.MultiValueMap;
+import org.springframework.util.LinkedMultiValueMap;
 
 import java.util.Optional;
 import java.util.Map;
@@ -27,23 +33,58 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
     }
+    
+    @org.springframework.beans.factory.annotation.Value("${turnstile.secret:1x0000000000000000000000000000000AA}")
+    private String turnstileSecret;
+    
+    private boolean verifyTurnstile(String token) {
+        if (token == null || token.isEmpty()) return false;
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            MultiValueMap<String, String> map= new LinkedMultiValueMap<>();
+            map.add("secret", turnstileSecret);
+            map.add("response", token);
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
+            ResponseEntity<Map> response = restTemplate.postForEntity("https://challenges.cloudflare.com/turnstile/v0/siteverify", request, Map.class);
+            return Boolean.TRUE.equals(response.getBody().get("success"));
+        } catch(Exception e) {
+            return false;
+        }
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        if (!verifyTurnstile(request.turnstileToken())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Captcha verification failed."));
+        }
+        
         if (request.email() == null || request.email().trim().isEmpty() || !request.email().contains("@")) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "A valid email is required."));
         }
-        if (request.password() == null || request.password().length() < 6) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 6 characters long."));
+        String normalizedEmail = request.email().trim().toLowerCase();
+        
+        if (request.password() == null || request.password().length() < 8) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
         }
-        if (userRepository.findByEmail(request.email()).isPresent()) {
+        String pwd = request.password();
+        boolean hasLetter = pwd.chars().anyMatch(Character::isLetter);
+        boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
+        boolean hasSpecial = pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
+
+        if (!hasLetter || !hasDigit || !hasSpecial) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one letter, one number, and one special character (!@#$%^&* etc.)."));
+        }
+
+        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "Email is already registered."));
         }
 
         User user = User.builder()
-                .email(request.email())
+                .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(request.password()))
-                .fullName(request.name())
+                .fullName(request.name() != null ? request.name().trim() : null)
                 .role("USER")
                 .build();
 
@@ -53,10 +94,64 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
-        Optional<User> userOpt = userRepository.findByEmail(request.email());
+        if (!verifyTurnstile(request.turnstileToken())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Captcha verification failed."));
+        }
+        
+        if (request.email() == null || request.password() == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid credentials."));
+        }
+        String normalizedEmail = request.email().trim().toLowerCase();
+        Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+                String pwd = request.password();
+                boolean hasLetter = pwd.chars().anyMatch(Character::isLetter);
+                boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
+                boolean hasSpecial = pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
+
+                if (pwd.length() < 8 || !hasLetter || !hasDigit || !hasSpecial) {
+                    return ResponseEntity.status(HttpStatus.UPGRADE_REQUIRED).body(Map.of(
+                        "message", "Your password does not meet our new security requirements. Please update it.",
+                        "requiresPasswordReset", true
+                    ));
+                }
+                
+                String token = jwtTokenProvider.createToken(user.getEmail());
+                return ResponseEntity.ok(new AuthResponse(token, com.digout.dto.UserProfileDTO.fromUser(user)));
+            }
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid credentials."));
+    }
+    
+    @PostMapping("/update-password")
+    public ResponseEntity<?> updatePassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String oldPassword = request.get("oldPassword");
+        String newPassword = request.get("newPassword");
+        
+        if (email == null || oldPassword == null || newPassword == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Missing fields"));
+        }
+        
+        if (newPassword.length() < 8) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
+        }
+        boolean hasLetter = newPassword.chars().anyMatch(Character::isLetter);
+        boolean hasDigit = newPassword.chars().anyMatch(Character::isDigit);
+        boolean hasSpecial = newPassword.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
+
+        if (!hasLetter || !hasDigit || !hasSpecial) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one letter, one number, and one special character (!@#$%^&* etc.)."));
+        }
+        
+        Optional<User> userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+                user.setPasswordHash(passwordEncoder.encode(newPassword));
+                userRepository.save(user);
                 String token = jwtTokenProvider.createToken(user.getEmail());
                 return ResponseEntity.ok(new AuthResponse(token, com.digout.dto.UserProfileDTO.fromUser(user)));
             }

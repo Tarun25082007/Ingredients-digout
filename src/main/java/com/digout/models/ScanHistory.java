@@ -29,6 +29,8 @@ public class ScanHistory {
     private String productName;
 
     @Column(name = "raw_ocr_text", columnDefinition = "TEXT")
+    @Convert(converter = com.digout.security.CryptoConverter.class)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String rawOcrText;
 
     @Column(name = "who_assessment_json", columnDefinition = "JSON")

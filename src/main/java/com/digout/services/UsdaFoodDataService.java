@@ -16,11 +16,42 @@ public class UsdaFoodDataService {
     private final String usdaApiKey;
     
     private static final String USDA_API_URL_TEMPLATE = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=%s&query=%s&dataType=Foundation,SR%%20Legacy,Survey%%20(FNDDS)&pageSize=1";
+    private static final String USDA_BRANDED_API_URL_TEMPLATE = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=%s&query=%s&dataType=Branded,Foundation,SR%%20Legacy&pageSize=5";
 
     public UsdaFoodDataService(RestTemplate restTemplate, ObjectMapper objectMapper, @Value("${usda.api.key}") String usdaApiKey) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.usdaApiKey = usdaApiKey;
+    }
+
+    public OpenFoodFactsDTO searchAnyProductByName(String productName) {
+        if (usdaApiKey == null || usdaApiKey.isBlank()) {
+            return null;
+        }
+        try {
+            String encodedName = java.net.URLEncoder.encode(productName, java.nio.charset.StandardCharsets.UTF_8);
+            String url = String.format(USDA_BRANDED_API_URL_TEMPLATE, usdaApiKey, encodedName);
+
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            JsonNode root = objectMapper.readTree(response.getBody());
+            JsonNode foods = root.path("foods");
+
+            if (!foods.isMissingNode() && foods.isArray() && foods.size() > 0) {
+                for (JsonNode food : foods) {
+                    String ingredients = food.path("ingredients").asText(null);
+                    if (ingredients != null && !ingredients.isBlank()) {
+                        String foundName = food.path("description").asText(productName);
+                        String serving = food.has("servingSize") 
+                                ? food.path("servingSize").asText() + " " + food.path("servingSizeUnit").asText("") 
+                                : null;
+                        return new OpenFoodFactsDTO(foundName, ingredients, serving, null);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("USDA branded search failed for " + productName + ": " + e.getMessage());
+        }
+        return null;
     }
 
     public OpenFoodFactsDTO searchFreshProductByName(String productName) {

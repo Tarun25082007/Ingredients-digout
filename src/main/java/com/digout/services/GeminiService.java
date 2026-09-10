@@ -25,14 +25,13 @@ public class GeminiService {
     private final GroqService groqService;
 
     private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/interactions?key=";
-    private static final String PROMPT = "Extract every ingredient from this image. Extract total quantity and serving size if visible. IF the image does not clearly show the ingredients, use your internal knowledge base to identify this product and assume standard globally popular ingredients. IF THIS IS A REGIONAL PRODUCT (e.g. Campa Orange), identify the most popular global equivalent (e.g. Fanta Orange), use THAT product's ingredients instead, and set 'globalEquivalent'. Evaluate against WHO guidelines and the provided USER HEALTH PROFILE (if any). RULES: 1. Statuses can be GREEN (safe/healthy), YELLOW (moderate/caution), RED (general health risk / avoid), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user's medical conditions, pregnancy, or extreme calorie mismatch), BLACK (unknown). 2. For pregnancy, strictly flag caffeine >200mg, raw/unpasteurized items, saccharin, high nitrates as PURPLE. For ulcers/GERD, flag chili/capsaicin/high-acid as PURPLE or RED. For diabetes, flag high sugar/high glycemic index as PURPLE or RED. 3. Suggest a safe, specific 'recommendedServingAdvice' (or '0 - Strictly Not Recommended' if PURPLE). 4. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching this structure, with no extra text: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + exact % or amount if present)\", \"explanation\": \"String (health impact)\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String (e.g. Pregnancy Safety Alert, Ulcer Hazard Alert, Calorie Deficit Alert)\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String (e.g. Max 100ml / 1 portion, or 0 - Strictly Avoid)\" }.";
+    private static final String PROMPT = "Analyze this image. IF YOU CAN CLEARLY READ THE INGREDIENTS LIST: Extract every ingredient, evaluate against WHO guidelines and USER PROFILE (if any). Statuses: GREEN, YELLOW, RED, PURPLE, BLACK. Output JSON exactly matching: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String\", \"quantity\": \"String\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String\", \"status\": \"String\" } ], \"whoFlags\": [...], \"overallIndicator\": \"String\", \"personalizedAlerts\": [...], \"recommendedServingAdvice\": \"String\" }.\n\nIF NO INGREDIENTS ARE LEGIBLE (e.g., this is just a photo of the front of the packaging): DO NOT evaluate anything. Instead, identify the product brand and name, and output a JSON with NO ingredients, exactly matching: { \"productName\": \"Identified Brand and Flavor Name\", \"ingredientsFound\": [], \"overallIndicator\": \"BLACK\", \"recommendedServingAdvice\": \"Needs Database Lookup\" }. DO NOT output <think> tags.";
     private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines and the provided USER HEALTH PROFILE (if any). RULES: 1. Statuses can be GREEN (safe), YELLOW (caution), RED (high health risk), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user's medical condition, pregnancy, or severe calorie mismatch), BLACK (unknown). 2. For pregnancy, flag high caffeine, unpasteurized items, saccharin, and harmful additives as PURPLE. For ulcers/GERD, flag chili/spices as PURPLE/RED. For diabetes, flag sucrose/high sugar as PURPLE/RED. 3. Formulate a tailored 'recommendedServingAdvice' based on user calorie goal and health profile. 4. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching this structure: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + EXACT %% or amount if present)\", \"explanation\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\" }.";
 
     private static final String[] GEMINI_MODELS = {
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
-            "gemini-1.0-pro",
-            "gemini-pro"
+            "gemini-1.5-flash",    // Balanced & fastest supported
+            "gemini-1.5-pro",      // Most capable fallback
+            "gemini-1.0-pro"
     };
 
     public GeminiService(@Value("${gemini.api.key}") String geminiApiKey, RestTemplate restTemplate, ObjectMapper objectMapper, GroqService groqService) {
@@ -51,8 +50,8 @@ public class GeminiService {
                 return restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
             } catch (org.springframework.web.client.HttpClientErrorException e) {
                 String responseBody = e.getResponseBodyAsString();
-                if (responseBody.contains("not found") || responseBody.contains("invalid model") || responseBody.contains("decommissioned")) {
-                    System.err.println("Gemini model '" + model + "' is unavailable. Upgrading to next model...");
+                if (e.getStatusCode().value() == 400 || responseBody.contains("not found") || responseBody.contains("invalid model") || responseBody.contains("decommissioned")) {
+                    System.err.println("Gemini model '" + model + "' is unavailable or failed (" + e.getStatusCode() + "). Upgrading to next model...");
                     lastException = e;
                     continue;
                 }
@@ -65,7 +64,7 @@ public class GeminiService {
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType, String foodCategory, String userProfileSummary) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredients(String base64Image, String mimeType, String foodCategory, String userProfileSummary, String language) {
         int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
@@ -78,6 +77,11 @@ public class GeminiService {
                 }
                 if (userProfileSummary != null && !userProfileSummary.isBlank()) {
                     currentPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
+                }
+                
+                // Add language constraint
+                if (language != null && !language.equalsIgnoreCase("English")) {
+                    currentPrompt += "\n\nCRITICAL LANGUAGE CONSTRAINT: The JSON keys must remain in English, but ALL TEXT VALUES (explanations, product names, warnings, etc.) MUST be written in " + language + ".";
                 }
 
                 final String finalPrompt = currentPrompt;
@@ -136,19 +140,19 @@ public class GeminiService {
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
                      System.out.println("Gemini Rate Limit reached! Falling back to GroqService...");
-                     return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary);
+                     return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary, language);
                 }
                 
                 System.out.println("Gemini failed, falling back to GroqService: " + e.getMessage());
-                return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary);
+                return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary, language);
             }
         }
         System.out.println("Gemini exhausted retries, falling back to GroqService...");
-        return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary);
+        return groqService.analyzeIngredients(base64Image, mimeType, foodCategory, userProfileSummary, language);
     }
 
     @Async
-    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity, String foodCategory, String userProfileSummary) {
+    public CompletableFuture<WhoAssessmentDTO> analyzeIngredientsByName(String productName, String ingredientsText, String servingSize, String quantity, String foodCategory, String userProfileSummary, String language) {
         int maxRetries = 3;
         for (int i = 0; i < maxRetries; i++) {
             try {
@@ -170,8 +174,14 @@ public class GeminiService {
                         formattedPrompt += " Note: This is a fresh or prepared food. If it's a local dish, mention its place of origin in the explanation.";
                     }
                 }
+
                 if (userProfileSummary != null && !userProfileSummary.isBlank()) {
                     formattedPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
+                }
+                
+                // Add language constraint
+                if (language != null && !language.equalsIgnoreCase("English")) {
+                    formattedPrompt += "\n\nCRITICAL LANGUAGE CONSTRAINT: The JSON keys must remain in English, but ALL TEXT VALUES (explanations, product names, warnings, etc.) MUST be written in " + language + ".";
                 }
                 
                 final String finalFormattedPrompt = formattedPrompt;
@@ -237,14 +247,14 @@ public class GeminiService {
                     continue;
                 } else if (e.getMessage() != null && e.getMessage().contains("429")) {
                      System.out.println("Gemini Rate Limit reached! Falling back to GroqService for name analysis...");
-                     return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary);
+                     return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary, language);
                 }
                 System.out.println("Gemini failed for name analysis, falling back to GroqService: " + e.getMessage());
-                return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary);
+                return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary, language);
             }
         }
         System.out.println("Gemini exhausted retries for name analysis, falling back to GroqService...");
-        return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary);
+        return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary, language);
     }
 
     private String extractJson(String rawText) {

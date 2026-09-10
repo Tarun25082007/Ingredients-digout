@@ -28,7 +28,7 @@ public class OpenFoodFactsService {
     public OpenFoodFactsDTO searchProductByName(String productName, String countryCode) {
         String encodedName = java.net.URLEncoder.encode(productName, java.nio.charset.StandardCharsets.UTF_8);
         String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
-        String url = String.format(SEARCH_API_URL_TEMPLATE, cc, encodedName);
+        String url = String.format(SEARCH_API_URL_TEMPLATE, cc, encodedName) + "&page_size=5";
 
         try {
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);

@@ -8,6 +8,8 @@ import VariantComparison from './components/VariantComparison';
 import Login from './components/Login';
 import Home from './pages/Home';
 
+import { LanguageProvider } from './context/LanguageContext';
+
 function App() {
   // Security Hazard: Disable "inspect" option (context menu and keyboard shortcuts)
   useEffect(() => {
@@ -40,22 +42,24 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <div className="min-h-screen flex flex-col bg-gray-50">
-          <Navbar />
-          
-          <main className="flex-grow flex flex-col">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/history" element={<HistoryDashboard />} />
-            </Routes>
-          </main>
-          
-        </div>
-      </BrowserRouter>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <div className="min-h-screen flex flex-col bg-gray-50">
+            <Navbar />
+            
+            <main className="flex-grow flex flex-col">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/history" element={<HistoryDashboard />} />
+              </Routes>
+            </main>
+            
+          </div>
+        </BrowserRouter>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 import VariantComparison from './VariantComparison';
@@ -7,6 +8,7 @@ import BarcodeScanner from './BarcodeScanner';
 import { getUserCountry, getAllCountries } from '../utils/countryUtils';
 
 const ScannerModal = ({ onClose, onScanComplete }) => {
+  const { t } = useLanguage();
   const [mode, setMode] = useState('category_select'); // 'category_select', 'select', 'camera', 'barcode', 'uploading', 'result'
   const [foodCategory, setFoodCategory] = useState(null); // 'fresh' or 'packaged'
   const [error, setError] = useState('');
@@ -141,6 +143,11 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     const formData = new FormData();
     formData.append('file', file); // Backend expects @RequestParam("file")
     if (foodCategory) formData.append('foodCategory', foodCategory);
+    
+    // Pass user's preferred language from local storage
+    const userLang = localStorage.getItem('userLanguage') || 'English';
+    formData.append('language', userLang);
+    formData.append('countryCode', getUserCountry());
 
     try {
       const response = await api.post('/scan/analyze', formData, {
@@ -172,11 +179,13 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     try {
       const activeCountryCode = customCountry !== null ? customCountry : getUserCountry();
       setScanRegion(activeCountryCode);
+      const userLang = localStorage.getItem('userLanguage') || 'English';
       const response = await api.post('/scan/analyze-name', { 
         productName: sanitizedSearch,
         countryCode: activeCountryCode,
         forceAi: forceAi,
-        foodCategory: foodCategory
+        foodCategory: foodCategory,
+        language: userLang
       });
       setAssessment(response.data);
       setMode('result');
@@ -215,7 +224,13 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
         setSearchName(data.product.product_name);
         
         // Use our backend API to analyze the name
-        const analyzeResponse = await api.post('/scan/analyze-name', { productName: data.product.product_name });
+        const userLang = localStorage.getItem('userLanguage') || 'English';
+        const analyzeResponse = await api.post('/scan/analyze-name', { 
+          productName: data.product.product_name,
+          language: userLang,
+          countryCode: getUserCountry(),
+          foodCategory: foodCategory || 'packaged'
+        });
         setAssessment(analyzeResponse.data);
         setMode('result');
         if (onScanComplete) {
@@ -238,8 +253,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+      <div className="bg-white rounded-t-[2rem] sm:rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative animate-slideUp sm:animate-fadeIn">
         
         {/* Close Button */}
         <button 
@@ -259,28 +274,28 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
           {/* Mode: Category Selection */}
           {mode === 'category_select' && (
             <div className="text-center py-12 animate-fadeIn">
-              <h2 className="text-3xl font-extrabold text-gray-800 mb-4">What are you analyzing?</h2>
+              <h2 className="text-3xl font-extrabold text-gray-800 mb-4">{t('What are you analyzing?')}</h2>
               <p className="text-gray-600 mb-10 max-w-md mx-auto">
-                Select the type of food to get the most accurate health assessment.
+                {t('Select the type of food to get the most accurate health assessment.')}
               </p>
               
               <div className="flex flex-col sm:flex-row items-stretch justify-center gap-6">
                 <button 
                   onClick={() => { setFoodCategory('fresh'); setMode('select'); }}
-                  className="flex-1 group flex flex-col items-center justify-center p-8 border border-gray-200 rounded-2xl hover:border-emerald-500 hover:shadow-lg transition-all duration-300 bg-emerald-50/30"
+                  className="flex-1 group flex flex-col items-center justify-center p-8 border border-gray-200 rounded-2xl hover:border-emerald-500 hover:shadow-lg transition-all duration-300 bg-emerald-50/30 active:scale-95"
                 >
                   <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">🥗</div>
-                  <span className="font-bold text-gray-800 text-lg">Fresh / Prepared Meals</span>
-                  <span className="text-sm text-gray-500 mt-2">Dosa, Idli, Fruits, Homemade</span>
+                  <span className="font-bold text-gray-800 text-lg">{t('fresh_food')}</span>
+                  <span className="text-sm text-gray-500 mt-2">{t('Dosa, Idli, Fruits, Homemade')}</span>
                 </button>
 
                 <button 
                   onClick={() => { setFoodCategory('packaged'); setMode('select'); }}
-                  className="flex-1 group flex flex-col items-center justify-center p-8 border border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300 bg-blue-50/30"
+                  className="flex-1 group flex flex-col items-center justify-center p-8 border border-gray-200 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-300 bg-blue-50/30 active:scale-95"
                 >
                   <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">🥫</div>
-                  <span className="font-bold text-gray-800 text-lg">Packaged Goods</span>
-                  <span className="text-sm text-gray-500 mt-2">Items with a barcode & label</span>
+                  <span className="font-bold text-gray-800 text-lg">{t('packaged_food')}</span>
+                  <span className="text-sm text-gray-500 mt-2">{t('Items with a barcode & label')}</span>
                 </button>
               </div>
             </div>
@@ -296,12 +311,12 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                 ← Back
               </button>
               <h2 className="text-3xl font-extrabold text-gray-800 mb-4">
-                {foodCategory === 'fresh' ? 'Analyze Fresh Food' : 'Scan Ingredients'}
+                {foodCategory === 'fresh' ? t('Analyze Fresh Food') : t('Scan Ingredients')}
               </h2>
               <p className="text-gray-600 mb-10 max-w-md mx-auto">
                 {foodCategory === 'fresh' 
-                  ? 'Take a photo of your food or search by name to evaluate it.' 
-                  : 'Take a clear photo of an ingredient list, scan a barcode, or search by name.'}
+                  ? t('Take a photo of your food or search by name to evaluate it.') 
+                  : t('Take a clear photo of an ingredient list, scan a barcode, or search by name.')}
               </p>
               
               <div className="flex flex-col sm:flex-row items-stretch justify-center gap-4">
@@ -313,8 +328,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Barcode className="w-6 h-6" />
                     </div>
-                    <span className="font-medium text-gray-700">Scan Barcode</span>
-                    <span className="text-xs text-gray-400 mt-1">Fast & accurate</span>
+                    <span className="font-medium text-gray-700">{t('scan_barcode')}</span>
+                    <span className="text-xs text-gray-400 mt-1">{t('Fast & accurate')}</span>
                   </button>
                 )}
 
@@ -329,8 +344,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Upload className="w-6 h-6" />
                     </div>
-                    <span className="font-medium text-gray-700">Upload Image</span>
-                    <span className="text-xs text-gray-400 mt-1">Ingredients list</span>
+                    <span className="font-medium text-gray-700">{t('upload_image')}</span>
+                    <span className="text-xs text-gray-400 mt-1">{t('Ingredients list')}</span>
                   </div>
                 </div>
 
@@ -342,8 +357,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Camera className="w-6 h-6" />
                     </div>
-                    <span className="font-medium text-gray-700">Take Photo</span>
-                    <span className="text-xs text-gray-400 mt-1">Ingredients list</span>
+                    <span className="font-medium text-gray-700">{t('take_photo')}</span>
+                    <span className="text-xs text-gray-400 mt-1">{t('Ingredients list')}</span>
                   </button>
                 )}
               </div>
@@ -352,14 +367,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                 <div className="w-full max-w-md">
                   <div className="flex items-center space-x-4 mb-4">
                     <hr className="flex-1 border-gray-300" />
-                    <span className="text-gray-400 font-medium">OR SEARCH BY NAME</span>
+                    <span className="text-gray-400 font-medium">{t('search_by_name')}</span>
                     <hr className="flex-1 border-gray-300" />
                   </div>
                   <form onSubmit={searchByProductName} className="flex gap-2">
                     <div className="relative flex-1">
                       <input
                         type="text"
-                        placeholder="e.g. Campa Orange, Lay's Classic"
+                        placeholder={t('search_placeholder')}
                         value={searchName}
                         onChange={(e) => setSearchName(e.target.value)}
                         onFocus={() => { if (searchName.trim().length >= 2) setShowSuggestions(true); }}
@@ -370,7 +385,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                       {showSuggestions && searchName.trim().length >= 2 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
                           {isTyping && suggestions.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-gray-500">Loading suggestions...</div>
+                            <div className="p-4 text-center text-sm text-gray-500">{t('loading_suggestions')}</div>
                           ) : (
                             <>
                               {suggestions.map((item, idx) => (
@@ -398,7 +413,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
                                 </div>
                                 <span className="font-medium text-indigo-700 text-sm truncate">
-                                  ✨ Search for <strong>"{searchName}"</strong> using AI
+                                  ✨ {t('search_ai_btn')} <strong>"{searchName}"</strong>
                                 </span>
                               </div>
                             </>
@@ -411,7 +426,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                       disabled={!searchName.trim()}
                       className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold shadow-sm transition disabled:opacity-50"
                     >
-                      Search
+                      {t('search_btn')}
                     </button>
                   </form>
                 </div>
@@ -436,29 +451,47 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
           {/* Mode: Camera */}
           {mode === 'camera' && (
-            <div className="flex flex-col items-center">
-              <div className="relative w-full max-w-md rounded-xl overflow-hidden shadow-inner bg-black">
+            <div className="flex flex-col items-center py-4">
+              <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">Take a Photo</h2>
+              <div className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-xl bg-black aspect-[3/4]">
                 <video 
                   ref={videoRef} 
                   autoPlay 
                   playsInline
-                  className="w-full h-auto object-cover"
+                  className="absolute inset-0 w-full h-full object-cover"
                 ></video>
                 <canvas ref={canvasRef} className="hidden"></canvas>
+                
+                {/* Camera Overlay */}
+                <div className="absolute inset-0 pointer-events-none flex flex-col">
+                  <div className="flex-1 bg-black/40"></div>
+                  <div className="h-64 flex">
+                    <div className="flex-1 bg-black/40"></div>
+                    <div className="w-full max-w-sm relative">
+                      {/* Brackets */}
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white rounded-tl-xl"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white rounded-tr-xl"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white rounded-bl-xl"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white rounded-br-xl"></div>
+                    </div>
+                    <div className="flex-1 bg-black/40"></div>
+                  </div>
+                  <div className="flex-1 bg-black/40"></div>
+                </div>
               </div>
               
-              <div className="mt-8 flex gap-4">
+              <div className="mt-8 flex gap-4 w-full max-w-md">
                 <button 
                   onClick={resetScanner}
-                  className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg transition"
+                  className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl transition active:scale-95"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={takePhoto}
-                  className="px-8 py-3 bg-primary-light hover:bg-primary-dark text-white font-bold rounded-lg shadow-md transition"
+                  className="flex-[2] py-4 bg-primary-dark hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2"
                 >
-                  Snap Photo
+                  <Camera className="w-5 h-5" /> Snap Photo
                 </button>
               </div>
             </div>
@@ -535,9 +568,13 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
           {/* Mode: Result */}
           {mode === 'result' && assessment && (
             <div className="animate-fadeIn">
-              {assessment.dataSourceRegion === 'world_fallback' ? (
+              {assessment.dataSourceRegion === 'usda_database' || assessment.dataSourceRegion === 'usda_foundation' ? (
+                <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-sm text-center uppercase tracking-wide">
+                  🏛️ Sourced from <strong>USDA FoodData Central (Branded)</strong> database
+                </div>
+              ) : assessment.dataSourceRegion === 'world_fallback' ? (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg text-sm text-center">
-                  ⚠️ <strong>Not available in your region.</strong> Displaying results from the <strong>Global Database</strong>.
+                  ⚠️ <strong>Not available in your region.</strong> Sourced from <strong>Global OpenFoodFacts Database</strong>.
                 </div>
               ) : assessment.dataSourceRegion === 'world' ? (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm text-center uppercase tracking-wide">
@@ -545,11 +582,11 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                 </div>
               ) : assessment.dataSourceRegion ? (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-800 rounded-lg text-sm text-center uppercase tracking-wide">
-                  📍 Sourced from <strong>{assessment.dataSourceRegion}</strong> database
+                  📍 Sourced from <strong>{assessment.dataSourceRegion.toUpperCase()}</strong> database
                 </div>
               ) : (
                 <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 text-indigo-800 rounded-lg text-sm text-center">
-                  ✨ Analyzed using <strong>AI Fallback</strong>
+                  ✨ Analyzed using <strong>AI Fallback Engine</strong>
                 </div>
               )}
               <HealthStatusCard assessment={assessment} />
@@ -567,7 +604,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                   onClick={resetScanner}
                   className="px-8 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-lg transition shadow-sm"
                 >
-                  Scan Another Product
+                  {t('scan_another')}
                 </button>
                 <p className="text-[11px] text-gray-400 mt-4">
                   ℹ️ AI-powered analysis. AI can make mistakes — always verify with product packaging or a healthcare provider.
