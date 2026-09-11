@@ -103,7 +103,7 @@ public class GroqService {
             String jsonText = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,
                     "messages", List.of(
-                            Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY valid JSON. Start your response with '{' and end with '}'. VERY IMPORTANT: Keep your internal <think> reasoning EXTREMELY BRIEF (under 200 words)."),
+                            Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY raw valid JSON. DO NOT include <think> tags. Keep ingredient explanations strictly under 8 words. Be extremely concise so JSON completes."),
                             Map.of(
                                     "role", "user",
                                     "content", List.of(
@@ -113,10 +113,10 @@ public class GroqService {
                             )
                     ),
                     "temperature", 0.1,
-                    "max_tokens", 650
+                    "max_tokens", 750
             ), VISION_MODELS);
 
-            return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
+            return CompletableFuture.completedFuture(parseAssessment(jsonText));
         } catch (Exception e) {
             throw new RuntimeException("Fallback Groq AI failed to analyze image: " + e.getMessage(), e);
         }
@@ -165,7 +165,7 @@ public class GroqService {
                     "response_format", Map.of("type", "json_object")
             ), TEXT_MODELS);
 
-            WhoAssessmentDTO parsed = objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
+            WhoAssessmentDTO parsed = parseAssessment(jsonText);
             WhoAssessmentDTO augmented = new WhoAssessmentDTO(
                 parsed.productName(),
                 parsed.ingredientsFound(),
@@ -213,5 +213,89 @@ public class GroqService {
         }
         
         return cleanedText.isEmpty() ? rawText : cleanedText;
+    }
+
+    private WhoAssessmentDTO parseAssessment(String rawJson) throws Exception {
+        try {
+            return objectMapper.readValue(rawJson, WhoAssessmentDTO.class);
+        } catch (Exception parseEx) {
+            System.err.println("JSON parse failed, attempting automatic repair on truncated response: " + parseEx.getMessage());
+            String repaired = repairTruncatedJson(rawJson);
+            return objectMapper.readValue(repaired, WhoAssessmentDTO.class);
+        }
+    }
+
+    private String repairTruncatedJson(String text) {
+        if (text == null || text.isBlank()) return "{}";
+        int firstBrace = text.indexOf('{');
+        if (firstBrace == -1) return "{}";
+        String s = text.substring(firstBrace).trim();
+
+        // Track unclosed quotes and brackets
+        boolean inString = false;
+        boolean escaped = false;
+        java.util.Stack<Character> stack = new java.util.Stack<>();
+
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (!inString) {
+                if (c == '{' || c == '[') {
+                    stack.push(c);
+                } else if (c == '}' && !stack.isEmpty() && stack.peek() == '{') {
+                    stack.pop();
+                } else if (c == ']' && !stack.isEmpty() && stack.peek() == '[') {
+                    stack.pop();
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder(s);
+        // If cut off mid-string, close quote
+        if (inString) {
+            sb.append('"');
+        }
+
+        // Remove trailing commas or dangling colons before closing
+        String current = sb.toString().trim();
+        while (current.endsWith(",") || current.endsWith(":")) {
+            current = current.substring(0, current.length() - 1).trim();
+        }
+        sb = new StringBuilder(current);
+
+        // Recalculate remaining unclosed brackets
+        stack.clear();
+        inString = false;
+        escaped = false;
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\') { escaped = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (!inString) {
+                if (c == '{' || c == '[') stack.push(c);
+                else if (c == '}' && !stack.isEmpty() && stack.peek() == '{') stack.pop();
+                else if (c == ']' && !stack.isEmpty() && stack.peek() == '[') stack.pop();
+            }
+        }
+
+        while (!stack.isEmpty()) {
+            char open = stack.pop();
+            if (open == '{') sb.append("}");
+            else if (open == '[') sb.append("]");
+        }
+
+        return sb.toString();
     }
 }

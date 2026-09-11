@@ -129,7 +129,7 @@ public class GeminiService {
                 }
 
                 jsonText = extractJson(jsonText);
-                return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
+                return CompletableFuture.completedFuture(parseAssessment(jsonText));
             } catch (Exception e) {
                 if (e.getMessage() != null && (e.getMessage().contains("503") || e.getMessage().toLowerCase().contains("timed out") || e.getMessage().toLowerCase().contains("timeout")) && i < maxRetries - 1) {
                     try {
@@ -223,7 +223,7 @@ public class GeminiService {
                 }
 
                 jsonText = extractJson(jsonText);
-                WhoAssessmentDTO parsed = objectMapper.readValue(jsonText, WhoAssessmentDTO.class);
+                WhoAssessmentDTO parsed = parseAssessment(jsonText);
                 WhoAssessmentDTO augmented = new WhoAssessmentDTO(
                     parsed.productName(),
                     parsed.ingredientsFound(),
@@ -256,6 +256,77 @@ public class GeminiService {
         }
         System.out.println("Gemini exhausted retries for name analysis, falling back to GroqService...");
         return groqService.analyzeIngredientsByName(productName, ingredientsText, servingSize, quantity, foodCategory, userProfileSummary, language);
+    }
+
+    private WhoAssessmentDTO parseAssessment(String rawJson) throws Exception {
+        try {
+            return objectMapper.readValue(rawJson, WhoAssessmentDTO.class);
+        } catch (Exception parseEx) {
+            System.err.println("Gemini JSON parse failed, attempting automatic repair on truncated response: " + parseEx.getMessage());
+            String repaired = repairTruncatedJson(rawJson);
+            return objectMapper.readValue(repaired, WhoAssessmentDTO.class);
+        }
+    }
+
+    private String repairTruncatedJson(String text) {
+        if (text == null || text.isBlank()) return "{}";
+        int firstBrace = text.indexOf('{');
+        if (firstBrace == -1) return "{}";
+        String s = text.substring(firstBrace).trim();
+
+        boolean inString = false;
+        boolean escaped = false;
+        java.util.Stack<Character> stack = new java.util.Stack<>();
+
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\') { escaped = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (!inString) {
+                if (c == '{' || c == '[') {
+                    stack.push(c);
+                } else if (c == '}' && !stack.isEmpty() && stack.peek() == '{') {
+                    stack.pop();
+                } else if (c == ']' && !stack.isEmpty() && stack.peek() == '[') {
+                    stack.pop();
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder(s);
+        if (inString) {
+            sb.append('"');
+        }
+
+        String current = sb.toString().trim();
+        while (current.endsWith(",") || current.endsWith(":")) {
+            current = current.substring(0, current.length() - 1).trim();
+        }
+        sb = new StringBuilder(current);
+
+        stack.clear();
+        inString = false;
+        escaped = false;
+        for (int i = 0; i < sb.length(); i++) {
+            char c = sb.charAt(i);
+            if (escaped) { escaped = false; continue; }
+            if (c == '\\') { escaped = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (!inString) {
+                if (c == '{' || c == '[') stack.push(c);
+                else if (c == '}' && !stack.isEmpty() && stack.peek() == '{') stack.pop();
+                else if (c == ']' && !stack.isEmpty() && stack.peek() == '[') stack.pop();
+            }
+        }
+
+        while (!stack.isEmpty()) {
+            char open = stack.pop();
+            if (open == '{') sb.append("}");
+            else if (open == '[') sb.append("]");
+        }
+
+        return sb.toString();
     }
 
     private String extractJson(String rawText) {
