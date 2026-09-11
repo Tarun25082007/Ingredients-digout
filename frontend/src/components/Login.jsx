@@ -207,28 +207,36 @@ const Login = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[75vh] p-6 bg-gray-50">
-      <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl shadow-xl border border-gray-100">
+    <div className="relative flex flex-col items-center justify-center min-h-[85vh] p-6">
+      {/* Edge-to-edge ambient background matching the outside */}
+      <div 
+        className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
+        style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+      >
+        <div className="absolute inset-0 bg-custom-900/85 backdrop-blur-[2px]"></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-md bg-custom-900/80 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl border border-custom-700/60">
         
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-extrabold text-primary-dark">
+          <h2 className="text-3xl font-extrabold text-white">
             {isLoginMode ? t('welcome_back') : t('create_account')}
           </h2>
-          <p className="text-gray-500 mt-3 font-medium">
+          <p className="text-custom-300 mt-2 font-medium text-sm">
             {isLoginMode 
-              ? 'Log in to save your scan history.' 
-              : 'Sign up to unlock international comparisons.'}
+              ? 'Log in to access and sync your scan history.' 
+              : 'Sign up to unlock personalized health assessments.'}
           </p>
         </div>
 
         {successMsg && (
-          <div className="p-4 rounded-xl mb-6 text-sm font-bold text-center border bg-green-50 text-green-700 border-green-200">
+          <div className="p-4 rounded-xl mb-6 text-sm font-bold text-center border bg-emerald-950/80 text-emerald-300 border-emerald-500/40">
             ✅ {successMsg}
           </div>
         )}
 
         {error && (
-          <div className="p-4 rounded-xl mb-6 text-sm font-bold text-center border bg-red-50 text-red-700 border-red-200">
+          <div className="p-4 rounded-xl mb-6 text-sm font-bold text-center border bg-red-950/80 text-red-300 border-red-500/40">
             {error}
           </div>
         )}
@@ -236,57 +244,57 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           {!isLoginMode && (
             <div className="animate-fadeIn">
-              <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">{t('full_name')}</label>
+              <label className="block text-sm font-bold text-custom-300 mb-1.5 ml-1">{t('full_name')}</label>
               <input 
                 type="text" 
                 name="fullName"
                 required={!isLoginMode}
                 value={formData.fullName}
                 onChange={handleInputChange}
-                className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary-light focus:ring-4 focus:ring-primary-light/20 outline-none transition duration-200"
+                className="w-full px-5 py-3.5 rounded-xl border border-custom-700 bg-custom-900/70 text-white placeholder:text-custom-300/40 focus:bg-custom-900 focus:border-custom-300 focus:ring-4 focus:ring-custom-500/20 outline-none transition duration-200"
                 placeholder="John Doe"
               />
             </div>
           )}
           
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">{t('email_address')}</label>
+            <label className="block text-sm font-bold text-custom-300 mb-1.5 ml-1">{t('email_address')}</label>
             <input 
               type="email" 
               name="email"
               required
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary-light focus:ring-4 focus:ring-primary-light/20 outline-none transition duration-200"
+              className="w-full px-5 py-3.5 rounded-xl border border-custom-700 bg-custom-900/70 text-white placeholder:text-custom-300/40 focus:bg-custom-900 focus:border-custom-300 focus:ring-4 focus:ring-custom-500/20 outline-none transition duration-200"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">{t('password')}</label>
+            <label className="block text-sm font-bold text-custom-300 mb-1.5 ml-1">{t('password')}</label>
             <input 
               type="password" 
               name="password"
               required
               value={formData.password}
               onChange={handleInputChange}
-              className="w-full px-5 py-3.5 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary-light focus:ring-4 focus:ring-primary-light/20 outline-none transition duration-200"
+              className="w-full px-5 py-3.5 rounded-xl border border-custom-700 bg-custom-900/70 text-white placeholder:text-custom-300/40 focus:bg-custom-900 focus:border-custom-300 focus:ring-4 focus:ring-custom-500/20 outline-none transition duration-200"
               placeholder="••••••••"
             />
             {!isLoginMode && (
-              <div className="mt-2.5 p-3 bg-gray-50 border border-gray-100 rounded-xl space-y-1 text-xs">
-                <p className="font-semibold text-gray-600 mb-1">Password Requirements:</p>
+              <div className="mt-2.5 p-3 bg-custom-900/90 border border-custom-700/80 rounded-xl space-y-1 text-xs">
+                <p className="font-semibold text-custom-300 mb-1">Password Requirements:</p>
                 <div className="grid grid-cols-2 gap-1 text-[11px]">
-                  <span className={formData.password.length >= 8 ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
+                  <span className={formData.password.length >= 8 ? "text-emerald-400 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {formData.password.length >= 8 ? "✓" : "○"} 8+ Characters
                   </span>
-                  <span className={/[a-zA-Z]/.test(formData.password) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
+                  <span className={/[a-zA-Z]/.test(formData.password) ? "text-emerald-400 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {/[a-zA-Z]/.test(formData.password) ? "✓" : "○"} 1+ Letter
                   </span>
-                  <span className={/[0-9]/.test(formData.password) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
+                  <span className={/[0-9]/.test(formData.password) ? "text-emerald-400 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {/[0-9]/.test(formData.password) ? "✓" : "○"} 1+ Number
                   </span>
-                  <span className={/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(formData.password) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
+                  <span className={/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(formData.password) ? "text-emerald-400 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(formData.password) ? "✓" : "○"} 1+ Special (!@#$)
                   </span>
                 </div>
@@ -306,7 +314,7 @@ const Login = () => {
           <button 
             type="submit" 
             disabled={loading}
-            className="w-full py-4 mt-2 bg-primary-light hover:bg-emerald-600 text-white text-lg font-bold rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 disabled:opacity-70 flex justify-center items-center h-14"
+            className="w-full py-4 mt-2 bg-custom-500 hover:bg-custom-700 text-white text-lg font-bold rounded-xl shadow-lg transition transform hover:-translate-y-0.5 disabled:opacity-70 flex justify-center items-center h-14"
           >
             {loading ? (
               <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -316,8 +324,8 @@ const Login = () => {
           </button>
         </form>
 
-        <div className="mt-8 text-center pt-6 border-t border-gray-100">
-          <p className="text-gray-500 font-medium text-sm">
+        <div className="mt-8 text-center pt-6 border-t border-custom-700/50">
+          <p className="text-custom-300/80 font-medium text-sm">
             {isLoginMode ? "Don't have an account? " : "Already have an account? "}
             <button 
               type="button"
@@ -327,7 +335,7 @@ const Login = () => {
                 setSuccessMsg('');
                 if (turnstileRef.current) turnstileRef.current.reset();
               }}
-              className="text-primary-dark font-bold hover:text-emerald-700 hover:underline transition ml-1"
+              className="text-white font-bold hover:text-custom-300 hover:underline transition ml-1"
             >
               {isLoginMode ? 'Create one now' : 'Log in here'}
             </button>

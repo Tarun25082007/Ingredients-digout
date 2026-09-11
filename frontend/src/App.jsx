@@ -45,7 +45,7 @@ function App() {
     <LanguageProvider>
       <AuthProvider>
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col bg-gray-50">
+          <div className="min-h-screen flex flex-col bg-custom-900 text-white selection:bg-custom-500 selection:text-white">
             <Navbar />
             
             <main className="flex-grow flex flex-col">

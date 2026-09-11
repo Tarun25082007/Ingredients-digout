@@ -63,28 +63,45 @@ const HistoryDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-50">
-        <div className="w-12 h-12 border-4 border-gray-200 border-t-primary-dark rounded-full animate-spin"></div>
+      <div className="relative flex justify-center items-center min-h-[90vh]">
+        <div 
+          className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
+          style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+        >
+          <div className="absolute inset-0 bg-custom-900/85 backdrop-blur-[2px]"></div>
+        </div>
+        <div className="relative z-10 w-12 h-12 border-4 border-custom-700 border-t-custom-300 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-6 relative">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl font-extrabold text-gray-900 mb-8">{t('scan_history')}</h2>
+    <div className="relative min-h-[90vh] py-10 px-6">
+      {/* Edge-to-edge ambient background matching the home page */}
+      <div 
+        className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
+        style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+      >
+        <div className="absolute inset-0 bg-custom-900/85 backdrop-blur-[2px]"></div>
+      </div>
+
+      <div className="relative z-10 max-w-6xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-3xl font-extrabold text-white tracking-tight drop-shadow-md">{t('scan_history')}</h2>
+          <p className="text-custom-300 text-sm font-medium mt-1">Review your previously evaluated food products and health assessments</p>
+        </div>
         
         {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 border border-red-200 font-medium">
+          <div className="bg-red-950/80 text-red-200 p-4 rounded-xl mb-6 border border-red-500/40 backdrop-blur-md font-medium">
             ⚠️ {error}
           </div>
         )}
 
         {history.length === 0 && !error ? (
-          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <div className="text-center py-20 bg-custom-900/60 backdrop-blur-md rounded-3xl shadow-xl border border-custom-700/60">
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-bold text-gray-800 mb-2">{t('no_history')}</h3>
-            <p className="text-gray-500 text-md">{t('start_first_scan')}</p>
+            <h3 className="text-xl font-bold text-white mb-2">{t('no_history')}</h3>
+            <p className="text-custom-300 text-md">{t('start_first_scan')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -92,23 +109,23 @@ const HistoryDashboard = () => {
               <div 
                 key={scan.id} 
                 onClick={() => setSelectedScan(scan)}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition transform duration-200"
+                className="bg-custom-900/70 backdrop-blur-md rounded-2xl shadow-xl border border-custom-700/60 p-6 cursor-pointer hover:border-custom-300/60 hover:bg-custom-900/90 hover:shadow-2xl hover:shadow-custom-900/50 hover:-translate-y-1 transition-all duration-300 group"
               >
                 <div className="flex justify-between items-start mb-4 gap-4">
-                  <h3 className="text-lg font-bold text-gray-800 line-clamp-2 leading-tight">
+                  <h3 className="text-lg font-bold text-white group-hover:text-custom-300 line-clamp-2 leading-tight transition-colors">
                     {scan.productName || "Unknown Product"}
                   </h3>
                   <span className={`shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                    scan.healthStatus === 'PURPLE' ? 'bg-purple-900 text-white' :
-                    scan.healthStatus === 'RED' ? 'bg-red-100 text-red-800' :
-                    scan.healthStatus === 'YELLOW' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
+                    scan.healthStatus === 'PURPLE' ? 'bg-purple-900/90 text-purple-200 border border-purple-500/40 shadow-sm' :
+                    scan.healthStatus === 'RED' ? 'bg-red-950/80 text-red-300 border border-red-500/40 shadow-sm' :
+                    scan.healthStatus === 'YELLOW' ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40 shadow-sm' :
+                    'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 shadow-sm'
                   }`}>
                     {scan.healthStatus}
                   </span>
                 </div>
-                <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center">
-                  <p className="text-sm text-gray-500 flex items-center">
+                <div className="mt-4 pt-4 border-t border-custom-700/50 flex justify-between items-center">
+                  <p className="text-xs text-custom-300 font-medium flex items-center">
                     <span className="mr-2">📅</span>
                     {new Date(scan.scannedAt).toLocaleDateString(undefined, { 
                       year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
@@ -116,7 +133,7 @@ const HistoryDashboard = () => {
                   </p>
                   <button 
                     onClick={(e) => deleteScan(scan.id, e)}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    className="p-2 text-custom-300/60 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors"
                     title="Delete Scan"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -127,22 +144,22 @@ const HistoryDashboard = () => {
           </div>
         )}
 
-        <div className="mt-12 text-center text-[11px] text-gray-400">
+        <div className="mt-12 text-center text-xs text-custom-300/70">
           ℹ️ Historical health indicators reflect guidelines at the time of scan. AI can make mistakes — always consult healthcare providers for medical advice.
         </div>
       </div>
 
       {/* Details Modal */}
       {selectedScan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-custom-900/80 backdrop-blur-md overflow-y-auto">
           <div className="relative w-full max-w-3xl my-8">
             <button
               onClick={() => setSelectedScan(null)}
-              className="absolute -top-4 -right-4 bg-white text-gray-700 hover:text-gray-900 rounded-full w-10 h-10 shadow-lg flex items-center justify-center font-bold text-xl z-50 border border-gray-200 transition"
+              className="absolute -top-4 -right-4 bg-custom-900 text-custom-300 hover:text-white rounded-full w-10 h-10 shadow-lg flex items-center justify-center font-bold text-xl z-50 border border-custom-700 hover:border-custom-300 transition"
             >
               ×
             </button>
-            <div className="max-h-[85vh] overflow-y-auto rounded-xl shadow-2xl">
+            <div className="max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl">
               <HealthStatusCard 
                 assessment={(() => {
                   try {
