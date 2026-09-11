@@ -36,8 +36,8 @@ public class GroqService {
     };
 
     private static final String[] VISION_MODELS = {
-            "qwen/qwen3.6-27b",    // Vision specific
-            "openai/gpt-oss-120b"  // Largest fallback
+            "qwen/qwen3.6-27b",    // Vision capable
+            "qwen/qwen3.8-27b"     // Vision fallback
     };
 
     public GroqService(@Value("${groq.api.key}") String groqApiKey, RestTemplate restTemplate, ObjectMapper objectMapper) {
@@ -112,7 +112,8 @@ public class GroqService {
                                     )
                             )
                     ),
-                    "temperature", 0.1
+                    "temperature", 0.1,
+                    "max_tokens", 650
             ), VISION_MODELS);
 
             return CompletableFuture.completedFuture(objectMapper.readValue(jsonText, WhoAssessmentDTO.class));
