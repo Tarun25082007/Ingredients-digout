@@ -213,7 +213,7 @@ const Login = () => {
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
         style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
       >
-        <div className="absolute inset-0 bg-custom-900/95 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md bg-emerald-50/95 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl border border-emerald-200">

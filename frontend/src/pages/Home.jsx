@@ -18,7 +18,7 @@ const Home = () => {
         style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
       >
         {/* Dark Overlay to make text pop */}
-        <div className="absolute inset-0 bg-custom-900/75 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
       </div>
       
       {/* Main Content Wrapper */}

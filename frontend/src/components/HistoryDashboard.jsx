@@ -68,7 +68,7 @@ const HistoryDashboard = () => {
           className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
           style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
         >
-          <div className="absolute inset-0 bg-custom-900/95 backdrop-blur-[2px]"></div>
+          <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
         </div>
         <div className="relative z-10 w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
       </div>
@@ -82,7 +82,7 @@ const HistoryDashboard = () => {
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
         style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
       >
-        <div className="absolute inset-0 bg-custom-900/95 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto">
