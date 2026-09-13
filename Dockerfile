@@ -9,7 +9,7 @@ RUN mvn dependency:go-offline -B
 
 # Copy the source code and build the application
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN mvn clean package -Dmaven.test.skip=true
 
 # Stage 2: Create the runtime image using a lightweight JRE
 FROM eclipse-temurin:21-jre-alpine
