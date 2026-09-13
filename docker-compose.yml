@@ -38,6 +38,7 @@ services:
     environment:
       # Tell Vite where the backend is (if it uses env variables)
       - VITE_API_URL=https://localhost:8443
+      - DOCKER_ENV=true
     depends_on:
       - digout-backend
 
