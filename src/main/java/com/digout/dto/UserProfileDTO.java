@@ -11,6 +11,7 @@ public record UserProfileDTO(
         String calorieGoal,
         String medicalConditions,
         Boolean profileCompleted,
+        String strictnessLevel,
         Double bmi,
         String bmiCategory
 ) {
@@ -36,6 +37,7 @@ public record UserProfileDTO(
                 user.getCalorieGoal(),
                 user.getMedicalConditions(),
                 user.getProfileCompleted() != null ? user.getProfileCompleted() : false,
+                user.getStrictnessLevel() != null ? user.getStrictnessLevel() : "STANDARD",
                 bmi,
                 bmiCategory
         );

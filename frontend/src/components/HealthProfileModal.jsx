@@ -37,6 +37,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   const [calorieGoal, setCalorieGoal] = useState('MAINTENANCE');
   const [selectedConditions, setSelectedConditions] = useState([]);
   const [customCondition, setCustomCondition] = useState('');
+  const [strictnessLevel, setStrictnessLevel] = useState('STANDARD');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -50,6 +51,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
       if (initialProfile.weightKg) setWeightKg(initialProfile.weightKg);
       if (initialProfile.activityLevel) setActivityLevel(initialProfile.activityLevel);
       if (initialProfile.calorieGoal) setCalorieGoal(initialProfile.calorieGoal);
+      if (initialProfile.strictnessLevel) setStrictnessLevel(initialProfile.strictnessLevel);
 
       if (initialProfile.medicalConditions) {
         const raw = initialProfile.medicalConditions;
@@ -131,6 +133,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
         activityLevel,
         calorieGoal,
         medicalConditions: allConditions.join(', '),
+        strictnessLevel,
         profileCompleted: true
       };
 
@@ -377,6 +380,47 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
                 onChange={(e) => setCustomCondition(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
               />
+            </div>
+          </div>
+
+          {/* Section 4: AI Strictness Level */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center space-x-2">
+              <span className="text-amber-500 text-lg leading-none">⚖️</span>
+              <span>4. AI Strictness Level</span>
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              How strict should the AI be when evaluating processed foods, additives, and hidden sugars?
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setStrictnessLevel('STANDARD')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  strictnessLevel === 'STANDARD'
+                    ? 'border-emerald-500 bg-emerald-50/70 shadow-sm ring-1 ring-emerald-500'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                }`}
+              >
+                <div className="font-bold text-sm text-gray-800">Standard Mode</div>
+                <div className="text-[11px] text-gray-500 leading-tight mt-1">
+                  Balanced evaluation based on general WHO guidelines. Tolerates standard additives and small amounts of sugar in processed foods.
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStrictnessLevel('STRICT')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  strictnessLevel === 'STRICT'
+                    ? 'border-red-500 bg-red-50/70 shadow-sm ring-1 ring-red-500'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                }`}
+              >
+                <div className="font-bold text-sm text-gray-800">Harsh Nutritionist (Strict)</div>
+                <div className="text-[11px] text-gray-500 leading-tight mt-1">
+                  Zero tolerance. The AI will mercilessly flag ALL added sugars, refined seed oils, and artificial additives as RED or PURPLE.
+                </div>
+              </button>
             </div>
           </div>
 

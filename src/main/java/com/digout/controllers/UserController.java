@@ -93,6 +93,10 @@ public class UserController {
             user.setMedicalConditions(sanitizedConditions);
         }
         
+        if (dto.strictnessLevel() != null) {
+            user.setStrictnessLevel(dto.strictnessLevel().toUpperCase());
+        }
+        
         user.setProfileCompleted(true);
         userRepository.save(user);
 

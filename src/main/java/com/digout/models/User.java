@@ -52,6 +52,10 @@ public class User {
     @Builder.Default
     private Boolean profileCompleted = false;
 
+    @Column(name = "strictness_level")
+    @Builder.Default
+    private String strictnessLevel = "STANDARD";
+
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -285,6 +285,9 @@ public class ScanController {
                     if (u.getMedicalConditions() != null && !u.getMedicalConditions().isBlank()) {
                         sb.append("Conditions/Stages/Allergies: [").append(u.getMedicalConditions()).append("]");
                     }
+                    if ("STRICT".equalsIgnoreCase(u.getStrictnessLevel())) {
+                        sb.append(" | STRICTNESS LEVEL: STRICT (ZERO TOLERANCE for added sugars, refined seed oils, and artificial additives. MUST flag them ALL as RED or PURPLE).");
+                    }
                     return sb.toString();
                 }
             }

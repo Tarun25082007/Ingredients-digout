@@ -254,7 +254,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-white rounded-t-[2rem] sm:rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative animate-slideUp sm:animate-fadeIn">
+      <div className="bg-white text-gray-900 rounded-t-[2rem] sm:rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative animate-slideUp sm:animate-fadeIn">
         
         {/* Close Button */}
         <button 

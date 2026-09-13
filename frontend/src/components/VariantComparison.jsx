@@ -95,7 +95,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
               </h4>
               <div className="bg-white/70 p-6 rounded-xl border border-emerald-100 h-64 overflow-y-auto shadow-inner">
                 {Array.isArray(scannedIngredients) && scannedIngredients.length > 0 ? (
-                  <ul className="space-y-3">
+                  <ul className="space-y-3 text-gray-800">
                     {scannedIngredients.filter(i => i != null).map((ing, idx) => {
                       const text = String((typeof ing === 'string' ? ing : ing?.name) || '');
                       const status = typeof ing === 'string' ? null : ing?.status;
