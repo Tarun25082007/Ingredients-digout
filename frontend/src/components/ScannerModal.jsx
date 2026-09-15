@@ -170,8 +170,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     const query = customName !== null ? customName : searchName;
     if (!query.trim()) return;
     
-    // Sanitize: remove special characters, collapse multiple spaces, trim
-    const sanitizedSearch = query.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    // Sanitize: allow letters in all languages (Unicode), numbers, spaces, and safe food name punctuation (-, ', ., &, /)
+    const sanitizedSearch = query.replace(/[^\p{L}\p{N}\s\-'.&/]/gu, '').replace(/\s+/g, ' ').trim();
     
     setMode('uploading');
     setError('');

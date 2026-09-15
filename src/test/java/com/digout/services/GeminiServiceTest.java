@@ -49,7 +49,7 @@ public class GeminiServiceTest {
                 .thenReturn(mockResponseEntity);
 
         // Act
-        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null);
+        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null, "English");
         WhoAssessmentDTO result = future.get();
 
         // Assert
@@ -66,16 +66,16 @@ public class GeminiServiceTest {
                 .thenThrow(new RuntimeException("503 Service Unavailable"));
 
         WhoAssessmentDTO fallbackAssessment = new WhoAssessmentDTO("Fallback Product", java.util.List.of(), java.util.List.of(), "YELLOW", "Fallback Product", "100ml", "1L", null, null, null);
-        when(groqService.analyzeIngredients(anyString(), anyString(), anyString(), any()))
+        when(groqService.analyzeIngredients(anyString(), anyString(), anyString(), any(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(fallbackAssessment));
 
         // Act
-        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null);
+        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null, "English");
         WhoAssessmentDTO result = future.get();
 
         // Assert
         assertNotNull(result);
         assertEquals("Fallback Product", result.productName());
-        verify(groqService, times(1)).analyzeIngredients(anyString(), anyString(), anyString(), any());
+        verify(groqService, times(1)).analyzeIngredients(anyString(), anyString(), anyString(), any(), anyString());
     }
 }

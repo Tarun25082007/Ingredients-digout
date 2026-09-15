@@ -27,11 +27,13 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RestTemplate restTemplate;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
+    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, RestTemplate restTemplate) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.restTemplate = restTemplate;
     }
     
     @org.springframework.beans.factory.annotation.Value("${turnstile.secret:1x0000000000000000000000000000000AA}")
@@ -40,14 +42,13 @@ public class AuthController {
     private boolean verifyTurnstile(String token) {
         if (token == null || token.isEmpty()) return false;
         try {
-            RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
             MultiValueMap<String, String> map= new LinkedMultiValueMap<>();
             map.add("secret", turnstileSecret);
             map.add("response", token);
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity("https://challenges.cloudflare.com/turnstile/v0/siteverify", request, Map.class);
+            ResponseEntity<Map> response = this.restTemplate.postForEntity("https://challenges.cloudflare.com/turnstile/v0/siteverify", request, Map.class);
             return Boolean.TRUE.equals(response.getBody().get("success"));
         } catch(Exception e) {
             return false;
@@ -127,6 +128,10 @@ public class AuthController {
     
     @PostMapping("/update-password")
     public ResponseEntity<?> updatePassword(@RequestBody Map<String, String> request) {
+        if (!verifyTurnstile(request.get("turnstileToken"))) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Captcha verification failed."));
+        }
+
         String email = request.get("email");
         String oldPassword = request.get("oldPassword");
         String newPassword = request.get("newPassword");

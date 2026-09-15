@@ -43,12 +43,18 @@ const Login = () => {
       return;
     }
 
+    if (!turnstileToken) {
+      setError("Please complete the captcha verification.");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await api.post('/auth/update-password', {
         email: formData.email,
         oldPassword: formData.password,
-        newPassword: newPassword
+        newPassword: newPassword,
+        turnstileToken: turnstileToken
       });
       const { token, user } = response.data;
       login(token, user || { email: formData.email, name: formData.email.split('@')[0] });
@@ -187,6 +193,14 @@ const Login = () => {
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div className="flex justify-center my-4">
+              <Turnstile
+                siteKey="1x00000000000000000000AA"
+                onSuccess={(token) => setTurnstileToken(token)}
+                onError={() => setError("Captcha error. Please try again.")}
+              />
             </div>
 
             <button 
