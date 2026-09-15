@@ -70,13 +70,15 @@ const Home = () => {
         />
       )}
       
-      <div className="w-full z-10 px-4 mt-6 pb-20 max-w-5xl mx-auto">
-        <VariantComparison 
-          scannedIngredients={lastScan?.ingredientsFound || []} 
-          productName={lastScan?.productName || ''}
-          globalEquivalent={lastScan?.globalEquivalent || ''}
-        />
-      </div>
+      {!showScanner && lastScan && (
+        <div className="w-full z-10 px-4 mt-6 pb-20 max-w-5xl mx-auto">
+          <VariantComparison 
+            scannedIngredients={lastScan?.ingredientsFound || []} 
+            productName={lastScan?.productName || ''}
+            globalEquivalent={lastScan?.globalEquivalent || ''}
+          />
+        </div>
+      )}
 
       <div className="z-10 mt-auto mb-8 text-center text-xs text-gray-300 font-medium drop-shadow-md px-6">
         ℹ️ {t('disclaimer')}

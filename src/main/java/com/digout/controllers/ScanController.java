@@ -81,7 +81,7 @@ public class ScanController {
                         if (identifiedName == null || identifiedName.isBlank()) {
                             identifiedName = "Unknown Product";
                         }
-                        return processAnalyzeNameLogic(identifiedName, countryCode, language, foodCategory, false, userProfileSummary, auth, true);
+                        return processAnalyzeNameLogic(identifiedName, countryCode, language, foodCategory, false, userProfileSummary, auth, true, true);
                     }
                     saveScanHistory(auth, assessment);
                     return CompletableFuture.completedFuture(ResponseEntity.ok((Object) assessment));
@@ -107,13 +107,14 @@ public class ScanController {
         String userProfileSummary = buildUserProfileSummary(auth);
         String foodCategory = payload.getOrDefault("foodCategory", "packaged");
         boolean forceAi = Boolean.parseBoolean(payload.getOrDefault("forceAi", "false"));
+        boolean saveHistory = Boolean.parseBoolean(payload.getOrDefault("saveHistory", "true"));
 
-        return processAnalyzeNameLogic(productName, countryCode, language, foodCategory, forceAi, userProfileSummary, auth, false);
+        return processAnalyzeNameLogic(productName, countryCode, language, foodCategory, forceAi, userProfileSummary, auth, false, saveHistory);
     }
 
     private CompletableFuture<ResponseEntity<Object>> processAnalyzeNameLogic(
             String productName, String countryCode, String language, String foodCategory, 
-            boolean forceAi, String userProfileSummary, Authentication auth, boolean fromImageFallback) {
+            boolean forceAi, String userProfileSummary, Authentication auth, boolean fromImageFallback, boolean saveHistory) {
 
         // Only use generic cache if user has no personalized health profile AND language is English
         if (userProfileSummary == null && "English".equalsIgnoreCase(language)) {
@@ -124,7 +125,9 @@ public class ScanController {
                     if (fromImageFallback) {
                         cachedAssessment = addImageFallbackAlert(cachedAssessment);
                     }
-                    saveScanHistory(auth, cachedAssessment);
+                    if (saveHistory) {
+                        saveScanHistory(auth, cachedAssessment);
+                    }
                     return CompletableFuture.completedFuture(ResponseEntity.ok((Object) cachedAssessment));
                 } catch (Exception e) {
                     System.err.println("Failed to parse cached JSON: " + e.getMessage());
@@ -236,7 +239,9 @@ public class ScanController {
                             System.err.println("Failed to cache analysis: " + e.getMessage());
                         }
                     }
-                    saveScanHistory(auth, finalAssessment);
+                    if (saveHistory) {
+                        saveScanHistory(auth, finalAssessment);
+                    }
                     return ResponseEntity.ok((Object) finalAssessment);
                 });
     }

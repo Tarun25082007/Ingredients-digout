@@ -217,10 +217,27 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setMode('uploading');
     setError('');
     try {
-      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-      const data = await response.json();
+      const userCountry = getUserCountry();
+      const countryPrefix = (userCountry && userCountry.toLowerCase() !== 'world') ? userCountry.toLowerCase() : 'world';
+
+      let data = null;
+      try {
+        const regionalRes = await fetch(`https://${countryPrefix}.openfoodfacts.org/api/v0/product/${barcode}.json`);
+        data = await regionalRes.json();
+      } catch (regionalErr) {
+        // Continue to world fallback
+      }
+
+      if ((!data || data.status !== 1) && countryPrefix !== 'world') {
+        try {
+          const worldRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+          data = await worldRes.json();
+        } catch (worldErr) {
+          // Handled below
+        }
+      }
       
-      if (data.status === 1 && data.product && data.product.product_name) {
+      if (data && data.status === 1 && data.product && data.product.product_name) {
         setSearchName(data.product.product_name);
         
         // Use our backend API to analyze the name

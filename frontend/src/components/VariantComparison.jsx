@@ -17,13 +17,13 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
         setLoading(true);
         setError('');
         try {
-          const response = await api.post('/scan/analyze-name', { productName: productName, countryCode: 'world' });
+          const response = await api.post('/scan/analyze-name', { productName: productName, countryCode: 'world', saveHistory: 'false' });
           setInternationalData(response.data);
         } catch (err) {
           // If original fails, try global equivalent
           if (globalEquivalent && globalEquivalent !== productName) {
             try {
-              const response2 = await api.post('/scan/analyze-name', { productName: globalEquivalent, countryCode: 'world' });
+              const response2 = await api.post('/scan/analyze-name', { productName: globalEquivalent, countryCode: 'world', saveHistory: 'false' });
               setInternationalData(response2.data);
               setLoading(false);
               return;
@@ -31,7 +31,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
               // Fall through to error
             }
           }
-          setError('Failed to load international comparison data. This product might not be available outside India, or it is not listed in the OpenFoodFacts database.');
+          setError('Failed to load international comparison data. This product might not be listed in the global OpenFoodFacts database.');
           setInternationalData(null);
         } finally {
           setLoading(false);
