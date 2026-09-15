@@ -112,18 +112,45 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                         return 'bg-gray-900 text-white';
                       };
 
+                      const dailyLimit = typeof ing === 'object' ? ing?.dailyLimit : null;
+                      const productAmount = typeof ing === 'object' ? ing?.productAmount : null;
+                      const explanation = typeof ing === 'object' ? ing?.explanation : null;
+
                       return (
-                        <li key={idx} className="capitalize flex items-center justify-between border-b border-gray-100 last:border-0 pb-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span>{match ? match[1].trim() : text}</span>
-                            {status && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(status)}`}>
-                                {status}
-                              </span>
+                        <li key={idx} className="capitalize flex flex-col border-b border-gray-100 last:border-0 pb-2 mb-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span>{match ? match[1].trim() : text}</span>
+                              {status && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(status)}`}>
+                                  {status}
+                                </span>
+                              )}
+                            </div>
+                            {match && (
+                              <span className="bg-primary-light/10 text-primary-dark text-xs px-2 py-1 rounded-md font-bold ml-2 shrink-0">{match[2]}</span>
                             )}
                           </div>
-                          {match && (
-                            <span className="bg-primary-light/10 text-primary-dark text-xs px-2 py-1 rounded-md font-bold ml-2 shrink-0">{match[2]}</span>
+                          {(dailyLimit || productAmount || explanation) && (
+                            <div className="mt-1 text-[11px] text-gray-500 normal-case space-y-0.5 pl-1">
+                              {explanation && (
+                                <p className="text-gray-600 text-[11px] leading-tight">{explanation}</p>
+                              )}
+                              {dailyLimit && (
+                                <p className="text-gray-500 font-medium">
+                                  <span className="font-semibold text-gray-700">Daily Limit:</span> {dailyLimit}
+                                </p>
+                              )}
+                              {productAmount && (
+                                <p className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold mt-0.5 ${
+                                  productAmount.toLowerCase().includes('exceed') || status === 'RED' || status === 'PURPLE'
+                                    ? 'bg-red-50 text-red-700 border border-red-200'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}>
+                                  In this product: {productAmount}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </li>
                       );
@@ -165,18 +192,45 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
                         return 'bg-blue-100 text-blue-800';
                       };
 
+                      const dailyLimit = typeof ing === 'object' ? ing?.dailyLimit : null;
+                      const productAmount = typeof ing === 'object' ? ing?.productAmount : null;
+                      const explanation = typeof ing === 'object' ? ing?.explanation : null;
+
                       return (
-                        <li key={idx} className="capitalize flex items-center justify-between border-b border-blue-100 last:border-0 pb-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span>{match ? match[1].trim() : text}</span>
-                            {status && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(status)}`}>
-                                {String(status)}
-                              </span>
+                        <li key={idx} className="capitalize flex flex-col border-b border-blue-100 last:border-0 pb-2 mb-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span>{match ? match[1].trim() : text}</span>
+                              {status && (
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusColor(status)}`}>
+                                  {String(status)}
+                                </span>
+                              )}
+                            </div>
+                            {match && (
+                              <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-bold shrink-0">{match[2]}</span>
                             )}
                           </div>
-                          {match && (
-                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-bold shrink-0">{match[2]}</span>
+                          {(dailyLimit || productAmount || explanation) && (
+                            <div className="mt-1 text-[11px] text-gray-500 normal-case space-y-0.5 pl-1">
+                              {explanation && (
+                                <p className="text-gray-600 text-[11px] leading-tight">{explanation}</p>
+                              )}
+                              {dailyLimit && (
+                                <p className="text-gray-500 font-medium">
+                                  <span className="font-semibold text-gray-700">Daily Limit:</span> {dailyLimit}
+                                </p>
+                              )}
+                              {productAmount && (
+                                <p className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold mt-0.5 ${
+                                  productAmount.toLowerCase().includes('exceed') || status === 'RED' || status === 'PURPLE'
+                                    ? 'bg-red-50 text-red-700 border border-red-200'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                }`}>
+                                  In this product: {productAmount}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </li>
                       );

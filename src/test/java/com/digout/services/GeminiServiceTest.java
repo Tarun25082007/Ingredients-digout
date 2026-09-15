@@ -78,4 +78,29 @@ public class GeminiServiceTest {
         assertEquals("Fallback Product", result.productName());
         verify(groqService, times(1)).analyzeIngredients(anyString(), anyString(), anyString(), any(), anyString());
     }
+
+    @Test
+    void testAnalyzeIngredients_WithDailyLimitAndProductAmount() throws Exception {
+        // Arrange
+        String mockResponseJson = "{\"interactionId\":\"test_456\",\"steps\":[{\"modelOutput\":{\"text\":\"```json\\n{\\\"productName\\\":\\\"Cola Drink\\\",\\\"globalEquivalent\\\":\\\"Cola Drink\\\",\\\"ingredientsFound\\\":[{\\\"name\\\":\\\"Sugar (35g)\\\",\\\"explanation\\\":\\\"High sugar content\\\",\\\"status\\\":\\\"RED\\\",\\\"dailyLimit\\\":\\\"Max 25g/day (WHO)\\\",\\\"productAmount\\\":\\\"Exceeds daily limit (+140%)\\\"}],\\\"whoFlags\\\":[{\\\"name\\\":\\\"Added Sugars\\\",\\\"status\\\":\\\"RED\\\",\\\"explanation\\\":\\\"High sugar\\\",\\\"dailyLimit\\\":\\\"Max 25g/day\\\",\\\"productAmount\\\":\\\"35g (140% of daily limit)\\\"}],\\\"overallIndicator\\\":\\\"RED\\\"}\\n```\"}}]}";
+        
+        ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
+        when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
+                .thenReturn(mockResponseEntity);
+
+        // Act
+        CompletableFuture<WhoAssessmentDTO> future = geminiService.analyzeIngredients("base64data", "image/jpeg", "packaged", null, "English");
+        WhoAssessmentDTO result = future.get();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals("Cola Drink", result.productName());
+        assertEquals("RED", result.overallIndicator());
+        assertEquals(1, result.ingredientsFound().size());
+        assertEquals("Max 25g/day (WHO)", result.ingredientsFound().get(0).dailyLimit());
+        assertEquals("Exceeds daily limit (+140%)", result.ingredientsFound().get(0).productAmount());
+        assertEquals(1, result.whoFlags().size());
+        assertEquals("Max 25g/day", result.whoFlags().get(0).dailyLimit());
+        assertEquals("35g (140% of daily limit)", result.whoFlags().get(0).productAmount());
+    }
 }

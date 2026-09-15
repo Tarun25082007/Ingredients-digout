@@ -143,6 +143,24 @@ const HealthStatusCard = ({ assessment }) => {
                   {flag.explanation && (
                     <p className="text-xs text-gray-600 leading-snug">{String(flag.explanation)}</p>
                   )}
+                  {(flag.dailyLimit || flag.productAmount) && (
+                    <div className="mt-2 pt-2 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center gap-1.5 text-[11px]">
+                      {flag.dailyLimit && (
+                        <span className="inline-flex items-center text-gray-600 font-medium">
+                          <span className="font-bold text-gray-700 mr-1">Daily Limit:</span> {flag.dailyLimit}
+                        </span>
+                      )}
+                      {flag.productAmount && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-md font-semibold ${
+                          flag.productAmount.toLowerCase().includes('exceed') || flag.status === 'RED' || flag.status === 'PURPLE'
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}>
+                          <span className="font-bold mr-1">In this product:</span> {flag.productAmount}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -178,6 +196,24 @@ const HealthStatusCard = ({ assessment }) => {
                     </div>
                     {ing.explanation && (
                       <p className="text-[11px] text-gray-500 leading-relaxed">{String(ing.explanation)}</p>
+                    )}
+                    {(ing.dailyLimit || ing.productAmount) && (
+                      <div className="mt-1.5 pt-1.5 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center gap-1.5 text-[10px]">
+                        {ing.dailyLimit && (
+                          <span className="inline-flex items-center text-gray-600 font-medium">
+                            <span className="font-bold text-gray-700 mr-1">Daily Limit:</span> {ing.dailyLimit}
+                          </span>
+                        )}
+                        {ing.productAmount && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-md font-semibold ${
+                            ing.productAmount.toLowerCase().includes('exceed') || ing.status === 'RED' || ing.status === 'PURPLE'
+                              ? 'bg-red-50 text-red-700 border border-red-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
+                            <span className="font-bold mr-1">In this product:</span> {ing.productAmount}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
