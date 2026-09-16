@@ -21,8 +21,7 @@ public class CachedAnalysis {
     @Column(nullable = false, length = 10)
     private String countryCode = "world";
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT", nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String analysisResultJson;
 
     @Column(nullable = false, updatable = false)

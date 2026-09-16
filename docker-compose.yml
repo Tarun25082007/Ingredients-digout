@@ -1,16 +1,15 @@
-version: '3.8'
-
 services:
-  # 1. The Database (MySQL)
-  mysql:
-    image: mysql:8.0
+  # 1. The Database (PostgreSQL)
+  postgres:
+    image: postgres:16-alpine
     ports:
-      - "3307:3306" # Exposing on 3307 to avoid conflict if you already have MySQL on 3306
+      - "5432:5432"
     environment:
-      - MYSQL_ROOT_PASSWORD=password
-      - MYSQL_DATABASE=digout_db
+      - POSTGRES_DB=digout_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
 
   # 2. The Spring Boot Backend
   digout-backend:
@@ -18,9 +17,8 @@ services:
     ports:
       - "8443:8443"
     environment:
-      # Connect to the dockerized MySQL instead of host.docker.internal
-      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/digout_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/digout_db
+      - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password
       # Forward secrets
       - JWT_SECRET=${JWT_SECRET}
@@ -28,7 +26,7 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - USDA_API_KEY=${USDA_API_KEY}
     depends_on:
-      - mysql
+      - postgres
 
   # 3. The React Frontend
   digout-frontend:
@@ -43,4 +41,4 @@ services:
       - digout-backend
 
 volumes:
-  mysql_data:
+  postgres_data:
