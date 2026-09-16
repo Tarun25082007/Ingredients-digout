@@ -56,9 +56,40 @@ public record WhoAssessmentDTO(
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = PersonalizedAlertDeserializer.class)
     public record PersonalizedAlert(
             String title,
             String explanation,
             String severity
     ) {}
+
+    public static class PersonalizedAlertDeserializer extends com.fasterxml.jackson.databind.JsonDeserializer<PersonalizedAlert> {
+        @Override
+        public PersonalizedAlert deserialize(com.fasterxml.jackson.core.JsonParser p, com.fasterxml.jackson.databind.DeserializationContext ctxt) throws java.io.IOException {
+            if (p.currentToken() == com.fasterxml.jackson.core.JsonToken.VALUE_STRING) {
+                String text = p.getText();
+                if (text != null && text.contains(":")) {
+                    String[] parts = text.split(":", 2);
+                    return new PersonalizedAlert(parts[0].trim(), parts[1].trim(), "YELLOW");
+                }
+                return new PersonalizedAlert("Health Alert", text != null ? text.trim() : "", "YELLOW");
+            }
+            com.fasterxml.jackson.databind.JsonNode node = p.getCodec().readTree(p);
+            if (node == null || node.isNull()) {
+                return null;
+            }
+            if (node.isTextual()) {
+                String text = node.asText();
+                if (text.contains(":")) {
+                    String[] parts = text.split(":", 2);
+                    return new PersonalizedAlert(parts[0].trim(), parts[1].trim(), "YELLOW");
+                }
+                return new PersonalizedAlert("Health Alert", text, "YELLOW");
+            }
+            String title = node.has("title") ? node.get("title").asText() : "Health Alert";
+            String explanation = node.has("explanation") ? node.get("explanation").asText() : "";
+            String severity = node.has("severity") ? node.get("severity").asText() : "YELLOW";
+            return new PersonalizedAlert(title, explanation, severity);
+        }
+    }
 }
