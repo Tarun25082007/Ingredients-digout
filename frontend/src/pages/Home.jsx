@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ScannerModal from '../components/ScannerModal';
-import VariantComparison from '../components/VariantComparison';
 import { useLanguage } from '../context/LanguageContext';
 
 const Home = () => {
   const [showScanner, setShowScanner] = useState(false);
-  const [lastScan, setLastScan] = useState(null);
   const { t } = useLanguage();
 
   
@@ -66,18 +64,7 @@ const Home = () => {
       {showScanner && (
         <ScannerModal 
           onClose={() => setShowScanner(false)} 
-          onScanComplete={(assessment) => setLastScan(assessment)}
         />
-      )}
-      
-      {!showScanner && lastScan && (
-        <div className="w-full z-10 px-4 mt-6 pb-20 max-w-5xl mx-auto">
-          <VariantComparison 
-            scannedIngredients={lastScan?.ingredientsFound || []} 
-            productName={lastScan?.productName || ''}
-            globalEquivalent={lastScan?.globalEquivalent || ''}
-          />
-        </div>
       )}
 
       <div className="z-10 mt-auto mb-8 text-center text-xs text-gray-300 font-medium drop-shadow-md px-6">
