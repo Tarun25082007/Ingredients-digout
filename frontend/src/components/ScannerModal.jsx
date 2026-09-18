@@ -613,6 +613,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                   scannedIngredients={assessment.ingredientsFound} 
                   productName={assessment.productName}
                   globalEquivalent={assessment.globalEquivalent}
+                  localHealthScore={assessment.healthScore}
                 />
               )}
               

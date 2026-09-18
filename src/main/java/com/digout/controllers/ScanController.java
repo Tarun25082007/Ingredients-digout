@@ -220,7 +220,8 @@ public class ScanController {
                             assessment.quantity(),
                             finalDataSourceRegion,
                             assessment.personalizedAlerts(),
-                            assessment.recommendedServingAdvice()
+                            assessment.recommendedServingAdvice(),
+                            assessment.healthScore()
                     );
                     
                     if (fromImageFallback) {
@@ -266,7 +267,8 @@ public class ScanController {
             assessment.quantity(),
             assessment.dataSourceRegion(),
             alerts,
-            assessment.recommendedServingAdvice()
+            assessment.recommendedServingAdvice(),
+            assessment.healthScore()
         );
     }
 

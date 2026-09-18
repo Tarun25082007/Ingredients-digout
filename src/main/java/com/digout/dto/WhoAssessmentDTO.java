@@ -14,7 +14,8 @@ public record WhoAssessmentDTO(
         String quantity,
         String dataSourceRegion,
         List<PersonalizedAlert> personalizedAlerts,
-        String recommendedServingAdvice
+        String recommendedServingAdvice,
+        Integer healthScore
 ) {
     public WhoAssessmentDTO(
             String productName,
@@ -26,7 +27,22 @@ public record WhoAssessmentDTO(
             String quantity,
             String dataSourceRegion
     ) {
-        this(productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, null, null);
+        this(productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, null, null, null);
+    }
+
+    public WhoAssessmentDTO(
+            String productName,
+            List<IngredientDetail> ingredientsFound,
+            List<WhoFlag> whoFlags,
+            String overallIndicator,
+            String globalEquivalent,
+            String servingSize,
+            String quantity,
+            String dataSourceRegion,
+            List<PersonalizedAlert> personalizedAlerts,
+            String recommendedServingAdvice
+    ) {
+        this(productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, personalizedAlerts, recommendedServingAdvice, null);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

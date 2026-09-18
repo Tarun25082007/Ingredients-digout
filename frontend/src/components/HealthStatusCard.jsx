@@ -4,7 +4,7 @@ import { ShieldAlert, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 const HealthStatusCard = ({ assessment }) => {
   if (!assessment) return null;
 
-  const { productName, ingredientsFound, whoFlags, overallIndicator, personalizedAlerts, recommendedServingAdvice } = assessment;
+  const { productName, ingredientsFound, whoFlags, overallIndicator, personalizedAlerts, recommendedServingAdvice, healthScore } = assessment;
 
   // Determine colors based on indicator
   let bannerClass = "bg-gray-100 text-gray-800 border-gray-300";
@@ -51,22 +51,59 @@ const HealthStatusCard = ({ assessment }) => {
     <div className="w-full max-w-2xl mx-auto bg-white shadow-xl rounded-xl overflow-hidden border border-gray-100 animate-fadeIn">
       {/* Header Banner */}
       <div className={`p-6 border-b-4 ${bannerClass}`}>
-        <h2 className="text-2xl font-bold capitalize">
-          {productName ? String(productName) : "Unknown Product"}
-        </h2>
-        
-        {/* Quantity and Serving Size */}
-        {(assessment.quantity || assessment.servingSize) && (
-          <p className="text-sm mt-1 mb-2 font-medium bg-white/20 backdrop-blur-sm inline-block px-3 py-1 rounded-md">
-            {assessment.quantity && <span>Size: {String(assessment.quantity)}</span>}
-            {assessment.quantity && assessment.servingSize && <span className="mx-2">|</span>}
-            {assessment.servingSize && <span>Serving: {String(assessment.servingSize)}</span>}
-          </p>
-        )}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold capitalize">
+              {productName ? String(productName) : "Unknown Product"}
+            </h2>
+            
+            {/* Quantity and Serving Size */}
+            {(assessment.quantity || assessment.servingSize) && (
+              <p className="text-sm mt-1 mb-2 font-medium bg-white/20 backdrop-blur-sm inline-block px-3 py-1 rounded-md">
+                {assessment.quantity && <span>Size: {String(assessment.quantity)}</span>}
+                {assessment.quantity && assessment.servingSize && <span className="mx-2">|</span>}
+                {assessment.servingSize && <span>Serving: {String(assessment.servingSize)}</span>}
+              </p>
+            )}
 
-        <p className="text-sm font-bold mt-2 uppercase tracking-wide">
-          {statusText}
-        </p>
+            <p className="text-sm font-bold mt-2 uppercase tracking-wide">
+              {statusText}
+            </p>
+          </div>
+
+          {/* Hybrid Health Score Gauge */}
+          {healthScore != null && (
+            <div className="shrink-0 flex flex-row sm:flex-col items-center justify-between sm:justify-center p-3 sm:px-4 sm:py-3 rounded-2xl bg-white/95 backdrop-blur-md shadow-lg border border-white/50 text-gray-900 min-w-[125px]">
+              <div className="flex items-baseline">
+                <span className={`text-3xl sm:text-4xl font-black tracking-tight ${
+                  healthScore >= 80 ? 'text-emerald-600' :
+                  healthScore >= 55 ? 'text-amber-600' :
+                  healthScore >= 30 ? 'text-orange-600' :
+                  'text-purple-800'
+                }`}>
+                  {healthScore}
+                </span>
+                <span className="text-xs font-bold text-gray-400 ml-0.5">/100</span>
+              </div>
+              <div className="text-right sm:text-center ml-3 sm:ml-0 sm:mt-1">
+                <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-500">
+                  Health Score
+                </span>
+                <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5 uppercase tracking-wide ${
+                  healthScore >= 80 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                  healthScore >= 55 ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                  healthScore >= 30 ? 'bg-orange-100 text-orange-800 border border-orange-200' :
+                  'bg-purple-100 text-purple-900 border border-purple-300 font-extrabold'
+                }`}>
+                  {healthScore >= 80 ? 'Optimal' :
+                   healthScore >= 55 ? 'Moderate' :
+                   healthScore >= 30 ? 'High Risk' :
+                   'Contraindicated'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       
       <div className="p-6 space-y-6">

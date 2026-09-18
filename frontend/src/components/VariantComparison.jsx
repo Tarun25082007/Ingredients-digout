@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import api from '../api';
 
-const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }) => {
+const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, localHealthScore }) => {
   const { token, isGuest } = useContext(AuthContext);
   const { t } = useLanguage();
   const [internationalData, setInternationalData] = useState(null);
@@ -76,6 +76,30 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
       <div className="p-6 sm:p-8 border-b border-emerald-200 bg-gradient-to-r from-emerald-100/80 to-emerald-50/80">
         <h3 className="text-2xl font-extrabold text-gray-900">{t('intl_variant_comp')}</h3>
         <p className="text-sm text-gray-600 mt-2 font-medium">{t('intl_variant_comp_desc')}</p>
+        
+        {localHealthScore != null && internationalData?.healthScore != null && (
+          <div className="mt-4 p-3 rounded-xl bg-white/90 border border-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs font-semibold text-gray-700 shadow-sm">
+            <span className="flex items-center gap-1.5">
+              <span className="text-base">⚖️</span>
+              <span>Comparative Formulation Impact:</span>
+            </span>
+            <span>
+              {internationalData.healthScore > localHealthScore ? (
+                <span className="text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+                  Global version scores +{internationalData.healthScore - localHealthScore} pts higher ({internationalData.healthScore} vs {localHealthScore})
+                </span>
+              ) : internationalData.healthScore < localHealthScore ? (
+                <span className="text-blue-700 font-extrabold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
+                  Local version scores +{localHealthScore - internationalData.healthScore} pts higher ({localHealthScore} vs {internationalData.healthScore})
+                </span>
+              ) : (
+                <span className="text-gray-700 font-extrabold bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200">
+                  Identical nutritional formulation score ({localHealthScore}/100)
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="p-6 sm:p-8">
@@ -89,10 +113,22 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
           <div className="flex flex-col md:flex-row gap-8">
             {/* Column 1: Scanned Ingredients */}
             <div className="flex-1">
-              <h4 className="font-bold text-gray-800 mb-4 flex items-center text-lg">
-                <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">1</span>
-                {t('your_scanned_product')} {productName && `(${productName})`}
-              </h4>
+              <div className="flex items-center justify-between mb-4 gap-2">
+                <h4 className="font-bold text-gray-800 flex items-center text-lg">
+                  <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">1</span>
+                  {t('your_scanned_product')} {productName && `(${productName})`}
+                </h4>
+                {localHealthScore != null && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight border shrink-0 ${
+                    localHealthScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                    localHealthScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                    localHealthScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                    'bg-purple-100 text-purple-900 border-purple-300'
+                  }`}>
+                    {localHealthScore}/100
+                  </span>
+                )}
+              </div>
               <div className="bg-white/70 p-6 rounded-xl border border-emerald-100 h-64 overflow-y-auto shadow-inner">
                 {Array.isArray(scannedIngredients) && scannedIngredients.length > 0 ? (
                   <ul className="space-y-3 text-gray-800">
@@ -165,13 +201,22 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent }
             </div>
 
             {/* Column 2: International Data */}
-            <div className="flex-1">
-              <h4 className="font-bold text-gray-800 mb-4 flex items-center text-lg justify-between">
-                <div className="flex items-center">
+              <div className="flex items-center justify-between mb-4 gap-2">
+                <h4 className="font-bold text-gray-800 flex items-center text-lg">
                   <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
                   {t('global_version')} {internationalData && `(${internationalData.globalEquivalent || internationalData.productName})`}
-                </div>
-              </h4>
+                </h4>
+                {internationalData?.healthScore != null && (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight border shrink-0 ${
+                    internationalData.healthScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                    internationalData.healthScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                    internationalData.healthScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                    'bg-purple-100 text-purple-900 border-purple-300'
+                  }`}>
+                    {internationalData.healthScore}/100
+                  </span>
+                )}
+              </div>
               
               <div className="bg-emerald-100/30 p-6 rounded-xl border border-emerald-100 h-64 overflow-y-auto shadow-inner">
                 {Array.isArray(internationalData?.ingredientsFound) && internationalData.ingredientsFound.length > 0 ? (

@@ -42,7 +42,7 @@ public class GeminiServiceTest {
     @Test
     void testAnalyzeIngredients_Success() throws Exception {
         // Arrange
-        String mockResponseJson = "{\"interactionId\":\"test_123\",\"steps\":[{\"modelOutput\":{\"text\":\"```json\\n{\\\"productName\\\":\\\"Test Product\\\",\\\"globalEquivalent\\\":\\\"Test Product\\\",\\\"ingredientsFound\\\":[],\\\"whoFlags\\\":[],\\\"overallIndicator\\\":\\\"GREEN\\\"}\\n```\"}}]}";
+        String mockResponseJson = "{\"interactionId\":\"test_123\",\"steps\":[{\"modelOutput\":{\"text\":\"```json\\n{\\\"productName\\\":\\\"Test Product\\\",\\\"globalEquivalent\\\":\\\"Test Product\\\",\\\"ingredientsFound\\\":[],\\\"whoFlags\\\":[],\\\"overallIndicator\\\":\\\"GREEN\\\",\\\"healthScore\\\":90}\\n```\"}}]}";
         
         ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
         when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
@@ -56,6 +56,7 @@ public class GeminiServiceTest {
         assertNotNull(result);
         assertEquals("Test Product", result.productName());
         assertEquals("GREEN", result.overallIndicator());
+        assertEquals(90, result.healthScore());
         verify(restTemplate, times(1)).postForEntity(anyString(), any(HttpEntity.class), eq(String.class));
     }
 
@@ -65,7 +66,7 @@ public class GeminiServiceTest {
         when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new RuntimeException("503 Service Unavailable"));
 
-        WhoAssessmentDTO fallbackAssessment = new WhoAssessmentDTO("Fallback Product", java.util.List.of(), java.util.List.of(), "YELLOW", "Fallback Product", "100ml", "1L", null, null, null);
+        WhoAssessmentDTO fallbackAssessment = new WhoAssessmentDTO("Fallback Product", java.util.List.of(), java.util.List.of(), "YELLOW", "Fallback Product", "100ml", "1L", null, null, null, 65);
         when(groqService.analyzeIngredients(anyString(), anyString(), anyString(), any(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(fallbackAssessment));
 
@@ -76,13 +77,14 @@ public class GeminiServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals("Fallback Product", result.productName());
+        assertEquals(65, result.healthScore());
         verify(groqService, times(1)).analyzeIngredients(anyString(), anyString(), anyString(), any(), anyString());
     }
 
     @Test
     void testAnalyzeIngredients_WithDailyLimitAndProductAmount() throws Exception {
         // Arrange
-        String mockResponseJson = "{\"interactionId\":\"test_456\",\"steps\":[{\"modelOutput\":{\"text\":\"```json\\n{\\\"productName\\\":\\\"Cola Drink\\\",\\\"globalEquivalent\\\":\\\"Cola Drink\\\",\\\"ingredientsFound\\\":[{\\\"name\\\":\\\"Sugar (35g)\\\",\\\"explanation\\\":\\\"High sugar content\\\",\\\"status\\\":\\\"RED\\\",\\\"dailyLimit\\\":\\\"Max 25g/day (WHO)\\\",\\\"productAmount\\\":\\\"Exceeds daily limit (+140%)\\\"}],\\\"whoFlags\\\":[{\\\"name\\\":\\\"Added Sugars\\\",\\\"status\\\":\\\"RED\\\",\\\"explanation\\\":\\\"High sugar\\\",\\\"dailyLimit\\\":\\\"Max 25g/day\\\",\\\"productAmount\\\":\\\"35g (140% of daily limit)\\\"}],\\\"overallIndicator\\\":\\\"RED\\\"}\\n```\"}}]}";
+        String mockResponseJson = "{\"interactionId\":\"test_456\",\"steps\":[{\"modelOutput\":{\"text\":\"```json\\n{\\\"productName\\\":\\\"Cola Drink\\\",\\\"globalEquivalent\\\":\\\"Cola Drink\\\",\\\"ingredientsFound\\\":[{\\\"name\\\":\\\"Sugar (35g)\\\",\\\"explanation\\\":\\\"High sugar content\\\",\\\"status\\\":\\\"RED\\\",\\\"dailyLimit\\\":\\\"Max 25g/day (WHO)\\\",\\\"productAmount\\\":\\\"Exceeds daily limit (+140%)\\\"}],\\\"whoFlags\\\":[{\\\"name\\\":\\\"Added Sugars\\\",\\\"status\\\":\\\"RED\\\",\\\"explanation\\\":\\\"High sugar\\\",\\\"dailyLimit\\\":\\\"Max 25g/day\\\",\\\"productAmount\\\":\\\"35g (140% of daily limit)\\\"}],\\\"overallIndicator\\\":\\\"RED\\\",\\\"healthScore\\\":25}\\n```\"}}]}";
         
         ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
         when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
@@ -96,6 +98,7 @@ public class GeminiServiceTest {
         assertNotNull(result);
         assertEquals("Cola Drink", result.productName());
         assertEquals("RED", result.overallIndicator());
+        assertEquals(25, result.healthScore());
         assertEquals(1, result.ingredientsFound().size());
         assertEquals("Max 25g/day (WHO)", result.ingredientsFound().get(0).dailyLimit());
         assertEquals("Exceeds daily limit (+140%)", result.ingredientsFound().get(0).productAmount());
