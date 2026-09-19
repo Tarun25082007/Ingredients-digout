@@ -201,6 +201,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
             </div>
 
             {/* Column 2: International Data */}
+            <div className="flex-1">
               <div className="flex items-center justify-between mb-4 gap-2">
                 <h4 className="font-bold text-gray-800 flex items-center text-lg">
                   <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
