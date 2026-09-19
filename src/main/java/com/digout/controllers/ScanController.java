@@ -275,7 +275,7 @@ public class ScanController {
     private String buildUserProfileSummary(Authentication auth) {
         if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
             String email = auth.getName();
-            Optional<User> userOpt = userRepository.findByEmail(email);
+            Optional<User> userOpt = userRepository.findByAnyEmail(email);
             if (userOpt.isPresent()) {
                 User u = userOpt.get();
                 if (Boolean.TRUE.equals(u.getProfileCompleted())) {
@@ -305,7 +305,7 @@ public class ScanController {
     private void saveScanHistory(Authentication auth, WhoAssessmentDTO assessment) {
         if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
             String email = auth.getName();
-            Optional<User> userOpt = userRepository.findByEmail(email);
+            Optional<User> userOpt = userRepository.findByAnyEmail(email);
             
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
@@ -349,7 +349,7 @@ public class ScanController {
         }
 
         String email = auth.getName();
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
         
         if (userOpt.isPresent()) {
             List<ScanHistory> history = scanHistoryRepository.findByUserIdOrderByScannedAtDesc(userOpt.get().getId());
@@ -377,7 +377,7 @@ public class ScanController {
         }
 
         String email = auth.getName();
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
         
         if (userOpt.isPresent()) {
             Optional<ScanHistory> historyOpt = scanHistoryRepository.findById(id);
@@ -397,7 +397,7 @@ public class ScanController {
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
             return ResponseEntity.status(401).body(java.util.Map.of("message", "Unauthorized"));
         }
-        Optional<User> userOpt = userRepository.findByEmail(auth.getName());
+        Optional<User> userOpt = userRepository.findByAnyEmail(auth.getName());
         if (userOpt.isEmpty() || !"ADMIN".equalsIgnoreCase(userOpt.get().getRole())) {
             return ResponseEntity.status(403).body(java.util.Map.of("message", "Forbidden: Admin access required"));
         }

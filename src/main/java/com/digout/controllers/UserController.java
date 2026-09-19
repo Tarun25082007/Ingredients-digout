@@ -31,7 +31,7 @@ public class UserController {
         }
 
         String email = auth.getName();
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("message", "User not found."));
         }
@@ -47,7 +47,7 @@ public class UserController {
         }
 
         String email = auth.getName();
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("message", "User not found."));
         }
@@ -112,7 +112,7 @@ public class UserController {
         }
 
         String email = auth.getName();
-        Optional<User> userOpt = userRepository.findByEmail(email);
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(java.util.Map.of("message", "User not found."));
         }

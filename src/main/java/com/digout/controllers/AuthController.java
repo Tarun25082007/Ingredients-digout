@@ -6,6 +6,7 @@ import com.digout.dto.RegisterRequest;
 import com.digout.models.User;
 import com.digout.repositories.UserRepository;
 import com.digout.security.JwtTokenProvider;
+import com.digout.util.EmailUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -65,6 +66,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "A valid email is required."));
         }
         String normalizedEmail = request.email().trim().toLowerCase();
+        String canonicalEmail = EmailUtils.canonicalize(normalizedEmail);
         
         if (request.password() == null || request.password().length() < 8) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
@@ -78,12 +80,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one letter, one number, and one special character (!@#$%^&* etc.)."));
         }
 
-        if (userRepository.findByEmail(normalizedEmail).isPresent()) {
+        if (userRepository.findByEmail(normalizedEmail).isPresent() || userRepository.findByCanonicalEmail(canonicalEmail).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "Email is already registered."));
         }
 
         User user = User.builder()
                 .email(normalizedEmail)
+                .canonicalEmail(canonicalEmail)
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .fullName(request.name() != null ? request.name().trim() : null)
                 .role("USER")
@@ -102,8 +105,7 @@ public class AuthController {
         if (request.email() == null || request.password() == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid credentials."));
         }
-        String normalizedEmail = request.email().trim().toLowerCase();
-        Optional<User> userOpt = userRepository.findByEmail(normalizedEmail);
+        Optional<User> userOpt = userRepository.findByAnyEmail(request.email());
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -151,7 +153,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one letter, one number, and one special character (!@#$%^&* etc.)."));
         }
         
-        Optional<User> userOpt = userRepository.findByEmail(email.trim().toLowerCase());
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(oldPassword, user.getPasswordHash())) {

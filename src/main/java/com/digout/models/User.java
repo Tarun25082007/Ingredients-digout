@@ -19,6 +19,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "canonical_email", nullable = false, unique = true)
+    private String canonicalEmail;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
@@ -59,4 +62,12 @@ public class User {
     @Column(name = "created_at", updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @PrePersist
+    @PreUpdate
+    public void populateCanonicalEmail() {
+        if (this.canonicalEmail == null && this.email != null) {
+            this.canonicalEmail = com.digout.util.EmailUtils.canonicalize(this.email);
+        }
+    }
 }
