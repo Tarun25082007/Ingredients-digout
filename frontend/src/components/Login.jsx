@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -21,6 +21,64 @@ const Login = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const turnstileRef = useRef();
+
+  const handleGoogleResponse = async (response) => {
+    if (!response || !response.credential) {
+      setError("Failed to get Google credentials. Please try again.");
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/auth/google', { idToken: response.credential });
+      const { token, user } = res.data;
+      login(token, user);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.message || "Google sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const initGoogle = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: "599673748564-91607cjjv7fdd1c7n7erri8bc9mbl6mq.apps.googleusercontent.com",
+            callback: handleGoogleResponse
+          });
+          const btnDiv = document.getElementById("googleSignInDiv");
+          if (btnDiv) {
+            btnDiv.innerHTML = "";
+            window.google.accounts.id.renderButton(btnDiv, {
+              theme: "outline",
+              size: "large",
+              width: 360,
+              text: isLoginMode ? "signin_with" : "signup_with",
+              shape: "rectangular",
+              logo_alignment: "left"
+            });
+          }
+        } catch (e) {
+          console.error("Google Auth init error:", e);
+        }
+      }
+    };
+
+    if (window.google?.accounts?.id) {
+      initGoogle();
+    } else {
+      const timer = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(timer);
+          initGoogle();
+        }
+      }, 300);
+      return () => clearInterval(timer);
+    }
+  }, [isLoginMode]);
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -254,6 +312,19 @@ const Login = () => {
             {error}
           </div>
         )}
+
+        {/* Google Sign-In */}
+        <div className="mb-4 flex flex-col items-center">
+          <div id="googleSignInDiv" className="w-full flex justify-center min-h-[44px]"></div>
+          
+          <div className="relative flex py-4 items-center w-full">
+            <div className="flex-grow border-t border-emerald-200"></div>
+            <span className="flex-shrink mx-4 text-gray-500 text-xs font-bold uppercase tracking-wider">
+              {isLoginMode ? 'or log in with email' : 'or sign up with email'}
+            </span>
+            <div className="flex-grow border-t border-emerald-200"></div>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {!isLoginMode && (

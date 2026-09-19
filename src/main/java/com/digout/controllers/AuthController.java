@@ -165,4 +165,89 @@ public class AuthController {
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid credentials."));
     }
+
+    @org.springframework.beans.factory.annotation.Value("${google.client.id:599673748564-91607cjjv7fdd1c7n7erri8bc9mbl6mq.apps.googleusercontent.com}")
+    private String googleClientId;
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request) {
+        String idToken = request.get("idToken");
+        if (idToken == null || idToken.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Google ID token is required."));
+        }
+
+        try {
+            String tokenInfoUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
+            ResponseEntity<Map> tokenInfoResp = this.restTemplate.getForEntity(tokenInfoUrl, Map.class);
+            Map<String, Object> payload = tokenInfoResp.getBody();
+
+            if (payload == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid Google token."));
+            }
+
+            String aud = (String) payload.get("aud");
+            if (aud == null || !aud.equals(googleClientId)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Token audience mismatch."));
+            }
+
+            String iss = (String) payload.get("iss");
+            if (iss == null || (!iss.equals("https://accounts.google.com") && !iss.equals("accounts.google.com"))) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid token issuer."));
+            }
+
+            Object emailVerified = payload.get("email_verified");
+            boolean isEmailVerified = Boolean.TRUE.equals(emailVerified) || "true".equalsIgnoreCase(String.valueOf(emailVerified));
+            if (!isEmailVerified) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Google email is not verified."));
+            }
+
+            String email = (String) payload.get("email");
+            if (email == null || email.isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "No email provided in Google token."));
+            }
+
+            String sub = (String) payload.get("sub");
+            String name = (String) payload.get("name");
+            String normalizedEmail = email.trim().toLowerCase();
+            String canonicalEmail = EmailUtils.canonicalize(normalizedEmail);
+
+            // 1. Try to find user by Google ID (sub)
+            Optional<User> userOpt = (sub != null && !sub.isBlank()) ? userRepository.findByGoogleId(sub) : Optional.empty();
+
+            // 2. If not found by Google ID, try to find by email / canonical email
+            if (userOpt.isEmpty()) {
+                userOpt = userRepository.findByAnyEmail(normalizedEmail);
+                if (userOpt.isPresent()) {
+                    // Auto-link Google ID to existing account
+                    User existingUser = userOpt.get();
+                    if (sub != null && !sub.isBlank() && existingUser.getGoogleId() == null) {
+                        existingUser.setGoogleId(sub);
+                        userRepository.save(existingUser);
+                    }
+                }
+            }
+
+            User user;
+            if (userOpt.isPresent()) {
+                user = userOpt.get();
+            } else {
+                // 3. Create new user account
+                user = User.builder()
+                        .email(normalizedEmail)
+                        .canonicalEmail(canonicalEmail)
+                        .googleId(sub)
+                        .fullName(name != null ? name.trim() : null)
+                        .passwordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
+                        .role("USER")
+                        .build();
+                userRepository.save(user);
+            }
+
+            String token = jwtTokenProvider.createToken(user.getEmail());
+            return ResponseEntity.ok(new AuthResponse(token, com.digout.dto.UserProfileDTO.fromUser(user)));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Failed to verify Google token: " + e.getMessage()));
+        }
+    }
 }

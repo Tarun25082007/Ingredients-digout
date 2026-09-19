@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     Optional<User> findByCanonicalEmail(String canonicalEmail);
+    Optional<User> findByGoogleId(String googleId);
 
     default Optional<User> findByAnyEmail(String email) {
         if (email == null || email.isBlank()) {

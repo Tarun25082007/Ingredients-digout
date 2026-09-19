@@ -22,6 +22,9 @@ public class User {
     @Column(name = "canonical_email", nullable = false, unique = true)
     private String canonicalEmail;
 
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 

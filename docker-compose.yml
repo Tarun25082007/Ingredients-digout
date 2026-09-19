@@ -25,6 +25,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - USDA_API_KEY=${USDA_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-599673748564-91607cjjv7fdd1c7n7erri8bc9mbl6mq.apps.googleusercontent.com}
     depends_on:
       - postgres
 
