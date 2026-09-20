@@ -40,6 +40,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins,
     server: {
+      allowedHosts: true,
       proxy: {
         '/api': {
           target: isDocker ? 'https://digout-backend:8443' : 'https://localhost:8443',
