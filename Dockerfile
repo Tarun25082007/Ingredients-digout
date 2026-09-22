@@ -15,11 +15,17 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# Copy the built jar file from the builder stage
-COPY --from=builder /app/target/*.jar app.jar
+# Create a non-root user and group for security
+RUN addgroup -S digoutgroup && adduser -S digoutuser -G digoutgroup
+
+# Copy the built jar file and assign ownership to the non-root user
+COPY --from=builder --chown=digoutuser:digoutgroup /app/target/*.jar app.jar
+
+# Switch to the non-root user
+USER digoutuser
 
 # Expose the application port (8443 for HTTPS)
 EXPOSE 8443
 
-# Command to run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Command to run the application, optimizing JVM memory limits for containers
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

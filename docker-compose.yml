@@ -5,9 +5,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_DB=digout_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      POSTGRES_DB: digout_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -26,8 +26,18 @@ services:
       - GROQ_API_KEY=${GROQ_API_KEY}
       - USDA_API_KEY=${USDA_API_KEY}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-599673748564-91607cjjv7fdd1c7n7erri8bc9mbl6mq.apps.googleusercontent.com}
+      - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-DigoutSecKey2026DigoutSecKey2026}
+      - TURNSTILE_SECRET=${TURNSTILE_SECRET:-1x0000000000000000000000000000000AA}
     depends_on:
       - postgres
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   # 3. The React Frontend
   digout-frontend:
@@ -40,6 +50,11 @@ services:
       - DOCKER_ENV=true
     depends_on:
       - digout-backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
 volumes:
   postgres_data:

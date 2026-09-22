@@ -4,5 +4,6 @@ public record OpenFoodFactsDTO(
         String productName,
         String ingredientsText,
         String servingSize,
-        String quantity
+        String quantity,
+        java.util.List<String> countriesTags
 ) {}

@@ -18,7 +18,7 @@ public class CachedAnalysis {
     @Column(nullable = false)
     private String productName;
 
-    @Column(nullable = false, length = 10)
+    @Column(nullable = false, length = 32)
     private String countryCode = "world";
 
     @Column(columnDefinition = "TEXT", nullable = false)
@@ -55,7 +55,9 @@ public class CachedAnalysis {
     }
 
     public void setCountryCode(String countryCode) {
-        this.countryCode = countryCode != null ? countryCode.toLowerCase().trim() : "world";
+        String cc = countryCode != null ? countryCode.toLowerCase().trim() : "world";
+        if (cc.length() > 32) cc = cc.substring(0, 32);
+        this.countryCode = cc;
     }
 
     public String getAnalysisResultJson() {

@@ -55,7 +55,7 @@ if ($dockerReady) {
 Write-Host ""
 Write-Host "[2/3] Starting containers (Postgres, Backend, Frontend)..." -ForegroundColor Cyan
 Set-Location $PSScriptRoot
-docker compose up -d
+docker compose up -d --build
 
 Write-Host " Containers are up and running!" -ForegroundColor Green
 Write-Host "  - Frontend: http://localhost:5173" -ForegroundColor White

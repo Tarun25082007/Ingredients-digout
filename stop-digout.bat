@@ -1,7 +1,8 @@
 @echo off
 title The Ingredient DigOut - Shutdown
 cd /d "%~dp0"
-echo Stopping all DigOut containers...
+echo Stopping all DigOut containers and tunnel...
+taskkill /F /IM cloudflared.exe >nul 2>&1
 docker compose down
 echo.
 echo All DigOut services have been stopped.

@@ -66,6 +66,12 @@ public class User {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private java.util.List<ScanHistory> scanHistories;
+
     @PrePersist
     @PreUpdate
     public void populateCanonicalEmail() {

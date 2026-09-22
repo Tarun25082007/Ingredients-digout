@@ -195,6 +195,7 @@ const Login = () => {
       } else {
         setError("An unexpected error occurred. Please check your connection and try again.");
       }
+      setTurnstileToken('');
       if (turnstileRef.current && err.response?.status !== 426) {
          turnstileRef.current.reset();
       }
@@ -257,7 +258,8 @@ const Login = () => {
               <Turnstile
                 siteKey="1x00000000000000000000AA"
                 onSuccess={(token) => setTurnstileToken(token)}
-                onError={() => setError("Captcha error. Please try again.")}
+                onExpire={() => setTurnstileToken('')}
+                onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}
               />
             </div>
 
@@ -392,7 +394,8 @@ const Login = () => {
               ref={turnstileRef}
               siteKey="1x00000000000000000000AA"
               onSuccess={(token) => setTurnstileToken(token)}
-              onError={() => setError("Captcha error. Please try again.")}
+              onExpire={() => setTurnstileToken('')}
+              onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}
             />
           </div>
 
@@ -418,6 +421,7 @@ const Login = () => {
                 setIsLoginMode(!isLoginMode);
                 setError('');
                 setSuccessMsg('');
+                setTurnstileToken('');
                 if (turnstileRef.current) turnstileRef.current.reset();
               }}
               className="text-emerald-700 font-bold hover:text-emerald-800 hover:underline transition ml-1"

@@ -44,7 +44,7 @@ public class UsdaFoodDataService {
                         String serving = food.has("servingSize") 
                                 ? food.path("servingSize").asText() + " " + food.path("servingSizeUnit").asText("") 
                                 : null;
-                        return new OpenFoodFactsDTO(foundName, ingredients, serving, null);
+                        return new OpenFoodFactsDTO(foundName, ingredients, serving, null, null);
                     }
                 }
             }
@@ -71,11 +71,11 @@ public class UsdaFoodDataService {
             String foundProductName = firstFood.path("description").asText(productName);
             String ingredientsText = firstFood.path("ingredients").asText("");
 
-            return new OpenFoodFactsDTO(foundProductName, ingredientsText, null, null);
+            return new OpenFoodFactsDTO(foundProductName, ingredientsText, null, null, null);
         } catch (Exception e) {
             System.err.println("Fallback USDA database failed: " + e.getMessage());
             // If even the fallback fails, return empty ingredients so the AI attempts to guess them
-            return new OpenFoodFactsDTO(productName, "", null, null);
+            return new OpenFoodFactsDTO(productName, "", null, null, null);
         }
     }
 }

@@ -17,13 +17,13 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
         setLoading(true);
         setError('');
         try {
-          const response = await api.post('/scan/analyze-name', { productName: productName, countryCode: 'world', saveHistory: 'false' });
+          const response = await api.post('/scan/analyze-name', { productName: productName, countryCode: 'world', saveHistory: 'false', useFastModel: 'true' });
           setInternationalData(response.data);
         } catch (err) {
           // If original fails, try global equivalent
           if (globalEquivalent && globalEquivalent !== productName) {
             try {
-              const response2 = await api.post('/scan/analyze-name', { productName: globalEquivalent, countryCode: 'world', saveHistory: 'false' });
+              const response2 = await api.post('/scan/analyze-name', { productName: globalEquivalent, countryCode: 'world', saveHistory: 'false', useFastModel: 'true' });
               setInternationalData(response2.data);
               setLoading(false);
               return;

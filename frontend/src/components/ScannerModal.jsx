@@ -99,6 +99,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
         videoRef.current.srcObject = stream;
       }
     } catch (err) {
+      stopCamera();
       setError('Camera access denied or unavailable. Please upload a file instead.');
       setMode('select');
     }
@@ -204,6 +205,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   };
 
   const resetScanner = () => {
+    stopCamera();
     setAssessment(null);
     setMode('category_select');
     setFoodCategory(null);
