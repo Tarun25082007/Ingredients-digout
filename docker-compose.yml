@@ -10,6 +10,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d digout_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # 2. The Spring Boot Backend
   digout-backend:
@@ -29,7 +34,13 @@ services:
       - DB_ENCRYPTION_KEY=${DB_ENCRYPTION_KEY:-DigoutSecKey2026DigoutSecKey2026}
       - TURNSTILE_SECRET=${TURNSTILE_SECRET:-1x0000000000000000000000000000000AA}
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8443/api/scan/autocomplete?query=test&countryCode=US"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         limits:
@@ -43,13 +54,19 @@ services:
   digout-frontend:
     build: ./frontend
     ports:
-      - "5173:80"
+      - "5173:8080"
     environment:
       # Tell Vite where the backend is (if it uses env variables)
       - VITE_API_URL=https://localhost:8443
       - DOCKER_ENV=true
     depends_on:
-      - digout-backend
+      digout-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:

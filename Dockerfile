@@ -11,6 +11,9 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 RUN mvn clean package -DskipTests
 
+# Extract layers
+RUN java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
+
 # Stage 2: Create the runtime image using a lightweight JRE
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
@@ -18,8 +21,11 @@ WORKDIR /app
 # Create a non-root user and group for security
 RUN addgroup -S digoutgroup && adduser -S digoutuser -G digoutgroup
 
-# Copy the built jar file and assign ownership to the non-root user
-COPY --from=builder --chown=digoutuser:digoutgroup /app/target/*.jar app.jar
+# Copy layers sequentially. Dependencies change rarely, application changes often.
+COPY --from=builder --chown=digoutuser:digoutgroup /app/target/extracted/dependencies/ ./
+COPY --from=builder --chown=digoutuser:digoutgroup /app/target/extracted/spring-boot-loader/ ./
+COPY --from=builder --chown=digoutuser:digoutgroup /app/target/extracted/snapshot-dependencies/ ./
+COPY --from=builder --chown=digoutuser:digoutgroup /app/target/extracted/application/ ./
 
 # Switch to the non-root user
 USER digoutuser
@@ -28,4 +34,4 @@ USER digoutuser
 EXPOSE 8443
 
 # Command to run the application, optimizing JVM memory limits for containers
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "org.springframework.boot.loader.launch.JarLauncher"]
