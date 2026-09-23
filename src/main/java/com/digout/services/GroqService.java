@@ -208,7 +208,7 @@ public class GroqService {
             String jsonText = executeWithModelFallback(headers, model -> java.util.Map.of(
                     "model", model,
                     "messages", List.of(
-                            Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY raw valid JSON. DO NOT include <think> tags. Keep ingredient explanations strictly under 8 words."),
+                            Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY raw valid JSON. DO NOT include <think> tags. DO NOT reason internally. /no_think. Keep ingredient explanations strictly under 8 words."),
                             Map.of("role", "user", "content", finalFormattedPrompt)
                     ),
                     "temperature", 0.1,
@@ -236,6 +236,7 @@ public class GroqService {
         }
     }
 
+    @Async
     public CompletableFuture<WhoAssessmentDTO> personalizeAssessment(WhoAssessmentDTO genericAssessment, String userProfileSummary, String language) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -265,7 +266,7 @@ public class GroqService {
             String jsonText = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,
                     "messages", List.of(
-                            Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY raw valid JSON. DO NOT include <think> tags. Keep ingredient explanations strictly under 8 words."),
+                            Map.of("role", "system", "content", "You are an expert nutritionist. Output ONLY raw valid JSON. DO NOT include <think> tags. DO NOT reason internally. /no_think. Keep ingredient explanations strictly under 8 words."),
                             Map.of("role", "user", "content", finalPrompt)
                     ),
                     "temperature", 0.1,
@@ -322,7 +323,7 @@ public class GroqService {
             throw new RuntimeException("AI model generated reasoning but failed to output JSON before hitting the token limit.");
         }
         
-        return cleanedText.isEmpty() ? rawText : cleanedText;
+        return cleanedText;
     }
 
     private WhoAssessmentDTO parseAssessment(String rawJson) throws Exception {

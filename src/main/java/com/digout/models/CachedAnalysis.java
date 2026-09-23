@@ -29,7 +29,7 @@ public class CachedAnalysis {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = LocalDateTime.now(java.time.ZoneOffset.UTC);
     }
 
     // Getters and Setters
@@ -78,6 +78,6 @@ public class CachedAnalysis {
 
     /** Returns true if this entry is older than 30 days and should be evicted. */
     public boolean isStale() {
-        return createdAt != null && createdAt.isBefore(LocalDateTime.now().minusDays(30));
+        return createdAt != null && createdAt.isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC).minusDays(30));
     }
 }

@@ -37,8 +37,7 @@ public class GlobalExceptionHandler {
         }
         
         log.error("Unhandled exception in request: {}", cause.getMessage(), cause);
-        String msg = cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("message", "An error occurred: " + msg));
+                .body(Map.of("message", "An internal error occurred. Please try again later."));
     }
 }

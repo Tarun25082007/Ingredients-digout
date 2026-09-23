@@ -14,13 +14,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final int MAX_CACHE_SIZE = 10000;
-    private final ConcurrentHashMap<String, Bucket> cache = new ConcurrentHashMap<>();
+    private static final long EVICTION_AGE_MS = 120_000; // 2 minutes
+
+    private record BucketEntry(Bucket bucket, Instant createdAt) {}
+
+    private final ConcurrentHashMap<String, BucketEntry> cache = new ConcurrentHashMap<>();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -42,14 +47,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             key = getClientIp(request);
         }
 
-        // Prevent memory leak if map grows beyond safety limit
+        // Evict stale entries instead of clearing everything (prevents thundering herd)
         if (cache.size() > MAX_CACHE_SIZE) {
-            cache.clear();
+            Instant cutoff = Instant.now().minusMillis(EVICTION_AGE_MS);
+            cache.entrySet().removeIf(entry -> entry.getValue().createdAt().isBefore(cutoff));
         }
         
-        Bucket bucket = cache.computeIfAbsent(key, this::createNewBucket);
+        BucketEntry entry = cache.computeIfAbsent(key, k -> new BucketEntry(createNewBucket(k), Instant.now()));
 
-        if (bucket.tryConsume(1)) {
+        if (entry.bucket().tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
             response.setStatus(429); // HTTP 429 Too Many Requests
@@ -59,6 +65,9 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private String getClientIp(HttpServletRequest request) {
+        // NOTE: Trusting CF-Connecting-IP assumes this backend is strictly deployed
+        // behind Cloudflare. If directly exposed to the internet, attackers can spoof
+        // this header to bypass rate limits. Consider validating against Cloudflare IPs.
         String cfIp = request.getHeader("CF-Connecting-IP");
         if (cfIp != null && !cfIp.isBlank()) {
             return cfIp.trim();

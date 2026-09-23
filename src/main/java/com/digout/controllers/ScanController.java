@@ -57,6 +57,34 @@ public class ScanController {
         this.groqService = groqService;
     }
 
+    // Allowlists for parameters injected into AI prompts (prevents prompt injection)
+    private static final java.util.Set<String> ALLOWED_LANGUAGES = java.util.Set.of(
+        "english", "hindi", "spanish", "french", "german", "portuguese", "italian",
+        "dutch", "russian", "japanese", "korean", "chinese", "arabic", "turkish",
+        "tamil", "telugu", "kannada", "malayalam", "bengali", "marathi", "gujarati",
+        "punjabi", "urdu", "thai", "vietnamese", "indonesian", "malay", "polish",
+        "swedish", "norwegian", "danish", "finnish", "greek", "czech", "romanian",
+        "hungarian", "ukrainian", "hebrew", "persian", "swahili"
+    );
+    private static final java.util.Set<String> ALLOWED_FOOD_CATEGORIES = java.util.Set.of("packaged", "fresh");
+
+    private String sanitizeLanguage(String language) {
+        if (language == null || language.isBlank()) return "English";
+        String lower = language.trim().toLowerCase();
+        if (ALLOWED_LANGUAGES.contains(lower)) {
+            // Return with original capitalization preserved
+            return language.trim().substring(0, 1).toUpperCase() + language.trim().substring(1).toLowerCase();
+        }
+        return "English"; // fallback to English for unknown/malicious values
+    }
+
+    private String sanitizeFoodCategory(String category) {
+        if (category == null || !ALLOWED_FOOD_CATEGORIES.contains(category.trim().toLowerCase())) {
+            return "packaged";
+        }
+        return category.trim().toLowerCase();
+    }
+
     @PostMapping("/analyze")
     public CompletableFuture<ResponseEntity<Object>> analyzeImage(
             @RequestParam("file") MultipartFile file, 
@@ -68,6 +96,8 @@ public class ScanController {
                 ResponseEntity.badRequest().body((Object) java.util.Map.of("message", "File size exceeds 5MB limit. Please upload a smaller image."))
             );
         }
+        language = sanitizeLanguage(language);
+        foodCategory = sanitizeFoodCategory(foodCategory);
 
         // Validate MIME type - reject non-image files to prevent abuse
         String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
@@ -147,7 +177,8 @@ public class ScanController {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userProfileSummary = buildUserProfileSummary(auth);
-        String foodCategory = payload.getOrDefault("foodCategory", "packaged");
+        String foodCategory = sanitizeFoodCategory(payload.getOrDefault("foodCategory", "packaged"));
+        language = sanitizeLanguage(language);
         boolean forceAi = Boolean.parseBoolean(payload.getOrDefault("forceAi", "false"));
         boolean saveHistory = Boolean.parseBoolean(payload.getOrDefault("saveHistory", "true"));
         boolean useFastModel = Boolean.parseBoolean(payload.getOrDefault("useFastModel", "false"));

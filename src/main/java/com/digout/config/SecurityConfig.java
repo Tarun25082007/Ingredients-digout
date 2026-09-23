@@ -43,10 +43,13 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                new AntPathRequestMatcher("/api/auth/**"),
+                                new AntPathRequestMatcher("/api/auth/login"),
+                                new AntPathRequestMatcher("/api/auth/register"),
+                                new AntPathRequestMatcher("/api/auth/google"),
                                 new AntPathRequestMatcher("/api/scan/public")
                         ).permitAll()
                         .requestMatchers(
+                                new AntPathRequestMatcher("/api/auth/update-password"),
                                 new AntPathRequestMatcher("/api/scan/history"),
                                 new AntPathRequestMatcher("/api/scan/history/**"),
                                 new AntPathRequestMatcher("/api/scan/clear-cache"),
@@ -65,7 +68,12 @@ public class SecurityConfig {
     @Bean
     public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
-        configuration.setAllowedOriginPatterns(java.util.List.of("*"));
+        configuration.setAllowedOriginPatterns(java.util.List.of(
+            "https://localhost:*",
+            "http://localhost:*",
+            "https://127.0.0.1:*",
+            "https://*.digout.app"  // Replace with your actual production domain
+        ));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
         configuration.setAllowCredentials(true);

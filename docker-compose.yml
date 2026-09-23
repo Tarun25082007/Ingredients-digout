@@ -19,7 +19,7 @@ services:
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/digout_db
       - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-password}
       # Forward secrets
       - JWT_SECRET=${JWT_SECRET}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -43,7 +43,7 @@ services:
   digout-frontend:
     build: ./frontend
     ports:
-      - "5173:5173"
+      - "5173:80"
     environment:
       # Tell Vite where the backend is (if it uses env variables)
       - VITE_API_URL=https://localhost:8443
