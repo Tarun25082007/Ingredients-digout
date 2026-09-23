@@ -151,7 +151,7 @@ const HistoryDashboard = () => {
                   <div className="mt-4 pt-4 border-t border-emerald-200/50 flex justify-between items-center">
                     <p className="text-xs text-gray-600 font-medium flex items-center">
                       <span className="mr-2">📅</span>
-                      {new Date(scan.scannedAt).toLocaleDateString(undefined, { 
+                      {new Date(scan.scannedAt + (scan.scannedAt.endsWith('Z') ? '' : 'Z')).toLocaleDateString(undefined, { 
                         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
                       })}
                     </p>

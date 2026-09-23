@@ -108,8 +108,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 8 * 1024 * 1024) {
-        setError('File is too large. Please select an image under 8MB.');
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File is too large. Please select an image under 5MB.');
         e.target.value = ''; // Reset input
         return;
       }
