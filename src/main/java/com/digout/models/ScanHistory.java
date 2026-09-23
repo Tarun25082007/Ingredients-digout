@@ -43,5 +43,5 @@ public class ScanHistory {
 
     @Column(name = "scanned_at", updatable = false)
     @Builder.Default
-    private LocalDateTime scannedAt = LocalDateTime.now();
+    private LocalDateTime scannedAt = LocalDateTime.now(java.time.ZoneOffset.UTC);
 }
