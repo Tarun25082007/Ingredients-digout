@@ -96,13 +96,13 @@ public class ScanController {
                 ResponseEntity.badRequest().body((Object) java.util.Map.of("message", "File size exceeds 5MB limit. Please upload a smaller image."))
             );
         }
-        countryCode = countryCode != null ? countryCode.trim() : "world";
-        if (countryCode.length() > 32) countryCode = countryCode.substring(0, 32);
-        countryCode = countryCode.replaceAll("[^a-zA-Z0-9-]", "");
-        if (countryCode.isEmpty()) countryCode = "world";
+        final String rawCountryCode = countryCode != null ? countryCode.trim() : "world";
+        final String cappedCountryCode = rawCountryCode.length() > 32 ? rawCountryCode.substring(0, 32) : rawCountryCode;
+        final String sanitizedCountryCode = cappedCountryCode.replaceAll("[^a-zA-Z0-9-]", "");
+        final String finalCountryCode = sanitizedCountryCode.isEmpty() ? "world" : sanitizedCountryCode;
         
-        language = sanitizeLanguage(language);
-        foodCategory = sanitizeFoodCategory(foodCategory);
+        final String finalLanguage = sanitizeLanguage(language);
+        final String finalFoodCategory = sanitizeFoodCategory(foodCategory);
 
         // Validate MIME type - reject non-image files to prevent abuse
         String mimeType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
@@ -124,15 +124,15 @@ public class ScanController {
                     if (identifiedName != null && !identifiedName.isBlank() && !identifiedName.equalsIgnoreCase("Unknown Product") && !identifiedName.equalsIgnoreCase("BACK_OF_PACK")) {
                         // We found a product name! Delegate to the fast Name Search flow.
                         // Force saving history and image fallback alert
-                        return processAnalyzeNameLogic(identifiedName, countryCode, language, foodCategory, false, userProfileSummary, auth, true, true, false);
+                        return processAnalyzeNameLogic(identifiedName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false);
                     } else {
                         // It's the back of the pack, or name recognition failed. Fallback to Gemini for full deep OCR/extraction.
-                        return geminiService.analyzeIngredients(base64Image, mimeType, foodCategory, null, language)
+                        return geminiService.analyzeIngredients(base64Image, mimeType, finalFoodCategory, null, finalLanguage)
                                 .thenCompose(assessment -> {
                                     if (assessment.ingredientsFound() == null || assessment.ingredientsFound().isEmpty()) {
                                         String fbName = assessment.productName();
                                         if (fbName == null || fbName.isBlank()) fbName = "Unknown Product";
-                                        return processAnalyzeNameLogic(fbName, countryCode, language, foodCategory, false, userProfileSummary, auth, true, true, false);
+                                        return processAnalyzeNameLogic(fbName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false);
                                     }
                                     
                                     // Valid ingredients found from image! Cache generic result by product name
@@ -140,10 +140,10 @@ public class ScanController {
                                         try {
                                             String json = objectMapper.writeValueAsString(assessment);
                                             CachedAnalysis cacheEntry = cachedAnalysisRepository
-                                                    .findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(assessment.productName().trim(), countryCode)
+                                                    .findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(assessment.productName().trim(), finalCountryCode)
                                                     .orElseGet(CachedAnalysis::new);
                                             cacheEntry.setProductName(assessment.productName().trim());
-                                            cacheEntry.setCountryCode(countryCode);
+                                            cacheEntry.setCountryCode(finalCountryCode);
                                             cacheEntry.setAnalysisResultJson(json);
                                             cachedAnalysisRepository.save(cacheEntry);
                                         } catch (Exception e) {
@@ -152,7 +152,7 @@ public class ScanController {
                                     }
 
                                     if (userProfileSummary != null) {
-                                        return groqService.personalizeAssessment(assessment, userProfileSummary, language).thenApply(personalized -> {
+                                        return groqService.personalizeAssessment(assessment, userProfileSummary, finalLanguage).thenApply(personalized -> {
                                             saveScanHistory(auth, personalized);
                                             return ResponseEntity.ok((Object) personalized);
                                         });
