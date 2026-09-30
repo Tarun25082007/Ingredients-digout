@@ -87,4 +87,4 @@ Write-Host "=================================================" -ForegroundColor 
 Write-Host "Press Ctrl+C to stop the tunnel at any time." -ForegroundColor Gray
 Write-Host ""
 
-& $cfExe tunnel --url http://localhost:5173
+& $cfExe tunnel --protocol http2 --url http://localhost:5173
