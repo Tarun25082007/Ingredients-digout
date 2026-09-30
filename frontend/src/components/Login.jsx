@@ -35,7 +35,10 @@ const Login = () => {
       login(token, user);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || "Google sign-in failed. Please try again.");
+      console.error("Google sign-in error details:", err.response || err);
+      const serverMsg = err.response?.data?.message || err.response?.data?.error;
+      const statusText = err.response?.status ? ` (Status ${err.response.status})` : '';
+      setError(serverMsg ? `${serverMsg}${statusText}` : (err.message || "Google sign-in failed. Please check backend connection."));
     } finally {
       setLoading(false);
     }

@@ -72,7 +72,8 @@ public class SecurityConfig {
             "https://localhost:*",
             "http://localhost:*",
             "https://127.0.0.1:*",
-            "https://*.digout.app"  // Replace with your actual production domain
+            "https://*.trycloudflare.com",
+            "https://*.digout.app"
         ));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));

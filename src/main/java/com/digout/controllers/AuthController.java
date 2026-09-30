@@ -20,10 +20,17 @@ import org.springframework.util.LinkedMultiValueMap;
 
 import java.util.Optional;
 import java.util.Map;
+import java.net.URI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -177,17 +184,31 @@ public class AuthController {
         }
 
         try {
-            String tokenInfoUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken;
-            ResponseEntity<Map> tokenInfoResp = this.restTemplate.getForEntity(tokenInfoUrl, Map.class);
+            URI uri = UriComponentsBuilder
+                    .fromHttpUrl("https://oauth2.googleapis.com/tokeninfo")
+                    .queryParam("id_token", idToken.trim())
+                    .build()
+                    .toUri();
+
+            ResponseEntity<Map> tokenInfoResp = this.restTemplate.getForEntity(uri, Map.class);
             Map<String, Object> payload = tokenInfoResp.getBody();
 
             if (payload == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid Google token."));
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid Google token response."));
             }
 
             String aud = (String) payload.get("aud");
-            if (aud == null || !aud.equals(googleClientId)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Token audience mismatch."));
+            String azp = (String) payload.get("azp");
+            String cleanExpected = googleClientId != null ? googleClientId.trim() : "";
+
+            boolean audMatches = cleanExpected.equalsIgnoreCase(aud != null ? aud.trim() : "")
+                              || cleanExpected.equalsIgnoreCase(azp != null ? azp.trim() : "");
+
+            if (!audMatches) {
+                log.warn("Google OAuth audience mismatch: expected='{}', aud='{}', azp='{}'", cleanExpected, aud, azp);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                    "message", "Token audience mismatch. Expected: " + cleanExpected + ", got: " + aud
+                ));
             }
 
             String iss = (String) payload.get("iss");
@@ -246,8 +267,16 @@ public class AuthController {
             String token = jwtTokenProvider.createToken(user.getEmail());
             return ResponseEntity.ok(new AuthResponse(token, com.digout.dto.UserProfileDTO.fromUser(user)));
 
+        } catch (HttpStatusCodeException e) {
+            log.error("Google tokeninfo error: HTTP {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "message", "Google verification failed: " + e.getResponseBodyAsString()
+            ));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Failed to verify Google token: " + e.getMessage()));
+            log.error("Google login failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "message", "Google authentication failed: " + e.getMessage()
+            ));
         }
     }
 }
