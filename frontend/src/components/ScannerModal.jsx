@@ -363,8 +363,12 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Upload className="w-6 h-6" />
                     </div>
-                    <span className="font-medium text-gray-700">{t('upload_image')}</span>
-                    <span className="text-xs text-gray-400 mt-1">{t('Ingredients list')}</span>
+                    <span className="font-medium text-gray-700">
+                      {foodCategory === 'fresh' ? 'Upload Food Photo' : t('upload_image')}
+                    </span>
+                    <span className="text-xs text-gray-400 mt-1">
+                      {foodCategory === 'fresh' ? 'Dish or item photo' : t('Ingredients list')}
+                    </span>
                   </div>
                 </div>
 
@@ -376,8 +380,12 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Camera className="w-6 h-6" />
                     </div>
-                    <span className="font-medium text-gray-700">{t('take_photo')}</span>
-                    <span className="text-xs text-gray-400 mt-1">{t('Ingredients list')}</span>
+                    <span className="font-medium text-gray-700">
+                      {foodCategory === 'fresh' ? 'Take Photo of Food' : t('take_photo')}
+                    </span>
+                    <span className="text-xs text-gray-400 mt-1">
+                      {foodCategory === 'fresh' ? 'Snap your meal or dish' : t('Ingredients list')}
+                    </span>
                   </button>
                 )}
               </div>
@@ -393,7 +401,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <div className="relative flex-1">
                       <input
                         type="text"
-                        placeholder={t('search_placeholder')}
+                        placeholder={foodCategory === 'fresh' ? 'e.g. Dosa, Apple, Grilled Salad, Dal' : t('search_placeholder')}
                         value={searchName}
                         onChange={(e) => setSearchName(e.target.value)}
                         onFocus={() => { if (searchName.trim().length >= 2) setShowSuggestions(true); }}
