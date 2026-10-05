@@ -36,12 +36,14 @@ public class CryptoConverter implements AttributeConverter<String, String> {
         return FALLBACK_KEY;
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     @Override
     public String convertToDatabaseColumn(String rawData) {
         if (rawData == null) return null;
         try {
             byte[] iv = new byte[GCM_IV_LENGTH];
-            new SecureRandom().nextBytes(iv);
+            SECURE_RANDOM.nextBytes(iv);
 
             Key key = new SecretKeySpec(SECRET_KEY, "AES");
             Cipher cipher = Cipher.getInstance(ALGORITHM);

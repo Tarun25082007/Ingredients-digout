@@ -5,9 +5,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cached_analysis", indexes = {
-    @Index(name = "idx_product_country", columnList = "productName, countryCode")
+    @Index(name = "idx_product_country", columnList = "product_name, country_code")
 }, uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"productName", "countryCode"})
+    @UniqueConstraint(columnNames = {"product_name", "country_code"})
 })
 public class CachedAnalysis {
 

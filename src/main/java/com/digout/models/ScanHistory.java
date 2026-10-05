@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 @Table(name = "scan_history", indexes = {
     @Index(name = "idx_user_scanned_at", columnList = "user_id, scanned_at DESC")
 })
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

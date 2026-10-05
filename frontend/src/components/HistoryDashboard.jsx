@@ -20,12 +20,27 @@ const HistoryDashboard = () => {
       return;
     }
 
+    const abortController = new AbortController();
+
     const fetchHistory = async () => {
       try {
-        const response = await api.get('/scan/history');
-        setHistory(response.data);
+        const response = await api.get('/scan/history', { signal: abortController.signal });
+        // Parse JSON once during fetch to avoid blocking the render loop
+        const parsedHistory = response.data.map(scan => {
+          let parsedData = null;
+          try {
+            parsedData = scan.whoAssessmentJson
+              ? (typeof scan.whoAssessmentJson === 'string' ? JSON.parse(scan.whoAssessmentJson) : scan.whoAssessmentJson)
+              : null;
+          } catch (e) {}
+          return { ...scan, parsedAssessment: parsedData };
+        });
+        
+        setHistory(parsedHistory);
         setError(''); // clear any previous errors
       } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+        
         if (err.response && (err.response.status === 401 || err.response.status === 403)) {
           // Token is likely expired or invalid
           logout();
@@ -47,6 +62,7 @@ const HistoryDashboard = () => {
     };
 
     fetchHistory();
+    return () => abortController.abort();
   }, [token, navigate]);
 
   const deleteScan = async (id, e) => {
@@ -106,15 +122,7 @@ const HistoryDashboard = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {history.map((scan) => {
-              const assessmentData = (() => {
-                try {
-                  return scan.whoAssessmentJson
-                    ? (typeof scan.whoAssessmentJson === 'string' ? JSON.parse(scan.whoAssessmentJson) : scan.whoAssessmentJson)
-                    : null;
-                } catch (e) {
-                  return null;
-                }
-              })();
+              const assessmentData = scan.parsedAssessment;
               const score = assessmentData?.healthScore;
 
               return (
@@ -186,15 +194,7 @@ const HistoryDashboard = () => {
             </button>
             <div className="max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl">
               <HealthStatusCard 
-                assessment={(() => {
-                  try {
-                    return selectedScan.whoAssessmentJson 
-                      ? (typeof selectedScan.whoAssessmentJson === 'string' ? JSON.parse(selectedScan.whoAssessmentJson) : selectedScan.whoAssessmentJson)
-                      : { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus };
-                  } catch (e) {
-                    return { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus };
-                  }
-                })()} 
+                assessment={selectedScan.parsedAssessment || { productName: selectedScan.productName, overallIndicator: selectedScan.healthStatus }} 
               />
             </div>
           </div>

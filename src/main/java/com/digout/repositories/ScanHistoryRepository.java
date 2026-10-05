@@ -14,5 +14,7 @@ public interface ScanHistoryRepository extends JpaRepository<ScanHistory, Long> 
     void deleteByUserId(Long userId);
 
     @org.springframework.transaction.annotation.Transactional
-    void deleteByUserIdAndProductNameIgnoreCase(Long userId, String productName);
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("DELETE FROM ScanHistory s WHERE s.user.id = :userId AND LOWER(s.productName) = LOWER(:productName)")
+    void deleteByUserIdAndProductNameIgnoreCase(@org.springframework.data.repository.query.Param("userId") Long userId, @org.springframework.data.repository.query.Param("productName") String productName);
 }
