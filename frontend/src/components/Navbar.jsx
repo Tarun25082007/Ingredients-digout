@@ -88,6 +88,8 @@ const Navbar = () => {
           <div className="relative" ref={countryDropdownRef}>
             <button
               type="button"
+              aria-haspopup="true"
+              aria-expanded={isCountryOpen}
               onClick={() => {
                 setIsCountryOpen(prev => !prev);
                 setIsLangOpen(false);
@@ -137,6 +139,8 @@ const Navbar = () => {
           <div className="relative" ref={langDropdownRef}>
             <button
               type="button"
+              aria-haspopup="true"
+              aria-expanded={isLangOpen}
               onClick={() => {
                 setIsLangOpen(prev => !prev);
                 setIsCountryOpen(false);

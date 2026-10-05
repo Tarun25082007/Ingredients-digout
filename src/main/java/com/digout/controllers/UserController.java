@@ -54,7 +54,7 @@ public class UserController {
         }
 
         User user = userOpt.get();
-        if (dto.fullName() != null && !dto.fullName().isBlank()) {
+        if (dto.fullName() != null) {
             String sanitizedName = dto.fullName().trim();
             if (sanitizedName.length() > 100) sanitizedName = sanitizedName.substring(0, 100);
             user.setFullName(sanitizedName);

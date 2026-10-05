@@ -101,7 +101,7 @@ public class ScanController {
                 ResponseEntity.badRequest().body((Object) java.util.Map.of("message", "File size exceeds 5MB limit. Please upload a smaller image."))
             );
         }
-        final String rawCountryCode = countryCode != null ? countryCode.trim() : "world";
+        final String rawCountryCode = countryCode.trim();
         final String cappedCountryCode = rawCountryCode.length() > 32 ? rawCountryCode.substring(0, 32) : rawCountryCode;
         final String sanitizedCountryCode = cappedCountryCode.replaceAll("[^a-zA-Z0-9-]", "");
         final String finalCountryCode = sanitizedCountryCode.isEmpty() ? "world" : sanitizedCountryCode;
