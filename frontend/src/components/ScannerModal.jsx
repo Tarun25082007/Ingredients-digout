@@ -33,7 +33,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const countrySelectRef = useRef(null);
 
   // Stop camera stream when component unmounts or mode changes
-  const stopCamera = () => {
+  const stopCamera = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -41,7 +41,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -65,7 +65,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       stopCamera();
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, []);
+  }, [stopCamera]);
 
   // Close country dropdown when clicking outside
   useEffect(() => {
@@ -111,7 +111,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     };
   }, [searchName, promptCountry]);
 
-  const startCamera = async (targetFacing = facingMode) => {
+  const startCamera = useCallback(async (targetFacing = facingMode) => {
     setError('');
     setMode('camera');
     stopCamera();
@@ -147,53 +147,16 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
         }
       }
     }
-  };
+  }, [facingMode, stopCamera]);
 
-  const switchCameraFacing = async () => {
+  const switchCameraFacing = useCallback(async () => {
     const nextFacing = facingMode === 'environment' ? 'user' : 'environment';
     setFacingMode(nextFacing);
     setIsMirrored(nextFacing === 'user');
     await startCamera(nextFacing);
-  };
+  }, [facingMode, startCamera]);
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('File is too large. Please select an image under 5MB.');
-        e.target.value = ''; // Reset input
-        return;
-      }
-      uploadImage(file);
-    }
-  };
-
-  const takePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-
-      if (isMirrored) {
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-      }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Stop camera AFTER drawing to canvas to avoid blank frame on some browsers
-      canvas.toBlob((blob) => {
-        stopCamera();
-        if (blob) {
-          const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
-          uploadImage(file);
-        }
-      }, 'image/jpeg', 0.92);
-    }
-  };
-
-  const uploadImage = async (file) => {
+  const uploadImage = useCallback(async (file) => {
     setMode('uploading');
     setError('');
     
@@ -220,9 +183,46 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze image. Please try again.');
       setMode('select');
     }
-  };
+  }, [foodCategory, onScanComplete]);
 
-  const searchByProductName = async (e, customName = null, customCountry = null, forceAi = false) => {
+  const handleFileUpload = useCallback((e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File is too large. Please select an image under 5MB.');
+        e.target.value = ''; // Reset input
+        return;
+      }
+      uploadImage(file);
+    }
+  }, [uploadImage]);
+
+  const takePhoto = useCallback(() => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+
+      if (isMirrored) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Stop camera AFTER drawing to canvas to avoid blank frame on some browsers
+      canvas.toBlob((blob) => {
+        stopCamera();
+        if (blob) {
+          const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
+          uploadImage(file);
+        }
+      }, 'image/jpeg', 0.92);
+    }
+  }, [isMirrored, stopCamera, uploadImage]);
+
+  const searchByProductName = useCallback(async (e, customName = null, customCountry = null, forceAi = false) => {
     if (e) e.preventDefault();
     const query = customName !== null ? customName : searchName;
     if (!query.trim()) return;
@@ -258,9 +258,9 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze product. Please try again.');
       setMode('select');
     }
-  };
+  }, [searchName, foodCategory, onScanComplete]);
 
-  const resetScanner = () => {
+  const resetScanner = useCallback(() => {
     stopCamera();
     setAssessment(null);
     setMode('category_select');
@@ -269,7 +269,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setSearchName('');
     setSuggestions([]);
     setShowSuggestions(false);
-  };
+  }, [stopCamera]);
 
   const handleBarcodeResult = useCallback(async (barcode) => {
     setMode('uploading');
@@ -326,11 +326,11 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setMode('select');
   }, []);
 
-  const handleSuggestionClick = (suggestionName, forceAi = false) => {
+  const handleSuggestionClick = useCallback((suggestionName, forceAi = false) => {
     setSearchName(suggestionName);
     setShowSuggestions(false);
     searchByProductName(null, suggestionName, null, forceAi);
-  };
+  }, [searchByProductName]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
