@@ -435,7 +435,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
                 {hasCamera && (
                   <button 
-                    onClick={startCamera}
+                    onClick={() => startCamera()}
                     className="flex-1 group flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300 active:scale-95"
                   >
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">

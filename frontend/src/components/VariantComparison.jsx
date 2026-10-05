@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
@@ -10,10 +10,18 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
   const [internationalData, setInternationalData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     if (token && productName) {
       const fetchComparison = async () => {
+        // Clear stale data from previous scan before loading new one
+        setInternationalData(null);
         setLoading(true);
         setError('');
 
@@ -29,8 +37,10 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
             saveHistory: 'false', 
             useFastModel: 'true' 
           });
+          if (!isMountedRef.current) return;
           setInternationalData(response.data);
         } catch (err) {
+          if (!isMountedRef.current) return;
           // If primaryTarget was globalEquivalent and failed, fallback to productName
           if (primaryTarget !== productName.trim()) {
             try {
@@ -40,6 +50,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                 saveHistory: 'false', 
                 useFastModel: 'true' 
               });
+              if (!isMountedRef.current) return;
               setInternationalData(response2.data);
               setLoading(false);
               return;
@@ -47,10 +58,11 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
               // Fall through to error
             }
           }
+          if (!isMountedRef.current) return;
           setError('Failed to load international comparison data. This product might not be listed in the global OpenFoodFacts database.');
           setInternationalData(null);
         } finally {
-          setLoading(false);
+          if (isMountedRef.current) setLoading(false);
         }
       };
       fetchComparison();

@@ -380,7 +380,10 @@ public class GeminiService {
             for (JsonNode step : steps) {
                 if (("model_output".equals(step.path("type").asText()) || step.has("modelOutput")) && (step.has("content") || step.path("modelOutput").has("text"))) {
                     if (step.has("content")) {
-                         jsonText = step.path("content").get(0).path("text").asText();
+                        JsonNode contentNode = step.path("content");
+                        if (contentNode.isArray() && contentNode.size() > 0) {
+                            jsonText = contentNode.get(0).path("text").asText();
+                        }
                     } else {
                          jsonText = step.path("modelOutput").path("text").asText();
                     }
