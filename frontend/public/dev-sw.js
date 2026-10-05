@@ -1,22 +1,39 @@
-// Self-destroying service worker to clean up stale development service workers
-self.addEventListener('install', () => {
-  self.skipWaiting();
-});
+const CACHE_NAME = 'digout-offline-cache-v1';
+const OFFLINE_URLS = ['/', '/index.html'];
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    self.registration.unregister().then(() => {
-      return self.clients.matchAll();
-    }).then((clients) => {
-      clients.forEach((client) => {
-        if (client.url && 'navigate' in client) {
-          client.navigate(client.url);
-        }
-      });
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(OFFLINE_URLS);
     })
   );
 });
 
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
 self.addEventListener('fetch', (event) => {
-  event.respondWith(fetch(event.request));
+  if (event.request.mode === 'navigate' || (event.request.method === 'GET' && event.request.headers.get('accept').includes('text/html'))) {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match('/');
+      })
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request);
+      })
+    );
+  }
 });
