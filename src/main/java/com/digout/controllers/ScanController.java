@@ -174,7 +174,7 @@ public class ScanController {
                         try {
                             String json = objectMapper.writeValueAsString(assessment);
                             CachedAnalysis cacheEntry = cachedAnalysisRepository
-                                    .findByProductNameAndCountryCode(assessment.productName().trim(), finalCountryCode)
+                                    .findByProductNameAndCountryCode(assessment.productName().trim().toLowerCase(), finalCountryCode.toLowerCase())
                                     .orElseGet(CachedAnalysis::new);
                             cacheEntry.setProductName(assessment.productName().trim());
                             cacheEntry.setCountryCode(finalCountryCode);
@@ -263,7 +263,7 @@ public class ScanController {
         }
 
         // ALWAYS Check Cache First (unless forceAi is explicitly requested)
-        Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameAndCountryCode(cleanName, countryCode);
+        Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameAndCountryCode(cleanName.toLowerCase(), countryCode.toLowerCase());
         if (forceAi) {
             cachedOpt.ifPresent(cached -> {
                 try {
@@ -406,7 +406,7 @@ public class ScanController {
                     try {
                         String json = objectMapper.writeValueAsString(finalGeneric);
                         CachedAnalysis cacheEntry = cachedAnalysisRepository
-                                .findByProductNameAndCountryCode(productName.trim(), countryCode)
+                                .findByProductNameAndCountryCode(productName.trim().toLowerCase(), countryCode.toLowerCase())
                                 .orElseGet(CachedAnalysis::new);
                         cacheEntry.setProductName(productName.trim());
                         cacheEntry.setCountryCode(countryCode);
