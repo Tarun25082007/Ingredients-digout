@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { ShieldAlert, Info, Loader2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { AuthContext } from '../context/AuthContext';
 import api from '../api';
 
 const translationCache = new Map();
 
 const HealthStatusCard = ({ assessment }) => {
   const { language, t } = useLanguage();
+  const { userProfile } = useContext(AuthContext);
   const [activeAssessment, setActiveAssessment] = useState(assessment);
   const [translating, setTranslating] = useState(false);
 
@@ -56,6 +58,7 @@ const HealthStatusCard = ({ assessment }) => {
       .then(res => {
         if (!isMounted) return;
         if (res.data) {
+          if (translationCache.size > 50) translationCache.clear();
           translationCache.set(cacheKey, res.data);
           setActiveAssessment(res.data);
         } else {
@@ -149,14 +152,7 @@ const HealthStatusCard = ({ assessment }) => {
   };
 
   // Gender-aware safety filter to prevent male users from seeing pregnancy alerts or vice versa
-  let activeGender = null;
-  try {
-    const stored = localStorage.getItem('userProfile');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      activeGender = parsed?.gender;
-    }
-  } catch (e) {}
+  const activeGender = userProfile?.gender;
 
   const safePersonalizedAlerts = (personalizedAlerts || []).filter(a => {
     if (!a) return false;

@@ -27,7 +27,7 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('userProfile');
-        window.location.href = '/login';
+        window.dispatchEvent(new Event('auth:unauthorized'));
       }
     }
     return Promise.reject(error);

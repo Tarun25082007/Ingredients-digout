@@ -48,6 +48,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, [token]);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+      setUserProfile(null);
+      setIsProfileModalOpen(false);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
+  }, []);
+
   const fetchUserProfile = async () => {
     try {
       const res = await api.get('/user/profile');
