@@ -108,6 +108,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     
     return () => {
       isActive = false;
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchName, promptCountry]);
 
@@ -173,12 +174,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       const response = await api.post('/scan/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      if (!isMountedRef.current) return;
       setAssessment(response.data);
       setMode('result');
       if (onScanComplete) {
         onScanComplete(response.data);
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
       const serverMsg = err.response?.data?.message || err.response?.data?.error;
       setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze image. Please try again.');
       setMode('select');
@@ -244,12 +247,14 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
         foodCategory: foodCategory,
         language: userLang
       });
+      if (!isMountedRef.current) return;
       setAssessment(response.data);
       setMode('result');
       if (onScanComplete) {
         onScanComplete(response.data);
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
       if (err.response?.data?.error === 'REGION_NOT_FOUND') {
         setMode('country_prompt');
         return;
@@ -306,16 +311,19 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
           countryCode: getUserCountry(),
           foodCategory: foodCategory || 'packaged'
         });
+        if (!isMountedRef.current) return;
         setAssessment(analyzeResponse.data);
         setMode('result');
         if (onScanComplete) {
           onScanComplete(analyzeResponse.data);
         }
       } else {
+        if (!isMountedRef.current) return;
         setError(`Barcode ${barcode} found, but product name is not in the database. Please type the name or upload an image.`);
         setMode('select');
       }
     } catch (err) {
+      if (!isMountedRef.current) return;
       setError('Failed to look up barcode. Please try again.');
       setMode('select');
     }
