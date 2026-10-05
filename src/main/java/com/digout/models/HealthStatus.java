@@ -5,5 +5,6 @@ public enum HealthStatus {
     YELLOW,
     GREEN,
     PURPLE,
-    BLACK
+    BLACK,
+    NOT_FOOD
 }

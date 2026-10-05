@@ -5,6 +5,7 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record WhoAssessmentDTO(
+        Boolean isFood,
         String productName,
         List<IngredientDetail> ingredientsFound,
         List<WhoFlag> whoFlags,
@@ -27,7 +28,7 @@ public record WhoAssessmentDTO(
             String quantity,
             String dataSourceRegion
     ) {
-        this(productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, null, null, null);
+        this(true, productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, null, null, null);
     }
 
     public WhoAssessmentDTO(
@@ -42,7 +43,7 @@ public record WhoAssessmentDTO(
             List<PersonalizedAlert> personalizedAlerts,
             String recommendedServingAdvice
     ) {
-        this(productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, personalizedAlerts, recommendedServingAdvice, null);
+        this(true, productName, ingredientsFound, whoFlags, overallIndicator, globalEquivalent, servingSize, quantity, dataSourceRegion, personalizedAlerts, recommendedServingAdvice, null);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -3,28 +3,7 @@ import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import { X, Activity, Heart, ShieldAlert, Sparkles, Check } from 'lucide-react';
 
-const COMMON_CONDITIONS = [
-  { id: 'PREGNANCY', label: '🤰 Pregnancy / Lactation', desc: 'Strict safety checks for caffeine, additives, raw ingredients' },
-  { id: 'DIABETES', label: '🩸 Diabetes / Pre-diabetes', desc: 'Flags high sugar, refined carbs, high glycemic index' },
-  { id: 'ULCERS', label: '🔥 Gastric Ulcers / Acid Reflux / GERD', desc: 'Flags chili, capsaicin, high-acid, spicy irritants' },
-  { id: 'HYPERTENSION', label: '🫀 Hypertension / High BP', desc: 'Flags excess sodium and trans fats' },
-  { id: 'CHOLESTEROL', label: '🫁 High Cholesterol / Heart Health', desc: 'Flags saturated fats, palm oil, trans fats' },
-  { id: 'GLUTEN_ALLERGY', label: '🌾 Celiac / Gluten Sensitivity', desc: 'Flags wheat, barley, rye, gluten' },
-  { id: 'LACTOSE_INTOLERANCE', label: '🥛 Lactose Intolerance', desc: 'Flags dairy milk, whey, lactose' },
-  { id: 'NUT_ALLERGY', label: '🥜 Peanut / Tree Nut Allergy', desc: 'Flags peanuts, almonds, cashews, tree nuts' },
-];
-
-const CALORIE_GOALS = [
-  { id: 'DEFICIT', label: '🥗 Calorie Deficit', desc: 'Weight / Fat Loss (alerts on empty calories)' },
-  { id: 'MAINTENANCE', label: '⚖️ Maintenance', desc: 'Balanced health & weight maintenance' },
-  { id: 'SURPLUS', label: '💪 Calorie Surplus', desc: 'Bulking / Muscle Gain / High Energy' }
-];
-
-const ACTIVITY_LEVELS = [
-  { id: 'SEDENTARY', label: 'Sedentary', desc: 'Little or no regular exercise' },
-  { id: 'MODERATE', label: 'Moderately Active', desc: 'Exercise 3-5 days/week' },
-  { id: 'ACTIVE', label: 'Very Active', desc: 'Intense exercise 6-7 days/week' }
-];
+const KNOWN_CONDITION_IDS = ['PREGNANCY', 'PCOS', 'PROSTATE', 'DIABETES', 'ULCERS', 'HYPERTENSION', 'CHOLESTEROL', 'GLUTEN_ALLERGY', 'LACTOSE_INTOLERANCE', 'NUT_ALLERGY'];
 
 const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile = null, isMandatoryOnboarding = false }) => {
   const { t } = useLanguage();
@@ -42,6 +21,31 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const getCommonConditions = () => [
+    { id: 'PREGNANCY', label: t('cond_pregnancy_title'), desc: t('cond_pregnancy_desc'), gender: 'FEMALE' },
+    { id: 'PCOS', label: t('cond_pcos_title'), desc: t('cond_pcos_desc'), gender: 'FEMALE' },
+    { id: 'PROSTATE', label: t('cond_prostate_title'), desc: t('cond_prostate_desc'), gender: 'MALE' },
+    { id: 'DIABETES', label: t('cond_diabetes_title'), desc: t('cond_diabetes_desc') },
+    { id: 'ULCERS', label: t('cond_ulcers_title'), desc: t('cond_ulcers_desc') },
+    { id: 'HYPERTENSION', label: t('cond_hypertension_title'), desc: t('cond_hypertension_desc') },
+    { id: 'CHOLESTEROL', label: t('cond_cholesterol_title'), desc: t('cond_cholesterol_desc') },
+    { id: 'GLUTEN_ALLERGY', label: t('cond_gluten_title'), desc: t('cond_gluten_desc') },
+    { id: 'LACTOSE_INTOLERANCE', label: t('cond_lactose_title'), desc: t('cond_lactose_desc') },
+    { id: 'NUT_ALLERGY', label: t('cond_nuts_title'), desc: t('cond_nuts_desc') },
+  ];
+
+  const getCalorieGoals = () => [
+    { id: 'DEFICIT', label: t('goal_deficit_title'), desc: t('goal_deficit_desc') },
+    { id: 'MAINTENANCE', label: t('goal_maint_title'), desc: t('goal_maint_desc') },
+    { id: 'SURPLUS', label: t('goal_surplus_title'), desc: t('goal_surplus_desc') }
+  ];
+
+  const getActivityLevels = () => [
+    { id: 'SEDENTARY', label: t('activity_sedentary_title'), desc: t('activity_sedentary_desc') },
+    { id: 'MODERATE', label: t('activity_mod_title'), desc: t('activity_mod_desc') },
+    { id: 'ACTIVE', label: t('activity_active_title'), desc: t('activity_active_desc') }
+  ];
+
   useEffect(() => {
     if (initialProfile) {
       if (initialProfile.fullName) setFullName(initialProfile.fullName);
@@ -56,12 +60,14 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
       if (initialProfile.medicalConditions) {
         const raw = initialProfile.medicalConditions;
         const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
-        const knownIds = COMMON_CONDITIONS.map(c => c.id);
+        const knownIds = KNOWN_CONDITION_IDS;
         const matched = [];
         const customParts = [];
 
         parts.forEach(p => {
           if (knownIds.includes(p)) {
+            if (initialProfile.gender === 'MALE' && (p === 'PREGNANCY' || p === 'PCOS')) return;
+            if (initialProfile.gender === 'FEMALE' && p === 'PROSTATE') return;
             matched.push(p);
           } else {
             customParts.push(p);
@@ -83,16 +89,25 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   if (heightVal > 50 && weightVal > 20) {
     const hM = heightVal / 100.0;
     computedBmi = (weightVal / (hM * hM)).toFixed(1);
-    if (computedBmi < 18.5) bmiCategory = 'Underweight';
-    else if (computedBmi < 25.0) bmiCategory = 'Healthy Weight';
-    else if (computedBmi < 30.0) bmiCategory = 'Overweight';
-    else bmiCategory = 'Obese';
+    if (computedBmi < 18.5) bmiCategory = t('bmi_underweight');
+    else if (computedBmi < 25.0) bmiCategory = t('bmi_healthy');
+    else if (computedBmi < 30.0) bmiCategory = t('bmi_overweight');
+    else bmiCategory = t('bmi_obese');
   }
 
   const toggleCondition = (id) => {
     setSelectedConditions(prev => 
       prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
     );
+  };
+
+  const handleGenderChange = (newGender) => {
+    setGender(newGender);
+    if (newGender === 'MALE') {
+      setSelectedConditions(prev => prev.filter(id => id !== 'PREGNANCY' && id !== 'PCOS'));
+    } else if (newGender === 'FEMALE') {
+      setSelectedConditions(prev => prev.filter(id => id !== 'PROSTATE'));
+    }
   };
 
   const handleSave = async (e) => {
@@ -119,9 +134,21 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
         return;
       }
 
-      const allConditions = [...selectedConditions];
+      let allConditions = [...selectedConditions];
       if (customCondition.trim()) {
         allConditions.push(customCondition.trim());
+      }
+
+      if (gender === 'MALE') {
+        allConditions = allConditions.filter(c => {
+          const lower = c.toLowerCase();
+          return !lower.includes('pregnan') && !lower.includes('lactat') && !lower.includes('pcos') && !lower.includes('breastfeed');
+        });
+      } else if (gender === 'FEMALE') {
+        allConditions = allConditions.filter(c => {
+          const lower = c.toLowerCase();
+          return !lower.includes('prostate');
+        });
       }
 
       const payload = {
@@ -191,7 +218,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             <div>
               <h2 className="text-2xl font-black">{t('health_profile')}</h2>
               <p className="text-emerald-100 text-sm mt-0.5">
-                Tailor food safety alerts, portion advice, and condition warnings to you.
+                {t('profile_subtitle')}
               </p>
             </div>
           </div>
@@ -215,7 +242,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           <div>
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center space-x-2">
               <Activity className="w-4 h-4 text-emerald-600" />
-              <span>1. Basic Biometrics</span>
+              <span>{t('basic_biometrics')}</span>
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
@@ -233,16 +260,28 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">{t('gender')}</label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm outline-none bg-white"
-                >
-                  <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                <div className="grid grid-cols-2 gap-1">
+                  {[
+                    { value: 'MALE', label: t('gender_male') },
+                    { value: 'FEMALE', label: t('gender_female') },
+                    { value: 'OTHER', label: t('gender_other') },
+                    { value: 'PREFER_NOT_TO_SAY', label: t('gender_not_specified') },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleGenderChange(opt.value)}
+                      className={`px-1 py-1.5 border rounded-lg text-[11px] font-semibold transition truncate text-center ${
+                        gender === opt.value
+                          ? 'border-emerald-500 bg-emerald-100 text-emerald-900 font-bold'
+                          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                      }`}
+                      title={opt.label}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -285,11 +324,11 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           <div>
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-teal-600" />
-              <span>2. {t('calorie_goal')}</span>
+              <span>{t('calorie_fitness_goals')}</span>
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3">
-              {CALORIE_GOALS.map((goal) => {
+              {getCalorieGoals().map((goal) => {
                 const active = calorieGoal === goal.id;
                 return (
                   <button
@@ -310,7 +349,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             </div>
 
             <div className="grid grid-cols-3 gap-2">
-              {ACTIVITY_LEVELS.map((act) => {
+              {getActivityLevels().map((act) => {
                 const active = activityLevel === act.id;
                 return (
                   <button
@@ -334,14 +373,18 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           <div>
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center space-x-2">
               <ShieldAlert className="w-4 h-4 text-purple-600" />
-              <span>3. {t('medical_conditions')}</span>
+              <span>{t('conditions_allergies_title')}</span>
             </h3>
             <p className="text-xs text-gray-500 mb-3">
-              Select any conditions that apply. The AI will flag dangerous triggers (e.g. ulcer irritants, pregnancy risks, diabetic sugar spikes) in <strong className="text-purple-700">PURPLE</strong> or <strong className="text-red-600">RED</strong>.
+              {t('conditions_allergies_desc')}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {COMMON_CONDITIONS.map((cond) => {
+              {getCommonConditions().filter(cond => {
+                if (gender === 'MALE' && cond.gender === 'FEMALE') return false;
+                if (gender === 'FEMALE' && cond.gender === 'MALE') return false;
+                return true;
+              }).map((cond) => {
                 const isSelected = selectedConditions.includes(cond.id);
                 return (
                   <button
@@ -371,11 +414,11 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             {/* Custom Notes */}
             <div className="mt-3">
               <label className="block text-xs font-semibold text-gray-600 mb-1">
-                Other Conditions, Medications, or Specific Dietary Sensitivities (Optional)
+                {t('custom_conditions_label')}
               </label>
               <input
                 type="text"
-                placeholder="e.g., Gout, Kidney stones, Nightshade allergy, Thyroid..."
+                placeholder={t('custom_conditions_placeholder')}
                 value={customCondition}
                 onChange={(e) => setCustomCondition(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
@@ -387,10 +430,10 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           <div>
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-2 flex items-center space-x-2">
               <span className="text-amber-500 text-lg leading-none">⚖️</span>
-              <span>4. AI Strictness Level</span>
+              <span>{t('ai_strictness_title')}</span>
             </h3>
             <p className="text-xs text-gray-500 mb-3">
-              How strict should the AI be when evaluating processed foods, additives, and hidden sugars?
+              {t('ai_strictness_desc')}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
@@ -402,9 +445,9 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <div className="font-bold text-sm text-gray-800">Standard Mode</div>
+                <div className="font-bold text-sm text-gray-800">{t('mode_standard_title')}</div>
                 <div className="text-[11px] text-gray-500 leading-tight mt-1">
-                  Balanced evaluation based on general WHO guidelines. Tolerates standard additives and small amounts of sugar in processed foods.
+                  {t('mode_standard_desc')}
                 </div>
               </button>
               <button
@@ -416,9 +459,9 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
                     : 'border-gray-200 hover:border-gray-300 bg-white'
                 }`}
               >
-                <div className="font-bold text-sm text-gray-800">Harsh Nutritionist (Strict)</div>
+                <div className="font-bold text-sm text-gray-800">{t('mode_strict_title')}</div>
                 <div className="text-[11px] text-gray-500 leading-tight mt-1">
-                  Zero tolerance. The AI will mercilessly flag ALL added sugars, refined seed oils, and artificial additives as RED or PURPLE.
+                  {t('mode_strict_desc')}
                 </div>
               </button>
             </div>
@@ -429,15 +472,15 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             <div className="pt-4 mt-2 border-t border-red-100">
               <div className="bg-red-50 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-red-800">Danger Zone</h4>
-                  <p className="text-xs text-red-600 mt-1">Permanently delete your account, health profile, and all scan data. This action cannot be undone.</p>
+                  <h4 className="text-sm font-bold text-red-800">{t('danger_zone')}</h4>
+                  <p className="text-xs text-red-600 mt-1">{t('danger_zone_desc')}</p>
                 </div>
                 <button
                   type="button"
                   onClick={handleDeleteAccount}
                   className="mt-3 sm:mt-0 px-4 py-2 bg-red-100 hover:bg-red-600 text-red-700 hover:text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
                 >
-                  Delete Account
+                  {t('delete_account_btn')}
                 </button>
               </div>
             </div>
@@ -451,7 +494,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 transition"
               >
-                Cancel
+                {t('cancel')}
               </button>
             ) : (
               <button
@@ -459,7 +502,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition"
               >
-                Skip for now
+                {t('skip_for_now')}
               </button>
             )}
 
@@ -468,14 +511,14 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               disabled={saving}
               className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 text-sm disabled:opacity-50"
             >
-              {saving ? 'Saving Profile...' : `${t('save_profile')} ✨`}
+              {saving ? t('saving_profile') : `${t('save_profile')} ✨`}
             </button>
           </div>
 
           {/* Subtle AI Disclaimer */}
           <div className="text-center pt-1">
             <p className="text-[11px] text-gray-400">
-              ℹ️ AI-generated health guidance. AI can make mistakes — always consult a healthcare professional.
+              {t('ai_profile_disclaimer')}
             </p>
           </div>
         </form>

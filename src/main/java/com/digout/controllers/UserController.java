@@ -66,7 +66,9 @@ public class UserController {
             user.setAge(dto.age());
         }
         
-        user.setGender(dto.gender());
+        if (dto.gender() != null) {
+            user.setGender(dto.gender());
+        }
         
         if (dto.heightCm() != null) {
             if (dto.heightCm() < 30 || dto.heightCm() > 300) {
@@ -82,13 +84,38 @@ public class UserController {
             user.setWeightKg(dto.weightKg());
         }
         
-        user.setActivityLevel(dto.activityLevel());
-        user.setCalorieGoal(dto.calorieGoal());
+        if (dto.activityLevel() != null) {
+            String sanitizedActivity = dto.activityLevel().trim();
+            if (sanitizedActivity.length() > 50) sanitizedActivity = sanitizedActivity.substring(0, 50);
+            user.setActivityLevel(sanitizedActivity);
+        }
+
+        if (dto.calorieGoal() != null) {
+            String sanitizedGoal = dto.calorieGoal().trim();
+            if (sanitizedGoal.length() > 50) sanitizedGoal = sanitizedGoal.substring(0, 50);
+            user.setCalorieGoal(sanitizedGoal);
+        }
         
         if (dto.medicalConditions() != null) {
             String sanitizedConditions = dto.medicalConditions().trim();
             if (sanitizedConditions.length() > 1000) {
                 sanitizedConditions = sanitizedConditions.substring(0, 1000);
+                int lastComma = sanitizedConditions.lastIndexOf(",");
+                if (lastComma > 0) {
+                    sanitizedConditions = sanitizedConditions.substring(0, lastComma);
+                }
+            }
+            String effectiveGender = dto.gender() != null ? dto.gender() : user.getGender();
+            if ("MALE".equalsIgnoreCase(effectiveGender)) {
+                sanitizedConditions = java.util.Arrays.stream(sanitizedConditions.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.equalsIgnoreCase("PREGNANCY") && !s.toLowerCase().contains("pregnan") && !s.equalsIgnoreCase("PCOS") && !s.toLowerCase().contains("pcos") && !s.toLowerCase().contains("lactat") && !s.toLowerCase().contains("breastfeed"))
+                    .collect(java.util.stream.Collectors.joining(", "));
+            } else if ("FEMALE".equalsIgnoreCase(effectiveGender)) {
+                sanitizedConditions = java.util.Arrays.stream(sanitizedConditions.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.equalsIgnoreCase("PROSTATE") && !s.toLowerCase().contains("prostate"))
+                    .collect(java.util.stream.Collectors.joining(", "));
             }
             user.setMedicalConditions(sanitizedConditions);
         }

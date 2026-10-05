@@ -29,7 +29,7 @@ if (-not $dockerReady) {
     }
 
     Write-Host "Waiting for Docker engine to become ready..." -ForegroundColor Yellow
-    $retries = 30
+    $retries = 60
     while ($retries -gt 0) {
         Start-Sleep -Seconds 2
         try {
@@ -46,45 +46,42 @@ if (-not $dockerReady) {
 if ($dockerReady) {
     Write-Host " Docker is ready!" -ForegroundColor Green
 } else {
-    Write-Host "❌ Docker failed to start automatically. Please start Docker Desktop manually." -ForegroundColor Red
-    pause
+    Write-Host "❌ Docker failed to start automatically within 120s. Please start Docker Desktop manually." -ForegroundColor Red
     exit 1
 }
 
 # 2. Launch Docker Compose Containers
 Write-Host ""
-Write-Host "[2/3] Starting containers (Postgres, Backend, Frontend)..." -ForegroundColor Cyan
+Write-Host "[2/3] Building and starting containers with latest changes..." -ForegroundColor Cyan
 Set-Location $PSScriptRoot
 docker compose up -d --build
 
-Write-Host " Containers are up and running!" -ForegroundColor Green
-Write-Host "  - Frontend: http://localhost:5173" -ForegroundColor White
-Write-Host "  - Backend:  https://localhost:8443" -ForegroundColor White
-Write-Host "  - Database: localhost:5432" -ForegroundColor White
-
-# 3. Launch Cloudflare HTTPS Tunnel
-Write-Host ""
-Write-Host "[3/3] Connecting Cloudflare HTTPS Tunnel for Mobile & Remote..." -ForegroundColor Cyan
-
-$cfExe = "C:\Users\gopit\cloudflared\cloudflared.exe"
-if (!(Test-Path $cfExe)) {
-    $cfExe = (Get-Command cloudflared -ErrorAction SilentlyContinue).Source
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Docker build failed! Please check the error messages above." -ForegroundColor Red
+    exit 1
 }
 
-if (!(Test-Path $cfExe)) {
-    Write-Host "cloudflared.exe not found. Downloading..." -ForegroundColor Yellow
-    $cfDir = "C:\Users\gopit\cloudflared"
-    if (!(Test-Path $cfDir)) { New-Item -ItemType Directory -Path $cfDir | Out-Null }
-    Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "$cfDir\cloudflared.exe" -UseBasicParsing
-    $cfExe = "$cfDir\cloudflared.exe"
+Write-Host " Containers are up and running with the latest code changes!" -ForegroundColor Green
+Write-Host "  - Frontend: http://localhost:5173" -ForegroundColor White
+Write-Host "  - Backend:  https://localhost:8443" -ForegroundColor White
+Write-Host "  - Database: Internal Docker Network (Secured & Isolated)" -ForegroundColor White
+Write-Host "  [Tip: Press Ctrl + F5 in browser or reopen mobile app to see fresh changes]" -ForegroundColor Gray
+
+# 3. Launch Permanent Ngrok HTTPS Tunnel
+Write-Host ""
+Write-Host "[3/3] Connecting Permanent HTTPS Tunnel for Mobile & Remote..." -ForegroundColor Cyan
+
+$ngrokExe = "C:\Users\gopit\ngrok\ngrok.exe"
+if (!(Test-Path $ngrokExe)) {
+    $ngrokExe = (Get-Command ngrok -ErrorAction SilentlyContinue).Source
 }
 
 Write-Host ""
 Write-Host "=================================================" -ForegroundColor Green
-Write-Host "  Your live HTTPS link will appear below:       " -ForegroundColor Green
-Write-Host "  (Look for: https://....trycloudflare.com)      " -ForegroundColor Yellow
+Write-Host "  Your PERMANENT HTTPS link is:                  " -ForegroundColor Green
+Write-Host "  https://frill-confound-clump.ngrok-free.dev     " -ForegroundColor Yellow
 Write-Host "=================================================" -ForegroundColor Green
 Write-Host "Press Ctrl+C to stop the tunnel at any time." -ForegroundColor Gray
 Write-Host ""
 
-& $cfExe tunnel --protocol http2 --url http://localhost:5173
+& $ngrokExe http 5173 --url https://frill-confound-clump.ngrok-free.dev

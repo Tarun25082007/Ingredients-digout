@@ -19,9 +19,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    if (error.response && error.response.status === 401) {
       const requestUrl = error.config?.url || '';
-      // Don't redirect on auth endpoints (login/register failures return 401/403 legitimately)
+      // Don't redirect on auth endpoints (login/register failures return 401 legitimately)
       const isAuthRoute = requestUrl.includes('/auth/');
       if (!isAuthRoute && localStorage.getItem('token')) {
         localStorage.removeItem('token');

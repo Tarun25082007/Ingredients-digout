@@ -2,7 +2,7 @@
 FROM node:22-alpine as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=10000
 COPY . .
 # Set environment variables for production build
 ENV NODE_ENV=production

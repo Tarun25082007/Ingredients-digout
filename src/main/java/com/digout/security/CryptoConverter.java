@@ -12,7 +12,7 @@ import java.util.Arrays;
 
 /**
  * JPA AttributeConverter that transparently encrypts/decrypts a String column
- * using AES-256-GCM.  A fresh 12-byte IV is generated for every encryption so
+ * using AES-256-GCM. A fresh 12-byte IV is generated for every encryption so
  * the same plain-text never produces the same cipher-text.
  * The stored value is: Base64( IV(12 bytes) || GCM-ciphertext+tag ).
  */
@@ -22,6 +22,7 @@ public class CryptoConverter implements AttributeConverter<String, String> {
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 128; // bits
+    private static final byte[] FALLBACK_KEY = "DigoutSecKey2026DigoutSecKey2026".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     private static final byte[] SECRET_KEY = getSecretKey();
 
     private static byte[] getSecretKey() {
@@ -32,8 +33,7 @@ public class CryptoConverter implements AttributeConverter<String, String> {
         if (envKey != null && envKey.length() >= 32) {
             return envKey.substring(0, 32).getBytes(java.nio.charset.StandardCharsets.UTF_8);
         }
-        // 32-byte fallback (AES-256). In production, set DB_ENCRYPTION_KEY env var.
-        return "DigoutSecKey2026DigoutSecKey2026".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return FALLBACK_KEY;
     }
 
     @Override
@@ -61,19 +61,33 @@ public class CryptoConverter implements AttributeConverter<String, String> {
 
     @Override
     public String convertToEntityAttribute(String encryptedData) {
-        if (encryptedData == null) return null;
+        if (encryptedData == null || encryptedData.isBlank()) return encryptedData;
         try {
-            byte[] combined = Base64.getDecoder().decode(encryptedData);
-            byte[] iv = Arrays.copyOfRange(combined, 0, GCM_IV_LENGTH);
-            byte[] ciphertext = Arrays.copyOfRange(combined, GCM_IV_LENGTH, combined.length);
-
-            Key key = new SecretKeySpec(SECRET_KEY, "AES");
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
-            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
-            return new String(cipher.doFinal(ciphertext), java.nio.charset.StandardCharsets.UTF_8);
+            return decryptWithKey(encryptedData, SECRET_KEY);
         } catch (Exception e) {
-            // Graceful fallback: return raw value (handles pre-encryption legacy data)
+            // If primary key fails, try fallback key (handles data encrypted with previous default key)
+            if (!Arrays.equals(SECRET_KEY, FALLBACK_KEY)) {
+                try {
+                    return decryptWithKey(encryptedData, FALLBACK_KEY);
+                } catch (Exception ignored) {}
+            }
+            // Graceful fallback: treat as legacy plaintext (e.g. "None", unencrypted strings)
             return encryptedData;
         }
+    }
+
+    private String decryptWithKey(String encryptedData, byte[] keyBytes) throws Exception {
+        byte[] combined = Base64.getDecoder().decode(encryptedData);
+        // Minimum valid GCM payload: 12-byte IV + 16-byte authentication tag = 28 bytes
+        if (combined.length < GCM_IV_LENGTH + 16) {
+            throw new IllegalArgumentException("Payload too short for AES-GCM IV and authentication tag");
+        }
+        byte[] iv = Arrays.copyOfRange(combined, 0, GCM_IV_LENGTH);
+        byte[] ciphertext = Arrays.copyOfRange(combined, GCM_IV_LENGTH, combined.length);
+
+        Key key = new SecretKeySpec(keyBytes, "AES");
+        Cipher cipher = Cipher.getInstance(ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
+        return new String(cipher.doFinal(ciphertext), java.nio.charset.StandardCharsets.UTF_8);
     }
 }

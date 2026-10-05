@@ -14,10 +14,10 @@ function App() {
     <LanguageProvider>
       <AuthProvider>
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col bg-custom-900 text-white selection:bg-custom-500 selection:text-white">
+          <div className="min-h-screen flex flex-col bg-custom-900 text-white selection:bg-custom-500 selection:text-white w-full max-w-full overflow-x-hidden">
             <Navbar />
             
-            <main className="flex-grow flex flex-col">
+            <main className="flex-grow flex flex-col w-full max-w-full overflow-x-hidden">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />

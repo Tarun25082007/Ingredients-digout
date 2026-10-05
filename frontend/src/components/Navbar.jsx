@@ -7,18 +7,20 @@ import { getLanguagesForCountry } from '../utils/languageUtils';
 import { usePWA } from '../hooks/usePWA';
 
 const Navbar = () => {
-  const { user, token, userProfile, isGuest, logout, continueAsGuest, openProfileModal } = useContext(AuthContext);
+  const { user, token, userProfile, logout, openProfileModal } = useContext(AuthContext);
   const { language, setLanguage, t } = useLanguage();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [country, setCountry] = useState(getUserCountry().toUpperCase());
   const countries = getAllCountries();
   const availableLanguages = getLanguagesForCountry(country);
   const { isInstallable, installApp } = usePWA();
 
-  const handleCountryChange = (e) => {
-    const selected = e.target.value;
+  const selectCountry = (selected) => {
     setCountry(selected.toUpperCase());
     setUserCountry(selected);
+    setIsCountryOpen(false);
     
     // Automatically reset language if current language is not in the new country's list
     const newLangs = getLanguagesForCountry(selected);
@@ -27,15 +29,24 @@ const Navbar = () => {
     }
   };
 
-  const handleLanguageChange = (e) => {
-    setLanguage(e.target.value);
+  const handleLanguageChange = (selectedLang) => {
+    setLanguage(selectedLang);
+    setIsLangOpen(false);
   };
   const dropdownRef = useRef(null);
+  const langDropdownRef = useRef(null);
+  const countryDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
+      }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target)) {
+        setIsLangOpen(false);
+      }
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target)) {
+        setIsCountryOpen(false);
       }
     };
 
@@ -48,90 +59,126 @@ const Navbar = () => {
   const isLoggedIn = !!token;
 
   return (
-    <nav className="bg-custom-900/95 backdrop-blur-lg border-b border-custom-700 shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-300">
+    <nav className="bg-custom-900/95 backdrop-blur-lg border-b border-custom-700 shadow-sm px-3 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-300 w-full max-w-full">
       
       {/* Left side: Logo */}
-      <Link to="/" className="text-2xl font-extrabold text-custom-300 tracking-wide">
-        {t('app_title')}
+      <Link to="/" className="font-extrabold text-custom-300 tracking-wide shrink-0 flex items-center">
+        <span className="sm:hidden text-lg font-black tracking-tight">DigOut</span>
+        <span className="hidden sm:inline text-xl sm:text-2xl">{t('app_title')}</span>
       </Link>
 
       {/* Right side: Actions */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         
         {/* Install App Button */}
         {isInstallable && (
           <button 
             onClick={installApp}
-            className="flex items-center gap-1.5 bg-custom-700 hover:bg-custom-500 text-white border border-custom-500 px-3 py-1.5 rounded-full text-sm font-bold transition shadow-sm active:scale-95"
+            className="flex items-center gap-1.5 bg-custom-700 hover:bg-custom-500 text-white border border-custom-500 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition shadow-sm active:scale-95"
+            title="Install App"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            {t('install_app')}
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            <span className="hidden md:inline">{t('install_app')}</span>
           </button>
         )}
 
-        
-        {/* Country Selector */}
-        <div className="relative mr-2 flex gap-2">
-          <div className="relative">
-            <select 
-              value={country.toLowerCase()} 
-              onChange={handleCountryChange}
-              className="appearance-none bg-custom-700 border border-custom-500 text-white py-1.5 pl-3 pr-8 rounded-full text-sm font-semibold shadow-sm hover:bg-custom-500 focus:outline-none focus:ring-2 focus:ring-custom-300 transition cursor-pointer active:scale-95"
+        {/* Country & Language Selectors */}
+        <div className="relative flex gap-1 sm:gap-2">
+          {/* Custom Country Selector */}
+          <div className="relative" ref={countryDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsCountryOpen(prev => !prev);
+                setIsLangOpen(false);
+              }}
+              className="flex items-center gap-1 bg-custom-700 border border-custom-500 text-white py-1.5 px-2.5 sm:px-3 rounded-full text-xs sm:text-sm font-semibold shadow-sm hover:bg-custom-500 focus:outline-none focus:ring-2 focus:ring-custom-300 transition cursor-pointer active:scale-95"
               title="Set your regional database"
             >
-              <option value="world">{t('global_world')}</option>
-              {countries.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-custom-300">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
+              <span className="hidden sm:inline">{country === 'WORLD' ? t('global_world') : (countries.find(c => c.id.toUpperCase() === country.toUpperCase())?.name || country)}</span>
+              <span className="sm:hidden">{country === 'WORLD' ? '🌍' : country}</span>
+              <svg className={`fill-current h-3 w-3 sm:h-3.5 sm:w-3.5 text-custom-300 transition-transform ${isCountryOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+              </svg>
+            </button>
+
+            {isCountryOpen && (
+              <div className="absolute right-0 sm:left-0 mt-2 w-44 max-h-64 overflow-y-auto overflow-x-hidden bg-custom-800 border border-custom-600 rounded-2xl shadow-2xl py-1.5 z-50 animate-fadeIn" style={{ maxWidth: 'calc(100vw - 32px)' }}>
+                <button
+                  type="button"
+                  onClick={() => selectCountry('world')}
+                  className={`w-full text-left px-3.5 py-1.5 text-xs font-semibold transition ${
+                    country === 'WORLD' 
+                      ? 'bg-custom-600 text-white' 
+                      : 'text-custom-100 hover:bg-custom-700 hover:text-white'
+                  }`}
+                >
+                  {t('global_world')}
+                </button>
+                {countries.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectCountry(c.id)}
+                    className={`w-full text-left px-3.5 py-1.5 text-xs font-semibold transition ${
+                      country.toUpperCase() === c.id.toUpperCase()
+                        ? 'bg-custom-600 text-white' 
+                        : 'text-custom-100 hover:bg-custom-700 hover:text-white'
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           
-          {/* Language Selector */}
-          <div className="relative">
-            <select 
-              value={language}
-              onChange={handleLanguageChange}
-              className="appearance-none bg-custom-700 border border-custom-500 text-white py-1.5 pl-3 pr-8 rounded-full text-sm font-semibold shadow-sm hover:bg-custom-500 focus:outline-none focus:ring-2 focus:ring-custom-300 transition cursor-pointer active:scale-95"
+          {/* Custom Language Selector (100% Tailwind, No Windows Native White Canvas) */}
+          <div className="relative" ref={langDropdownRef}>
+            <button
+              type="button"
+              onClick={() => {
+                setIsLangOpen(prev => !prev);
+                setIsCountryOpen(false);
+              }}
+              className="flex items-center gap-1 bg-custom-700 border border-custom-500 text-white py-1.5 px-2.5 sm:px-3 rounded-full text-xs sm:text-sm font-semibold shadow-sm hover:bg-custom-500 focus:outline-none focus:ring-2 focus:ring-custom-300 transition cursor-pointer active:scale-95"
               title="Set preferred language"
             >
-              {availableLanguages.map(lang => (
-                <option key={lang} value={lang}>{lang}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-custom-300">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
+              <span className="hidden sm:inline">{language}</span>
+              <span className="sm:hidden">{language.slice(0, 2).toUpperCase()}</span>
+              <svg className={`fill-current h-3 w-3 sm:h-3.5 sm:w-3.5 text-custom-300 transition-transform ${isLangOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+              </svg>
+            </button>
+
+            {isLangOpen && (
+              <div className="absolute right-0 mt-2 w-36 max-h-64 overflow-y-auto bg-custom-800 border border-custom-600 rounded-2xl shadow-2xl py-1.5 z-50 animate-fadeIn">
+                {availableLanguages.map(lang => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => handleLanguageChange(lang)}
+                    className={`w-full text-left px-3.5 py-1.5 text-xs font-semibold transition ${
+                      language === lang 
+                        ? 'bg-custom-600 text-white' 
+                        : 'text-custom-100 hover:bg-custom-700 hover:text-white'
+                    }`}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* State 1: Completely unauthenticated */}
-        {(!isLoggedIn && !isGuest) && (
-          <>
-            <button 
-              onClick={continueAsGuest}
-              className="text-gray-600 hover:text-primary-dark font-semibold transition active:scale-95"
-            >
-              {t('guest_mode')}
-            </button>
-            <Link 
-              to="/login"
-              className="bg-primary-dark hover:bg-emerald-700 text-white px-5 py-2 rounded-full font-bold transition shadow-md hover:shadow-lg active:scale-95"
-            >
-              {t('login')}
-            </Link>
-          </>
-        )}
-
-        {/* State 2: Active Guest Mode */}
-        {(isGuest && !isLoggedIn) && (
+        {/* Unauthenticated View */}
+        {!isLoggedIn && (
           <Link 
             to="/login"
-            className="bg-primary-dark hover:bg-emerald-700 text-white px-5 py-2 rounded-full font-bold transition shadow-md hover:shadow-lg active:scale-95"
+            className="bg-primary-dark hover:bg-emerald-700 text-white px-3 py-1.5 sm:px-5 sm:py-2 rounded-full font-bold transition shadow-md hover:shadow-lg active:scale-95 text-xs sm:text-sm"
           >
-            {t('login_to_save')}
+            {t('login')}
           </Link>
         )}
 
@@ -140,7 +187,7 @@ const Navbar = () => {
           <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-primary-dark text-white hover:bg-emerald-700 transition font-bold shadow-md hover:shadow-lg active:scale-95 border-2 border-white"
+              className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary-dark text-white hover:bg-emerald-700 transition font-bold shadow-md hover:shadow-lg active:scale-95 border-2 border-white text-xs sm:text-sm"
             >
               {/* Fallback avatar letter */}
               {(userProfile?.fullName || user?.fullName || user?.name || 'U').charAt(0).toUpperCase()}

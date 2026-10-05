@@ -66,7 +66,7 @@ public class GeminiServiceTest {
         when(restTemplate.postForEntity(anyString(), any(HttpEntity.class), eq(String.class)))
                 .thenThrow(new RuntimeException("503 Service Unavailable"));
 
-        WhoAssessmentDTO fallbackAssessment = new WhoAssessmentDTO("Fallback Product", java.util.List.of(), java.util.List.of(), "YELLOW", "Fallback Product", "100ml", "1L", null, null, null, 65);
+        WhoAssessmentDTO fallbackAssessment = new WhoAssessmentDTO(true, "Fallback Product", java.util.List.of(), java.util.List.of(), "YELLOW", "Fallback Product", "100ml", "1L", null, null, null, 65);
         when(groqService.analyzeIngredients(anyString(), anyString(), anyString(), any(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(fallbackAssessment));
 

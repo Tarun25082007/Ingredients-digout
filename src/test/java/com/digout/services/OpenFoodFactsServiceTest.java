@@ -23,16 +23,13 @@ public class OpenFoodFactsServiceTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @Mock
-    private UsdaFoodDataService usdaFoodDataService;
-
     private ObjectMapper objectMapper = new ObjectMapper();
 
     private OpenFoodFactsService openFoodFactsService;
 
     @BeforeEach
     void setUp() {
-        openFoodFactsService = new OpenFoodFactsService(restTemplate, objectMapper, usdaFoodDataService);
+        openFoodFactsService = new OpenFoodFactsService(restTemplate, objectMapper);
     }
 
     @Test
@@ -40,7 +37,7 @@ public class OpenFoodFactsServiceTest {
         String mockResponseJson = "{\"products\":[{\"product_name\":\"Test Product\",\"ingredients_text\":\"Water, Sugar\"}]}";
         ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
 
-        when(restTemplate.getForEntity(anyString(), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(org.springframework.http.HttpMethod.GET), any(org.springframework.http.HttpEntity.class), eq(String.class)))
                 .thenReturn(mockResponseEntity);
 
         OpenFoodFactsDTO result = openFoodFactsService.searchProductByName("Test Product", "world");
@@ -55,7 +52,7 @@ public class OpenFoodFactsServiceTest {
         String mockResponseJson = "{\"products\":[]}";
         ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
 
-        when(restTemplate.getForEntity(anyString(), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(org.springframework.http.HttpMethod.GET), any(org.springframework.http.HttpEntity.class), eq(String.class)))
                 .thenReturn(mockResponseEntity);
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
@@ -67,13 +64,31 @@ public class OpenFoodFactsServiceTest {
 
     @Test
     void testSearchProductByName_ConnectionError() {
-        when(restTemplate.getForEntity(anyString(), eq(String.class)))
+        when(restTemplate.exchange(anyString(), eq(org.springframework.http.HttpMethod.GET), any(org.springframework.http.HttpEntity.class), eq(String.class)))
                 .thenThrow(new ResourceAccessException("Connection timed out"));
 
         Exception exception = assertThrows(RuntimeException.class, () -> {
             openFoodFactsService.searchProductByName("Test Product", "world");
         });
 
-        assertTrue(exception.getMessage().contains("Timeout or connection error"));
+        assertTrue(exception.getMessage().contains("Timeout connecting to OpenFoodFacts"));
+    }
+
+    @Test
+    void testSearchProductByName_VariantMismatchFilteredOut() {
+        String mockResponseJson = "{\"products\":["
+                + "{\"product_name\":\"7UP Free\",\"ingredients_text\":\"Carbonated water, citric acid, acesulfame k, aspartame\"},"
+                + "{\"product_name\":\"7up\",\"ingredients_text\":\"Carbonated water, high fructose corn syrup, citric acid\"}"
+                + "]}";
+        ResponseEntity<String> mockResponseEntity = new ResponseEntity<>(mockResponseJson, HttpStatus.OK);
+
+        when(restTemplate.exchange(anyString(), eq(org.springframework.http.HttpMethod.GET), any(org.springframework.http.HttpEntity.class), eq(String.class)))
+                .thenReturn(mockResponseEntity);
+
+        OpenFoodFactsDTO result = openFoodFactsService.searchProductByName("7up", "world");
+
+        assertNotNull(result);
+        assertEquals("7up", result.productName());
+        assertTrue(result.ingredientsText().contains("high fructose corn syrup"));
     }
 }

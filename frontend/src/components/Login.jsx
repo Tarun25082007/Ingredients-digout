@@ -55,10 +55,11 @@ const Login = () => {
           const btnDiv = document.getElementById("googleSignInDiv");
           if (btnDiv) {
             btnDiv.innerHTML = "";
+            const computedWidth = Math.max(220, Math.min(window.innerWidth - 64, 360));
             window.google.accounts.id.renderButton(btnDiv, {
               theme: "outline",
               size: "large",
-              width: 360,
+              width: computedWidth,
               text: isLoginMode ? "signin_with" : "signup_with",
               shape: "rectangular",
               logo_alignment: "left"
@@ -96,11 +97,12 @@ const Login = () => {
       setError("Password must be at least 8 characters long.");
       return;
     }
-    const hasLetter = /[a-zA-Z]/.test(newPassword);
+    const hasUpper = /[A-Z]/.test(newPassword);
+    const hasLower = /[a-z]/.test(newPassword);
     const hasNumber = /[0-9]/.test(newPassword);
     const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(newPassword);
-    if (!hasLetter || !hasNumber || !hasSpecial) {
-      setError("Password must contain at least one letter, one number, and one special character.");
+    if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      setError("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
       return;
     }
 
@@ -159,11 +161,12 @@ const Login = () => {
           if (turnstileRef.current) turnstileRef.current.reset();
           return;
         }
-        const hasLetter = /[a-zA-Z]/.test(formData.password);
+        const hasUpper = /[A-Z]/.test(formData.password);
+        const hasLower = /[a-z]/.test(formData.password);
         const hasNumber = /[0-9]/.test(formData.password);
         const hasSpecial = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`]/.test(formData.password);
-        if (!hasLetter || !hasNumber || !hasSpecial) {
-          setError("Password must contain at least one letter, one number, and one special character.");
+        if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+          setError("Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.");
           setLoading(false);
           if (turnstileRef.current) turnstileRef.current.reset();
           return;
@@ -244,8 +247,8 @@ const Login = () => {
                   <span className={newPassword.length >= 8 ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {newPassword.length >= 8 ? "✓" : "○"} 8+ Characters
                   </span>
-                  <span className={/[a-zA-Z]/.test(newPassword) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
-                    {/[a-zA-Z]/.test(newPassword) ? "✓" : "○"} 1+ Letter
+                  <span className={/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
+                    {/[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) ? "✓" : "○"} Upper & Lowercase
                   </span>
                   <span className={/[0-9]/.test(newPassword) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {/[0-9]/.test(newPassword) ? "✓" : "○"} 1+ Number
@@ -257,13 +260,15 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="flex justify-center my-4">
-              <Turnstile
-                siteKey="1x00000000000000000000AA"
-                onSuccess={(token) => setTurnstileToken(token)}
-                onExpire={() => setTurnstileToken('')}
-                onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}
-              />
+            <div className="flex justify-center my-4 overflow-hidden">
+              <div className="transform scale-90 sm:scale-100 origin-center">
+                <Turnstile
+                  siteKey="1x00000000000000000000AA"
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onExpire={() => setTurnstileToken('')}
+                  onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}
+                />
+              </div>
             </div>
 
             <button 
@@ -284,7 +289,7 @@ const Login = () => {
   }
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-[85vh] p-6">
+    <div className="relative flex flex-col items-center justify-center min-h-[85vh] px-4 py-8 sm:p-6 w-full max-w-full overflow-hidden">
       {/* Edge-to-edge ambient background matching the outside */}
       <div 
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
@@ -293,7 +298,7 @@ const Login = () => {
         <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md bg-emerald-50/95 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl border border-emerald-200">
+      <div className="relative z-10 w-full max-w-md bg-emerald-50/95 backdrop-blur-xl p-6 sm:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border border-emerald-200 mx-auto">
         
         <div className="text-center mb-8">
           <h2 className="text-3xl font-extrabold text-gray-900">
@@ -320,7 +325,7 @@ const Login = () => {
 
         {/* Google Sign-In */}
         <div className="mb-4 flex flex-col items-center">
-          <div id="googleSignInDiv" className="w-full flex justify-center min-h-[44px]"></div>
+          <div id="googleSignInDiv" className="w-full max-w-full flex justify-center min-h-[44px] overflow-hidden"></div>
           
           <div className="relative flex py-4 items-center w-full">
             <div className="flex-grow border-t border-emerald-200"></div>
@@ -378,8 +383,8 @@ const Login = () => {
                   <span className={formData.password.length >= 8 ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {formData.password.length >= 8 ? "✓" : "○"} 8+ Characters
                   </span>
-                  <span className={/[a-zA-Z]/.test(formData.password) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
-                    {/[a-zA-Z]/.test(formData.password) ? "✓" : "○"} 1+ Letter
+                  <span className={/[A-Z]/.test(formData.password) && /[a-z]/.test(formData.password) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
+                    {/[A-Z]/.test(formData.password) && /[a-z]/.test(formData.password) ? "✓" : "○"} Upper & Lowercase
                   </span>
                   <span className={/[0-9]/.test(formData.password) ? "text-emerald-600 font-bold flex items-center gap-1" : "text-gray-400 flex items-center gap-1"}>
                     {/[0-9]/.test(formData.password) ? "✓" : "○"} 1+ Number
@@ -392,14 +397,16 @@ const Login = () => {
             )}
           </div>
           
-          <div className="flex justify-center my-4">
-            <Turnstile
-              ref={turnstileRef}
-              siteKey="1x00000000000000000000AA"
-              onSuccess={(token) => setTurnstileToken(token)}
-              onExpire={() => setTurnstileToken('')}
-              onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}
-            />
+          <div className="flex justify-center my-4 w-full max-w-full overflow-hidden">
+            <div className="transform scale-90 sm:scale-100 origin-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey="1x00000000000000000000AA"
+                onSuccess={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken('')}
+                onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}
+              />
+            </div>
           </div>
 
           <button 

@@ -46,10 +46,9 @@ public class SecurityConfig {
                                 new AntPathRequestMatcher("/api/auth/login"),
                                 new AntPathRequestMatcher("/api/auth/register"),
                                 new AntPathRequestMatcher("/api/auth/google"),
-                                new AntPathRequestMatcher("/api/scan/public")
+                                new AntPathRequestMatcher("/api/auth/update-password")
                         ).permitAll()
                         .requestMatchers(
-                                new AntPathRequestMatcher("/api/auth/update-password"),
                                 new AntPathRequestMatcher("/api/scan/history"),
                                 new AntPathRequestMatcher("/api/scan/history/**"),
                                 new AntPathRequestMatcher("/api/scan/clear-cache"),
@@ -72,8 +71,9 @@ public class SecurityConfig {
             "https://localhost:*",
             "http://localhost:*",
             "https://127.0.0.1:*",
-            "https://*.trycloudflare.com",
-            "https://*.digout.app"
+            "http://127.0.0.1:*",
+            "https://*.digout.app",
+            "https://digout.app"
         ));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));

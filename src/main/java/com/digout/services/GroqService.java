@@ -16,8 +16,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class GroqService {
+
+    private static final Logger log = LoggerFactory.getLogger(GroqService.class);
 
     private final String groqApiKey;
     private final RestTemplate restTemplate;
@@ -25,8 +30,8 @@ public class GroqService {
 
     private static final String GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
     
-    private static final String PROMPT = "Analyze this image. IF YOU CAN CLEARLY READ THE INGREDIENTS LIST: Extract every ingredient, evaluate against WHO guidelines and USER PROFILE (if any). Statuses: GREEN, YELLOW, RED, PURPLE, BLACK. For each ingredient and WHO flag, include 'dailyLimit' (e.g., 'Max 25g/day (WHO)', 'Max 2000mg sodium/day', '0g / Avoid' - null if not applicable). IF the image contains the backside nutrition table or exact quantities/percentages, calculate 'productAmount' comparing this product's amount vs the daily limit (e.g. '18g per serving (72% of daily limit)', 'Exceeds daily limit (+120%)', or 'Within daily limit'); OTHERWISE set 'productAmount' to null. Calculate a tailored 'healthScore' (Integer from 0 to 100): 80-100 (GREEN: healthy, whole food/low processing, within limits), 55-79 (YELLOW: moderate processing or sodium/sugar), 30-54 (RED: ultra-processed, high hazard/sugar/sodium), 0-29 (PURPLE: severe hazard or contraindicated for user's medical condition/pregnancy/dietary profile - MUST be capped below 30 if PURPLE). Output JSON exactly matching: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String\", \"quantity\": \"String\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String\", \"status\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"String\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"overallIndicator\": \"String\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.\n\nIF NO INGREDIENTS ARE LEGIBLE (e.g., this is just a photo of the front of the packaging): DO NOT evaluate anything. Instead, identify the product brand and name, and output a JSON with NO ingredients, exactly matching: { \"productName\": \"Identified Brand and Flavor Name\", \"ingredientsFound\": [], \"overallIndicator\": \"BLACK\", \"recommendedServingAdvice\": \"Needs Database Lookup\", \"healthScore\": null }. DO NOT output <think> tags.";
-    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named '%s'. We have retrieved the following exact ingredients from the database: '%s'. Evaluate these EXACT ingredients against WHO guidelines and the provided USER HEALTH PROFILE (if any). RULES: 1. Statuses can be GREEN (safe), YELLOW (caution), RED (high health risk), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user's medical condition, pregnancy, or severe calorie mismatch), BLACK (unknown). 2. For pregnancy, flag high caffeine, unpasteurized items, saccharin, and harmful additives as PURPLE. For ulcers/GERD, flag chili/spices as PURPLE/RED. For diabetes, flag sucrose/high sugar as PURPLE/RED. 3. For each ingredient and WHO flag, provide 'dailyLimit' (WHO/dietary daily limit, e.g. 'Max 25g/day (WHO)', 'Max 2000mg sodium/day', '0g / Avoid'). If exact quantities or percentages are present in the provided ingredients, provide 'productAmount' comparing it to the daily limit (e.g. '15g per serving (60%% of daily limit)' or 'Exceeds daily limit (+110%%)'); otherwise set 'productAmount' to null. 4. Formulate a tailored 'recommendedServingAdvice' based on user calorie goal and health profile. 5. Calculate a tailored 'healthScore' (Integer from 0 to 100): 80-100 (GREEN: wholesome/safe), 55-79 (YELLOW: moderate caution), 30-54 (RED: high health risk/unhealthy), 0-29 (PURPLE: severe hazard or contraindicated for user health profile). CRITICAL: If any ingredient is contraindicated for the user's active health profile, you MUST penalize and cap 'healthScore' below 30 (0 to 29). 6. TRANSLATION RULE: If the ingredients are in a foreign language (e.g., German, French, Spanish), you MUST translate them to English. However, you MUST preserve native cultural ingredient names (e.g., Maida, Ghee, Kimchi, Masa Harina). Do not output raw foreign terms like 'Weizenmehl', translate it to 'Wheat Flour'. 7. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching this structure: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + EXACT %% or amount if present)\", \"explanation\": \"String (health impact)\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.";
+    private static final String PROMPT = "Analyze this image. FIRST, determine if the image contains a food item, dish, beverage, or packaged consumable. If a hand/person is visible holding or interacting with food, IGNORE the person and focus on the food. Err on the side of recognizing food (e.g., exotic dishes, raw ingredients, or packaged boxes). If the image is CLEARLY a non-food item (e.g., just a bare hand, a laptop, a table) with NO food in focus, output exactly: { \"isFood\": false, \"productName\": \"Not Food\", \"ingredientsFound\": [], \"whoFlags\": [], \"overallIndicator\": \"NOT_FOOD\", \"recommendedServingAdvice\": \"Please capture a food item.\", \"healthScore\": null }. OTHERWISE, set \"isFood\": true and proceed: IF YOU CAN CLEARLY READ THE INGREDIENTS LIST: Extract every ingredient, evaluate against WHO guidelines and USER PROFILE (if any). Statuses: GREEN, YELLOW, RED, PURPLE, BLACK. For each ingredient and WHO flag, include 'dailyLimit' (e.g., 'Max 25g/day (WHO)', 'Max 2000mg sodium/day', '0g / Avoid' - null if not applicable). IF the image contains the backside nutrition table or exact quantities/percentages, calculate 'productAmount' comparing this product's amount vs the daily limit (e.g. '18g per serving (72% of daily limit)', 'Exceeds daily limit (+120%)', or 'Within daily limit'); OTHERWISE set 'productAmount' to null. Calculate a tailored 'healthScore' (Integer from 0 to 100): 80-100 (GREEN: healthy, whole food/low processing, within limits), 55-79 (YELLOW: moderate processing or sodium/sugar), 30-54 (RED: ultra-processed, high hazard/sugar/sodium), 0-29 (PURPLE: severe hazard or contraindicated for user's medical condition/pregnancy/dietary profile - MUST be capped below 30 if PURPLE). Output JSON exactly matching: { \"isFood\": true, \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String\", \"quantity\": \"String\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String\", \"status\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"String\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"overallIndicator\": \"String\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.\n\nIF NO INGREDIENTS ARE LEGIBLE (e.g., this is just a photo of the front of the packaging): DO NOT evaluate anything. Instead, identify the product brand and name, and output a JSON with NO ingredients, exactly matching: { \"isFood\": true, \"productName\": \"Identified Brand and Flavor Name\", \"ingredientsFound\": [], \"overallIndicator\": \"BLACK\", \"recommendedServingAdvice\": \"Needs Database Lookup\", \"healthScore\": null }. DO NOT output <think> tags.";
+    private static final String TEXT_PROMPT = "The user is asking for the health assessment of a product named: <productName>%s</productName>. We have retrieved the following exact ingredients from the database: <ingredients>%s</ingredients>. Evaluate these EXACT ingredients against WHO guidelines and the provided USER HEALTH PROFILE (if any). RULES: 1. Statuses can be GREEN (safe), YELLOW (caution), RED (high health risk), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user's medical condition, pregnancy, or severe calorie mismatch), BLACK (unknown). 2. For pregnancy/lactation (APPLY ONLY IF USER PROFILE EXPLICITLY LISTS PREGNANCY AND GENDER IS FEMALE; NEVER FOR MALE USERS), flag high caffeine, unpasteurized items, saccharin, and harmful additives as PURPLE. For ulcers/GERD, flag chili/spices as PURPLE/RED. For diabetes, flag sucrose/high sugar as PURPLE/RED. 3. For each ingredient and WHO flag, provide 'dailyLimit' (WHO/dietary daily limit, e.g. 'Max 25g/day (WHO)', 'Max 2000mg sodium/day', '0g / Avoid'). If exact quantities or percentages are present in the provided ingredients, provide 'productAmount' comparing it to the daily limit (e.g. '15g per serving (60%% of daily limit)' or 'Exceeds daily limit (+110%%)'); otherwise set 'productAmount' to null. 4. Formulate a tailored 'recommendedServingAdvice' based on user calorie goal and health profile. 5. Calculate a tailored 'healthScore' (Integer from 0 to 100): 80-100 (GREEN: wholesome/safe), 55-79 (YELLOW: moderate caution), 30-54 (RED: high health risk/unhealthy), 0-29 (PURPLE: severe hazard or contraindicated for user health profile). CRITICAL: If any ingredient is contraindicated for the user's active health profile, you MUST penalize and cap 'healthScore' below 30 (0 to 29). 6. TRANSLATION RULE: If the ingredients are in a foreign language (e.g., German, French, Spanish), you MUST translate them to English. However, you MUST preserve native cultural ingredient names (e.g., Maida, Ghee, Kimchi, Masa Harina). Do not output raw foreign terms like 'Weizenmehl', translate it to 'Wheat Flour'. 7. INGREDIENT STANDARDIZATION & NUTRITIONAL CONSISTENCY: (a) INS codes and E-numbers are identical international standards (e.g., INS 471 is E471, INS 330 is E330). Standard food emulsifiers (INS 471 / E471) must be evaluated with consistent status (YELLOW caution) and citric acid (INS 330 / E330) as GREEN across both domestic and international variants. (b) Refined starches and flours (corn flour, rice flour, maida, wheat starch) are refined carbohydrates and must consistently be evaluated as YELLOW. (c) Table salt listed without high percentage or milligram amounts must be consistently evaluated as moderate caution (YELLOW). (d) Non-Sugar Sweeteners (Aspartame, Sucralose, Acesulfame Potassium, Stevia) are non-caloric sugar substitutes: per WHO guidelines, they are not recommended for routine hydration or weight management, but avoid sugar calories; consistently evaluate NSS as moderate caution (YELLOW, health score 55-65), NEVER as RED unless specifically contraindicated (e.g. PKU for Aspartame). 8. OIL QUALITY & CARDIOVASCULAR PENALTY: Formulations relying on 100%% Palm Oil / Palm Olein must receive a strict RED penalty due to high saturated fat (~50%% saturated fatty acids) and cardiovascular risk. A formulation using 100%% Palm Oil must NEVER receive a higher health score than a formulation of the same food using sunflower, olive, or unsaturated vegetable oil blends. 9. UNIVERSAL VARIANT FIDELITY: When outputting 'globalEquivalent', you MUST strictly preserve the product's exact sub-variant across all dimensions (Sweetness: Regular <-> Regular, Zero/Diet <-> Zero/Diet; Fat: Whole <-> Whole, Skim <-> Skim; Sodium: Salted <-> Salted, Low-Sodium <-> Low-Sodium; Caffeine: Regular <-> Regular, Decaf <-> Decaf; Cooking: Fried <-> Fried, Baked <-> Baked; Flavors: Original/Plain <-> Original/Plain). NEVER substitute a regular/full-sugar product with a diet, zero, baked, decaf, or differently flavored variant. If analyzing a regular product like '7Up' or 'Red Bull', its globalEquivalent MUST be '7Up' or 'Red Bull' (NOT '7Up Free', 'Diet 7Up', 'Red Bull Sugarfree', etc.). 10. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching this structure: { \"isFood\": true, \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name + EXACT %% or amount if present)\", \"explanation\": \"String (health impact)\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.";
 
     private static final String[] TEXT_MODELS = {
             "openai/gpt-oss-120b",
@@ -67,13 +72,13 @@ public class GroqService {
                         || responseBody.contains("not_found") 
                         || responseBody.contains("invalid model") 
                         || responseBody.contains("rate_limit_exceeded")) {
-                    System.err.println("Groq model '" + model + "' failed or rate limited (" + e.getStatusCode() + "). Response: " + responseBody + ". Automatically upgrading to next model...");
+                    log.warn("Groq model '{}' failed or rate limited ({}). Response: {}. Automatically upgrading to next model...", model, e.getStatusCode(), responseBody);
                     lastException = e;
                     continue;
                 }
                 throw e; // Throw other client errors like 401 Unauthorized
             } catch (Exception e) {
-                System.err.println("Error calling Groq API for model '" + model + "': " + e.getMessage());
+                log.error("Error calling Groq API for model '{}': {}", model, e.getMessage(), e);
                 lastException = e;
                 continue;
             }
@@ -95,7 +100,7 @@ public class GroqService {
                 currentPrompt += " Note: This is a fresh or prepared food item (like a local dish, fruit, etc). State its place of origin in the explanation if applicable.";
             }
             if (userProfileSummary != null && !userProfileSummary.isBlank()) {
-                currentPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
+                currentPrompt += " <userProfile>" + userProfileSummary + "</userProfile>. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
             }
             
             // Add language constraint
@@ -135,12 +140,12 @@ public class GroqService {
 
             String base64Prefix = "data:" + mimeType + ";base64,";
             
-            String identifyPrompt = "Analyze this image. If it shows the FRONT of a food product packaging, return ONLY the full brand and product name (e.g. 'Doritos Nacho Cheese'). Do not include any other text, punctuation, or reasoning. If the image clearly shows the BACK of a package (nutrition label or ingredients list), return ONLY the exact text: 'BACK_OF_PACK'.";
+            String identifyPrompt = "Analyze this image. FIRST, determine if the image actually contains any food, beverages, or food packaging. If it is clearly a non-food item (e.g., just a bare hand, a laptop, a face, furniture), return ONLY the exact text: 'NOT_FOOD'. If it shows the FRONT of a food product packaging or fresh food, return ONLY the full brand and product name (e.g. 'Doritos Nacho Cheese'). Do not include any other text, punctuation, or reasoning. If the image clearly shows the BACK of a package (nutrition label or ingredients list), return ONLY the exact text: 'BACK_OF_PACK'.";
             
             String jsonText = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,
                     "messages", List.of(
-                            Map.of("role", "system", "content", "You are an AI that extracts product names from packaging. Follow the instructions strictly."),
+                            Map.of("role", "system", "content", "You are an AI that extracts product names from packaging. Follow the instructions strictly. If no food is present, output NOT_FOOD."),
                             Map.of(
                                     "role", "user",
                                     "content", List.of(
@@ -166,7 +171,7 @@ public class GroqService {
             }
             return CompletableFuture.completedFuture(result);
         } catch (Exception e) {
-            System.err.println("Groq Vision failed to identify product: " + e.getMessage());
+            log.warn("Groq Vision failed to identify product: {}", e.getMessage());
             return CompletableFuture.completedFuture("Unknown Product");
         }
     }
@@ -180,13 +185,13 @@ public class GroqService {
 
             String formattedPrompt;
             if (ingredientsText == null || ingredientsText.isBlank()) {
-                formattedPrompt = "The user is asking for the health assessment of a product named '" + productName + "'. We DO NOT have database ingredients for this, so you MUST use your internal knowledge base to identify this product and assume its standard ingredients. ";
+                formattedPrompt = "The user is asking for the health assessment of a product named: <productName>" + productName + "</productName>. We DO NOT have database ingredients for this, so you MUST use your internal knowledge base to identify this product and assume its standard ingredients. ";
                 if ("fresh".equals(foodCategory)) {
                     formattedPrompt += "This is a fresh or prepared food (like a local dish, fruit, or homemade meal). If it is a local/regional dish, please state its place of origin in the explanation. ";
                 } else {
                     formattedPrompt += "If this is a regional packaged product, identify the most popular global equivalent and use THAT product's ingredients instead, setting 'globalEquivalent'. ";
                 }
-                formattedPrompt += "Evaluate the ingredients against WHO guidelines and the provided USER HEALTH PROFILE. RULES: 1. Statuses: GREEN (safe), YELLOW (moderate), RED (avoid), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user conditions/pregnancy/calorie goal), BLACK (unknown). 2. For pregnancy, flag caffeine >200mg, raw/unpasteurized items, saccharin as PURPLE. For ulcers, flag chili/spices as PURPLE or RED. For diabetes, flag sugar as PURPLE or RED. 3. For each ingredient and WHO flag, include 'dailyLimit' (e.g. 'Max 25g/day (WHO)'). Since exact quantities are not available in this mode, set 'productAmount' to null. 4. Suggest a safe 'recommendedServingAdvice' (or '0 - Strictly Avoid' if PURPLE). 5. Calculate a tailored 'healthScore' (Integer from 0 to 100): 80-100 (GREEN), 55-79 (YELLOW), 30-54 (RED), 0-29 (PURPLE/contraindicated). If contraindicated for user profile, cap 'healthScore' below 30. 6. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching: { \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name ONLY, no estimated amounts)\", \"explanation\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"dailyLimit\": \"String or null\", \"productAmount\": null } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": null } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.";
+                formattedPrompt += "Evaluate the ingredients against WHO guidelines and the provided USER HEALTH PROFILE. RULES: 1. Statuses: GREEN (safe), YELLOW (moderate), RED (avoid), PURPLE (HIGHLY NOT RECOMMENDED / strictly contraindicated for user conditions/pregnancy/calorie goal), BLACK (unknown). 2. For pregnancy, flag caffeine >200mg, raw/unpasteurized items, saccharin as PURPLE. For ulcers, flag chili/spices as PURPLE or RED. For diabetes, flag sugar as PURPLE or RED. 3. For each ingredient and WHO flag, include 'dailyLimit' (e.g. 'Max 25g/day (WHO)'). Since exact quantities are not available in this mode, set 'productAmount' to null. 4. Suggest a safe 'recommendedServingAdvice' (or '0 - Strictly Avoid' if PURPLE). 5. Calculate a tailored 'healthScore' (Integer from 0 to 100): 80-100 (GREEN), 55-79 (YELLOW), 30-54 (RED), 0-29 (PURPLE/contraindicated). If contraindicated for user profile, cap 'healthScore' below 30. 6. INGREDIENT & OIL CONSISTENCY: INS and E-numbers are identical (INS 471 is E471). Formulations using Palm Oil must receive a strict RED penalty and cannot score higher than formulations using sunflower or unsaturated oils. 7. UNIVERSAL VARIANT FIDELITY: When identifying 'globalEquivalent', you MUST strictly preserve the product's exact sub-variant across all dimensions (Sweetness, Fat, Sodium, Caffeine, Cooking method, Flavors). NEVER substitute a regular/full-sugar product with a diet, zero, baked, or decaf variant. 8. DO NOT output reasoning or <think> tags. Output a raw JSON object exactly matching: { \"isFood\": true, \"productName\": \"String\", \"globalEquivalent\": \"String\", \"servingSize\": \"String (leave null if unknown)\", \"quantity\": \"String (leave null if unknown)\", \"ingredientsFound\": [ { \"name\": \"String (ingredient name ONLY, no estimated amounts)\", \"explanation\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"dailyLimit\": \"String or null\", \"productAmount\": null } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"PURPLE or RED or YELLOW or GREEN or BLACK\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": null } ], \"overallIndicator\": \"PURPLE or RED or YELLOW or GREEN\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"PURPLE or RED or YELLOW or GREEN\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.";
             } else {
                 formattedPrompt = String.format(TEXT_PROMPT, productName, ingredientsText);
                 if ("fresh".equals(foodCategory)) {
@@ -195,7 +200,7 @@ public class GroqService {
             }
 
             if (userProfileSummary != null && !userProfileSummary.isBlank()) {
-                formattedPrompt += " [ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
+                formattedPrompt += " <userProfile>" + userProfileSummary + "</userProfile>. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
             }
             
             // Add language constraint
@@ -218,6 +223,7 @@ public class GroqService {
             jsonText = extractJson(jsonText);
             WhoAssessmentDTO parsed = parseAssessment(jsonText);
             WhoAssessmentDTO augmented = new WhoAssessmentDTO(
+                parsed.isFood() != null ? parsed.isFood() : true,
                 parsed.productName(),
                 parsed.ingredientsFound(),
                 parsed.whoFlags(),
@@ -246,7 +252,7 @@ public class GroqService {
             String genericJson = objectMapper.writeValueAsString(genericAssessment);
             
             String prompt = "You are an expert nutritionist. I have a generic health assessment for a product:\n\n" + genericJson + 
-                "\n\n[ACTIVE USER HEALTH PROFILE: " + userProfileSummary + "]\n\n" +
+                "\n\n<userProfile>" + userProfileSummary + "</userProfile>\n\n" +
                 "Re-evaluate this product strictly tailored to the user's profile. " +
                 "1. Update the 'healthScore' (Integer 0-100) based on how suitable it is for THIS user.\n" +
                 "2. Update the 'overallIndicator' (GREEN, YELLOW, RED, PURPLE).\n" +
@@ -254,6 +260,8 @@ public class GroqService {
                 "4. Update 'whoFlags' if necessary.\n" +
                 "5. Create highly specific 'personalizedAlerts' explaining why certain ingredients are good/bad for this exact user profile.\n" +
                 "6. Update 'recommendedServingAdvice' for this user.\n" +
+                "7. STRICT GENDER RESTRICTIONS: If user profile specifies MALE, NEVER generate alerts, explanations, or advice mentioning pregnancy, lactation, breastfeeding, maternal health, or PCOS. If user profile specifies FEMALE, NEVER mention prostate health.\n" +
+                "8. SWEETENERS & CALORIE DEFICIT CONSISTENCY: Non-Sugar Sweeteners (Aspartame, Sucralose, Acesulfame Potassium, Stevia) are non-caloric substitutes. For users with weight loss, calorie deficit, or sedentary goals, do NOT penalize NSS as a severe RED hazard (they have 0 calories and avoid liquid sugar spikes), and do NOT over-reward them as wholesome GREEN (WHO 2023 guideline advises against routine reliance for long-term weight management). Consistently evaluate NSS drinks as moderate caution (YELLOW, tailored health score 55-65) across all domestic and international variants.\n" +
                 "Output ONLY a raw JSON object exactly matching this structure: { \"productName\": \"String\", \"ingredientsFound\": [ { \"name\": \"String\", \"explanation\": \"String\", \"status\": \"GREEN/YELLOW/RED/PURPLE\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"whoFlags\": [ { \"name\": \"String\", \"status\": \"GREEN/YELLOW/RED/PURPLE\", \"explanation\": \"String\", \"dailyLimit\": \"String or null\", \"productAmount\": \"String or null\" } ], \"overallIndicator\": \"GREEN/YELLOW/RED/PURPLE\", \"personalizedAlerts\": [ { \"title\": \"String\", \"explanation\": \"String\", \"severity\": \"GREEN/YELLOW/RED/PURPLE\" } ], \"recommendedServingAdvice\": \"String\", \"healthScore\": 75 }.";
 
             if (language != null && !language.equalsIgnoreCase("English")) {
@@ -277,6 +285,7 @@ public class GroqService {
             WhoAssessmentDTO parsed = parseAssessment(jsonText);
             
             WhoAssessmentDTO augmented = new WhoAssessmentDTO(
+                parsed.isFood() != null ? parsed.isFood() : (genericAssessment.isFood() != null ? genericAssessment.isFood() : true),
                 parsed.productName() != null ? parsed.productName() : genericAssessment.productName(),
                 parsed.ingredientsFound(),
                 parsed.whoFlags(),
@@ -291,8 +300,66 @@ public class GroqService {
             );
             return CompletableFuture.completedFuture(augmented);
         } catch (Exception e) {
-            System.err.println("Failed to personalize cached assessment, falling back to generic: " + e.getMessage());
+            log.warn("Failed to personalize cached assessment, falling back to generic: {}", e.getMessage());
             return CompletableFuture.completedFuture(genericAssessment);
+        }
+    }
+
+    public CompletableFuture<WhoAssessmentDTO> translateAssessment(WhoAssessmentDTO assessment, String targetLanguage) {
+        if (assessment == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (targetLanguage == null || targetLanguage.isBlank() || targetLanguage.equalsIgnoreCase("English")) {
+            return CompletableFuture.completedFuture(assessment);
+        }
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Authorization", "Bearer " + groqApiKey);
+
+            String assessmentJson = objectMapper.writeValueAsString(assessment);
+            String prompt = "You are an expert food science translator. Translate all human-readable natural language text values (productName, recommendedServingAdvice, ingredientsFound.name and explanation, whoFlags.name and explanation, personalizedAlerts.title and explanation) in this food health assessment JSON into " + targetLanguage + ".\n\n" +
+                assessmentJson + "\n\n" +
+                "RULES:\n" +
+                "1. Keep all JSON keys in English.\n" +
+                "2. Keep numeric values (healthScore), booleans (isFood), and status codes (PURPLE, RED, YELLOW, GREEN, BLACK, NOT_FOOD) exactly untouched.\n" +
+                "3. Preserve culturally recognized ingredient names where standard.\n" +
+                "4. Output ONLY valid raw JSON. No markdown backticks, no <think> tags.";
+
+            String[] targetModels = new String[]{"qwen/qwen3.8-27b", TEXT_MODELS[0]};
+            String jsonText = executeWithModelFallback(headers, model -> Map.of(
+                    "model", model,
+                    "messages", List.of(
+                            Map.of("role", "system", "content", "You are an expert multilingual translator. Output ONLY raw valid JSON. DO NOT include <think> tags. /no_think."),
+                            Map.of("role", "user", "content", prompt)
+                    ),
+                    "temperature", 0.1,
+                    "max_tokens", 3500
+            ), targetModels);
+
+            jsonText = extractJson(jsonText);
+            WhoAssessmentDTO parsed = parseAssessment(jsonText);
+            if (parsed != null) {
+                WhoAssessmentDTO merged = new WhoAssessmentDTO(
+                    assessment.isFood(),
+                    parsed.productName() != null ? parsed.productName() : assessment.productName(),
+                    parsed.ingredientsFound() != null && !parsed.ingredientsFound().isEmpty() ? parsed.ingredientsFound() : assessment.ingredientsFound(),
+                    parsed.whoFlags() != null && !parsed.whoFlags().isEmpty() ? parsed.whoFlags() : assessment.whoFlags(),
+                    assessment.overallIndicator(),
+                    assessment.globalEquivalent(),
+                    assessment.servingSize(),
+                    assessment.quantity(),
+                    assessment.dataSourceRegion(),
+                    parsed.personalizedAlerts() != null && !parsed.personalizedAlerts().isEmpty() ? parsed.personalizedAlerts() : assessment.personalizedAlerts(),
+                    parsed.recommendedServingAdvice() != null ? parsed.recommendedServingAdvice() : assessment.recommendedServingAdvice(),
+                    assessment.healthScore()
+                );
+                return CompletableFuture.completedFuture(merged);
+            }
+            return CompletableFuture.completedFuture(assessment);
+        } catch (Exception e) {
+            log.warn("Failed to translate assessment to {}: {}", targetLanguage, e.getMessage());
+            return CompletableFuture.completedFuture(assessment);
         }
     }
 
@@ -330,7 +397,7 @@ public class GroqService {
         try {
             return objectMapper.readValue(rawJson, WhoAssessmentDTO.class);
         } catch (Exception parseEx) {
-            System.err.println("JSON parse failed, attempting automatic repair on truncated response: " + parseEx.getMessage());
+            log.warn("JSON parse failed, attempting automatic repair on truncated response: {}", parseEx.getMessage());
             String repaired = repairTruncatedJson(rawJson);
             return objectMapper.readValue(repaired, WhoAssessmentDTO.class);
         }

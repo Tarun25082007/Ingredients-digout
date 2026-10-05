@@ -32,7 +32,6 @@ export const AuthProvider = ({ children }) => {
     }
   });
 
-  const [isGuest, setIsGuest] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isOnboarding, setIsOnboarding] = useState(false);
 
@@ -40,7 +39,6 @@ export const AuthProvider = ({ children }) => {
     if (token && user) {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      setIsGuest(false);
       fetchUserProfile();
     } else if (!token) {
       localStorage.removeItem('token');
@@ -84,15 +82,6 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setUserProfile(null);
-    setIsGuest(false);
-    setIsProfileModalOpen(false);
-  };
-
-  const continueAsGuest = () => {
-    setIsGuest(true);
-    setToken(null);
-    setUser(null);
-    setUserProfile(null);
     setIsProfileModalOpen(false);
   };
 
@@ -116,12 +105,11 @@ export const AuthProvider = ({ children }) => {
       user, 
       token, 
       userProfile, 
-      isGuest, 
       login, 
       logout, 
-      continueAsGuest,
-      openProfileModal,
-      closeProfileModal
+      openProfileModal, 
+      closeProfileModal, 
+      fetchUserProfile 
     }}>
       {children}
       {token && (

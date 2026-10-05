@@ -6,7 +6,7 @@ import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 
 const HistoryDashboard = () => {
-  const { token, isGuest, logout } = useContext(AuthContext);
+  const { token, logout } = useContext(AuthContext);
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
@@ -15,7 +15,7 @@ const HistoryDashboard = () => {
   const [selectedScan, setSelectedScan] = useState(null);
 
   useEffect(() => {
-    if (!token || isGuest) {
+    if (!token) {
       navigate('/login');
       return;
     }
@@ -47,11 +47,11 @@ const HistoryDashboard = () => {
     };
 
     fetchHistory();
-  }, [token, isGuest, navigate]);
+  }, [token, navigate]);
 
   const deleteScan = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this scan?")) return;
+    if (!window.confirm(t('confirm_delete_scan'))) return;
     
     try {
       await api.delete(`/scan/history/${id}`);
@@ -76,7 +76,7 @@ const HistoryDashboard = () => {
   }
 
   return (
-    <div className="relative min-h-[90vh] py-10 px-6">
+    <div className="relative min-h-[90vh] py-6 sm:py-10 px-4 sm:px-6 w-full max-w-full overflow-hidden">
       {/* Edge-to-edge ambient background matching the home page */}
       <div 
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
@@ -86,9 +86,9 @@ const HistoryDashboard = () => {
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto">
-        <div className="mb-8 bg-emerald-50/95 p-6 rounded-2xl shadow-lg border border-emerald-200">
-          <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">{t('scan_history')}</h2>
-          <p className="text-gray-600 text-sm font-medium mt-1">Review your previously evaluated food products and health assessments</p>
+        <div className="mb-6 sm:mb-8 bg-emerald-50/95 p-4 sm:p-6 rounded-2xl shadow-lg border border-emerald-200">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">{t('scan_history')}</h2>
+          <p className="text-gray-600 text-xs sm:text-sm font-medium mt-1">{t('scan_history_desc')}</p>
         </div>
         
         {error && (
@@ -151,14 +151,14 @@ const HistoryDashboard = () => {
                   <div className="mt-4 pt-4 border-t border-emerald-200/50 flex justify-between items-center">
                     <p className="text-xs text-gray-600 font-medium flex items-center">
                       <span className="mr-2">📅</span>
-                      {new Date(scan.scannedAt + (scan.scannedAt.endsWith('Z') ? '' : 'Z')).toLocaleDateString(undefined, { 
+                      {scan.scannedAt ? new Date(String(scan.scannedAt).endsWith('Z') ? scan.scannedAt : scan.scannedAt + 'Z').toLocaleDateString(undefined, { 
                         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-                      })}
+                      }) : t('recent')}
                     </p>
                     <button 
                       onClick={(e) => deleteScan(scan.id, e)}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                      title="Delete Scan"
+                      title={t('delete_scan')}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
@@ -170,7 +170,7 @@ const HistoryDashboard = () => {
         )}
 
         <div className="mt-12 text-center text-xs text-custom-300/70">
-          ℹ️ Historical health indicators reflect guidelines at the time of scan. AI can make mistakes — always consult healthcare providers for medical advice.
+          ℹ️ {t('history_disclaimer')}
         </div>
       </div>
 

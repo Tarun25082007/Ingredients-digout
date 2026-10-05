@@ -51,6 +51,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (cache.size() > MAX_CACHE_SIZE) {
             Instant cutoff = Instant.now().minusMillis(EVICTION_AGE_MS);
             cache.entrySet().removeIf(entry -> entry.getValue().createdAt().isBefore(cutoff));
+            // Hard safety boundary: If still exceeding due to rapid flood of distinct IPs in < 2 mins
+            if (cache.size() > 15000) {
+                cache.clear();
+            }
         }
         
         BucketEntry entry = cache.computeIfAbsent(key, k -> new BucketEntry(createNewBucket(k), Instant.now()));
@@ -64,13 +68,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
     }
 
+    private String sanitizeIp(String ip) {
+        if (ip == null || ip.isBlank()) return "unknown";
+        String clean = ip.replaceAll("[^a-fA-F0-9.:]", "");
+        return clean.length() > 45 ? clean.substring(0, 45) : clean;
+    }
+
     private String getClientIp(HttpServletRequest request) {
-        // NOTE: Trusting CF-Connecting-IP assumes this backend is strictly deployed
-        // behind Cloudflare. If directly exposed to the internet, attackers can spoof
-        // this header to bypass rate limits. Consider validating against Cloudflare IPs.
         String cfIp = request.getHeader("CF-Connecting-IP");
         if (cfIp != null && !cfIp.isBlank()) {
-            return cfIp.trim();
+            return sanitizeIp(cfIp.trim());
         }
 
         String xForwardedFor = request.getHeader("X-Forwarded-For");
@@ -78,16 +85,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             // May contain multiple comma-separated IPs: client, proxy1, proxy2...
             String[] ips = xForwardedFor.split(",");
             if (ips.length > 0 && !ips[0].isBlank()) {
-                return ips[0].trim();
+                return sanitizeIp(ips[0].trim());
             }
         }
 
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isBlank()) {
-            return xRealIp.trim();
+            return sanitizeIp(xRealIp.trim());
         }
 
-        return request.getRemoteAddr();
+        return sanitizeIp(request.getRemoteAddr());
     }
 
     private Bucket createNewBucket(String key) {

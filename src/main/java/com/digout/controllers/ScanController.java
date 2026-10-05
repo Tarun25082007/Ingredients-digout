@@ -26,9 +26,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping("/api/scan")
 public class ScanController {
+
+    private static final Logger log = LoggerFactory.getLogger(ScanController.class);
 
     private final GeminiService geminiService;
     private final OpenFoodFactsService openFoodFactsService;
@@ -121,46 +126,73 @@ public class ScanController {
         // Fast path: Ask Groq Vision what the product is
         return groqService.identifyProductFromImage(base64Image, mimeType)
                 .thenCompose(identifiedName -> {
-                    if (identifiedName != null && !identifiedName.isBlank() && !identifiedName.equalsIgnoreCase("Unknown Product") && !identifiedName.equalsIgnoreCase("BACK_OF_PACK")) {
-                        // We found a product name! Delegate to the fast Name Search flow.
-                        // Force saving history and image fallback alert
-                        return processAnalyzeNameLogic(identifiedName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false);
-                    } else {
-                        // It's the back of the pack, or name recognition failed. Fallback to Gemini for full deep OCR/extraction.
-                        return geminiService.analyzeIngredients(base64Image, mimeType, finalFoodCategory, null, finalLanguage)
-                                .thenCompose(assessment -> {
-                                    if (assessment.ingredientsFound() == null || assessment.ingredientsFound().isEmpty()) {
-                                        String fbName = assessment.productName();
-                                        if (fbName == null || fbName.isBlank()) fbName = "Unknown Product";
-                                        return processAnalyzeNameLogic(fbName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false);
-                                    }
-                                    
-                                    // Valid ingredients found from image! Cache generic result by product name
-                                    if (assessment.productName() != null && !assessment.productName().isBlank() && !"Unknown Product".equalsIgnoreCase(assessment.productName())) {
-                                        try {
-                                            String json = objectMapper.writeValueAsString(assessment);
-                                            CachedAnalysis cacheEntry = cachedAnalysisRepository
-                                                    .findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(assessment.productName().trim(), finalCountryCode)
-                                                    .orElseGet(CachedAnalysis::new);
-                                            cacheEntry.setProductName(assessment.productName().trim());
-                                            cacheEntry.setCountryCode(finalCountryCode);
-                                            cacheEntry.setAnalysisResultJson(json);
-                                            cachedAnalysisRepository.save(cacheEntry);
-                                        } catch (Exception e) {
-                                            System.err.println("Failed to cache generic image analysis: " + e.getMessage());
-                                        }
-                                    }
+                    String cleanName = identifiedName != null ? identifiedName.trim() : "";
+                    if ("NOT_FOOD".equalsIgnoreCase(cleanName) || "Not Food".equalsIgnoreCase(cleanName) || "NOT FOOD".equalsIgnoreCase(cleanName)) {
+                        WhoAssessmentDTO notFood = new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
+                        saveScanHistory(auth, notFood);
+                        return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
+                    }
 
-                                    if (userProfileSummary != null) {
-                                        return groqService.personalizeAssessment(assessment, userProfileSummary, finalLanguage).thenApply(personalized -> {
-                                            saveScanHistory(auth, personalized);
-                                            return ResponseEntity.ok((Object) personalized);
-                                        });
-                                    } else {
-                                        saveScanHistory(auth, assessment);
-                                        return CompletableFuture.completedFuture(ResponseEntity.ok((Object) assessment));
+                    if (!cleanName.isEmpty() && !cleanName.equalsIgnoreCase("Unknown Product") && !cleanName.equalsIgnoreCase("BACK_OF_PACK")) {
+                        // We found a product name! Try fetching from Database (without AI name guessing)
+                        return processAnalyzeNameLogic(cleanName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false, false)
+                                .thenCompose(dbResponse -> {
+                                    if (dbResponse != null) {
+                                        return CompletableFuture.completedFuture(dbResponse);
                                     }
+                                    // Database response was poor/bad/not found!
+                                    // Fallback to analyzing the full image to read ingredients.
+                                    return runFullImageAnalysis(base64Image, mimeType, finalFoodCategory, finalLanguage, finalCountryCode, userProfileSummary, auth);
                                 });
+                    } else {
+                        // It's the back of the pack, or name recognition failed. Fallback to full deep OCR/extraction.
+                        return runFullImageAnalysis(base64Image, mimeType, finalFoodCategory, finalLanguage, finalCountryCode, userProfileSummary, auth);
+                    }
+                });
+    }
+
+    private CompletableFuture<ResponseEntity<Object>> runFullImageAnalysis(String base64Image, String mimeType, String finalFoodCategory, String finalLanguage, String finalCountryCode, String userProfileSummary, Authentication auth) {
+        return geminiService.analyzeIngredients(base64Image, mimeType, finalFoodCategory, null, finalLanguage)
+                .thenCompose(assessment -> {
+                    if (assessment.ingredientsFound() == null || assessment.ingredientsFound().isEmpty()) {
+                        String fbName = assessment.productName();
+                        if (fbName == null || fbName.isBlank()) fbName = "Unknown Product";
+                        String cleanFbName = fbName.trim();
+                        
+                        if ("NOT_FOOD".equalsIgnoreCase(cleanFbName) || "Not Food".equalsIgnoreCase(cleanFbName) || "NOT FOOD".equalsIgnoreCase(cleanFbName) || Boolean.FALSE.equals(assessment.isFood()) || "NOT_FOOD".equalsIgnoreCase(assessment.overallIndicator())) {
+                            WhoAssessmentDTO notFood = new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
+                            saveScanHistory(auth, notFood);
+                            return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
+                        }
+
+                        // Last resort: If image has NO ingredients on it, guess based on name.
+                        return processAnalyzeNameLogic(fbName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false, true);
+                    }
+                    
+                    // Valid ingredients found from image! Cache generic result by product name
+                    if (assessment.productName() != null && !assessment.productName().isBlank() && !"Unknown Product".equalsIgnoreCase(assessment.productName())) {
+                        try {
+                            String json = objectMapper.writeValueAsString(assessment);
+                            CachedAnalysis cacheEntry = cachedAnalysisRepository
+                                    .findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(assessment.productName().trim(), finalCountryCode)
+                                    .orElseGet(CachedAnalysis::new);
+                            cacheEntry.setProductName(assessment.productName().trim());
+                            cacheEntry.setCountryCode(finalCountryCode);
+                            cacheEntry.setAnalysisResultJson(json);
+                            cachedAnalysisRepository.save(cacheEntry);
+                        } catch (Exception e) {
+                            log.warn("Failed to cache generic image analysis: {}", e.getMessage());
+                        }
+                    }
+
+                    if (userProfileSummary != null) {
+                        return groqService.personalizeAssessment(assessment, userProfileSummary, finalLanguage).thenApply(personalized -> {
+                            saveScanHistory(auth, personalized);
+                            return ResponseEntity.ok((Object) personalized);
+                        });
+                    } else {
+                        saveScanHistory(auth, assessment);
+                        return CompletableFuture.completedFuture(ResponseEntity.ok((Object) assessment));
                     }
                 });
     }
@@ -192,15 +224,51 @@ public class ScanController {
         boolean saveHistory = Boolean.parseBoolean(payload.getOrDefault("saveHistory", "true"));
         boolean useFastModel = Boolean.parseBoolean(payload.getOrDefault("useFastModel", "false"));
 
-        return processAnalyzeNameLogic(productName, countryCode, language, foodCategory, forceAi, userProfileSummary, auth, false, saveHistory, useFastModel);
+        return processAnalyzeNameLogic(productName, countryCode, language, foodCategory, forceAi, userProfileSummary, auth, false, saveHistory, useFastModel, true);
+    }
+
+    @PostMapping("/translate")
+    public CompletableFuture<ResponseEntity<Object>> translateAssessment(@RequestBody java.util.Map<String, Object> payload) {
+        try {
+            WhoAssessmentDTO assessment = objectMapper.convertValue(payload.get("assessment"), WhoAssessmentDTO.class);
+            String language = (String) payload.getOrDefault("language", "English");
+            language = sanitizeLanguage(language);
+            if (assessment == null) {
+                return CompletableFuture.completedFuture(ResponseEntity.badRequest().body(java.util.Map.of("error", "assessment is required")));
+            }
+            if ("English".equalsIgnoreCase(language)) {
+                return CompletableFuture.completedFuture(ResponseEntity.ok((Object) assessment));
+            }
+            return groqService.translateAssessment(assessment, language)
+                    .thenApply(translated -> ResponseEntity.ok((Object) translated));
+        } catch (Exception e) {
+            log.error("Failed to translate assessment: {}", e.getMessage());
+            return CompletableFuture.completedFuture(ResponseEntity.status(500)
+                    .body(java.util.Map.of("error", "Translation failed: " + e.getMessage())));
+        }
     }
 
     private CompletableFuture<ResponseEntity<Object>> processAnalyzeNameLogic(
             String productName, String countryCode, String language, String foodCategory, 
-            boolean forceAi, String userProfileSummary, Authentication auth, boolean fromImageFallback, boolean saveHistory, boolean useFastModel) {
+            boolean forceAi, String userProfileSummary, Authentication auth, boolean fromImageFallback, boolean saveHistory, boolean useFastModel, boolean allowNameGuessingFallback) {
 
-        // ALWAYS Check Cache First
-        Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(productName.trim(), countryCode);
+        String cleanName = productName != null ? productName.trim() : "";
+        if ("NOT_FOOD".equalsIgnoreCase(cleanName) || "Not Food".equalsIgnoreCase(cleanName) || "NOT FOOD".equalsIgnoreCase(cleanName)) {
+            WhoAssessmentDTO notFood = new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
+            if (saveHistory) saveScanHistory(auth, notFood);
+            return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
+        }
+
+        // ALWAYS Check Cache First (unless forceAi is explicitly requested)
+        Optional<CachedAnalysis> cachedOpt = cachedAnalysisRepository.findByProductNameIgnoreCaseAndCountryCodeIgnoreCase(cleanName, countryCode);
+        if (forceAi) {
+            cachedOpt.ifPresent(cached -> {
+                try {
+                    cachedAnalysisRepository.delete(cached);
+                } catch (Exception ignored) {}
+            });
+            cachedOpt = Optional.empty();
+        }
         if (cachedOpt.isPresent()) {
             CachedAnalysis cached = cachedOpt.get();
             if (cached.isStale()) {
@@ -224,7 +292,7 @@ public class ScanController {
                         });
                     }
                 } catch (Exception e) {
-                    System.err.println("Failed to parse cached JSON: " + e.getMessage());
+                    log.warn("Failed to parse cached JSON: {}", e.getMessage());
                 }
             }
         }
@@ -244,7 +312,7 @@ public class ScanController {
                     quantity = dbProduct.quantity();
                     dataSourceRegion = "usda_foundation";
                 } catch (Exception e) {
-                    System.err.println("Could not fetch exact ingredients from USDA for fresh food: " + e.getMessage());
+                    log.warn("Could not fetch exact ingredients from USDA for fresh food: {}", e.getMessage());
                     dataSourceRegion = null; // AI fallback
                 }
             } else {
@@ -258,13 +326,13 @@ public class ScanController {
                         dataSourceRegion = countryCode;
                     }
                 } catch (Exception e) {
-                    System.out.println("Tier 1 (Regional database) missed for " + productName + ": " + e.getMessage());
+                    log.debug("Tier 1 (Regional database) missed for {}: {}", productName, e.getMessage());
                 }
 
                 // Tier 2: Global Open Food Facts Database
                 if ((exactIngredients == null || exactIngredients.isBlank()) && !"world".equalsIgnoreCase(countryCode)) {
                     try {
-                        System.out.println("Checking Tier 2 (Global Open Food Facts) for " + productName);
+                        log.debug("Checking Tier 2 (Global Open Food Facts) for {}", productName);
                         com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
                         if (globalProduct != null && globalProduct.ingredientsText() != null && !globalProduct.ingredientsText().isBlank()) {
                             exactIngredients = globalProduct.ingredientsText();
@@ -284,31 +352,36 @@ public class ScanController {
                             dataSourceRegion = matchesRegion ? countryCode : "world_fallback";
                         }
                     } catch (Exception e) {
-                        System.out.println("Tier 2 (Global Open Food Facts) missed for " + productName);
+                        log.debug("Tier 2 (Global Open Food Facts) missed for {}", productName);
                     }
                 }
 
                 // Tier 3: USDA FoodData Central (Branded Foods Database)
                 if (exactIngredients == null || exactIngredients.isBlank()) {
                     try {
-                        System.out.println("Checking Tier 3 (USDA FoodData Central) for " + productName);
+                        log.debug("Checking Tier 3 (USDA FoodData Central) for {}", productName);
                         com.digout.dto.OpenFoodFactsDTO usdaProduct = usdaFoodDataService.searchAnyProductByName(productName);
                         if (usdaProduct != null && usdaProduct.ingredientsText() != null && !usdaProduct.ingredientsText().isBlank()) {
                             exactIngredients = usdaProduct.ingredientsText();
                             if (servingSize == null) servingSize = usdaProduct.servingSize();
                             if (quantity == null) quantity = usdaProduct.quantity();
                             dataSourceRegion = "usda_database";
-                            System.out.println("Tier 3 (USDA FoodData Central) MATCHED for " + productName);
+                            log.debug("Tier 3 (USDA FoodData Central) MATCHED for {}", productName);
                         }
                     } catch (Exception e) {
-                        System.out.println("Tier 3 (USDA FoodData Central) missed for " + productName);
+                        log.debug("Tier 3 (USDA FoodData Central) missed for {}", productName);
                     }
                 }
 
                 // Tier 4: Fallback to AI (exactIngredients = null) if no database has the ingredients
                 if (exactIngredients == null || exactIngredients.isBlank()) {
-                    System.out.println("All databases checked without ingredients. Seamlessly falling back to AI for " + productName);
+                    log.info("All databases checked without ingredients. Seamlessly falling back to AI for {}", productName);
                     dataSourceRegion = null;
+                    
+                    if (!allowNameGuessingFallback) {
+                        // Bail out so the caller can perform a full image OCR scan instead of hallucinating ingredients from the text name
+                        return CompletableFuture.completedFuture(null);
+                    }
                 }
             }
         }
@@ -317,6 +390,7 @@ public class ScanController {
         return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory, null, language, useFastModel)
                 .thenCompose(assessment -> {
                     WhoAssessmentDTO finalGeneric = new WhoAssessmentDTO(
+                            assessment.isFood() != null ? assessment.isFood() : true,
                             assessment.productName(),
                             assessment.ingredientsFound(),
                             assessment.whoFlags(),
@@ -340,7 +414,7 @@ public class ScanController {
                         cacheEntry.setAnalysisResultJson(json);
                         cachedAnalysisRepository.save(cacheEntry);
                     } catch (Exception e) {
-                        System.err.println("Failed to cache generic analysis: " + e.getMessage());
+                        log.warn("Failed to cache generic analysis: {}", e.getMessage());
                     }
 
                     if (userProfileSummary != null) {
@@ -373,6 +447,7 @@ public class ScanController {
             "YELLOW"
         ));
         return new WhoAssessmentDTO(
+            assessment.isFood() != null ? assessment.isFood() : true,
             assessment.productName(),
             assessment.ingredientsFound(),
             assessment.whoFlags(),
@@ -397,16 +472,35 @@ public class ScanController {
                     StringBuilder sb = new StringBuilder();
                     sb.append("<user_profile>\n");
                     if (u.getAge() != null) sb.append("Age: ").append(u.getAge()).append("\n");
-                    if (u.getGender() != null) sb.append("Gender: ").append(u.getGender()).append("\n");
+                    if (u.getGender() != null) {
+                        sb.append("Gender: ").append(u.getGender()).append("\n");
+                        if ("MALE".equalsIgnoreCase(u.getGender())) {
+                            sb.append("GENDER RULE: User is MALE. Strictly DO NOT mention, flag, or apply pregnancy, lactation, or female-specific health warnings.\n");
+                        } else if ("FEMALE".equalsIgnoreCase(u.getGender())) {
+                            sb.append("GENDER RULE: User is FEMALE. Strictly DO NOT apply male-specific warnings (e.g. prostate). Only evaluate pregnancy if explicitly listed in user conditions.\n");
+                        }
+                    }
                     if (u.getHeightCm() != null && u.getWeightKg() != null && u.getHeightCm() > 0) {
                         double hm = u.getHeightCm() / 100.0;
                         double bmi = Math.round((u.getWeightKg() / (hm * hm)) * 10.0) / 10.0;
                         sb.append("Height: ").append(u.getHeightCm()).append("cm, Weight: ").append(u.getWeightKg()).append("kg (BMI: ").append(bmi).append(")\n");
                     }
-                    if (u.getActivityLevel() != null) sb.append("Activity: ").append(u.getActivityLevel()).append("\n");
+                    if (u.getActivityLevel() != null) sb.append("Activity: ").append(u.getActivityLevel().replaceAll("[\\r\\n]", " ").trim()).append("\n");
                     if (u.getCalorieGoal() != null) sb.append("Calorie Goal: ").append(u.getCalorieGoal()).append("\n");
                     if (u.getMedicalConditions() != null && !u.getMedicalConditions().isBlank()) {
-                        String safeConditions = u.getMedicalConditions().replace("<", "&lt;").replace(">", "&gt;");
+                        String rawConditions = u.getMedicalConditions();
+                        if ("MALE".equalsIgnoreCase(u.getGender())) {
+                            rawConditions = java.util.Arrays.stream(rawConditions.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.equalsIgnoreCase("PREGNANCY") && !s.toLowerCase().contains("pregnan") && !s.equalsIgnoreCase("PCOS") && !s.toLowerCase().contains("pcos") && !s.toLowerCase().contains("lactat") && !s.toLowerCase().contains("breastfeed"))
+                                .collect(java.util.stream.Collectors.joining(", "));
+                        } else if ("FEMALE".equalsIgnoreCase(u.getGender())) {
+                            rawConditions = java.util.Arrays.stream(rawConditions.split(","))
+                                .map(String::trim)
+                                .filter(s -> !s.equalsIgnoreCase("PROSTATE") && !s.toLowerCase().contains("prostate"))
+                                .collect(java.util.stream.Collectors.joining(", "));
+                        }
+                        String safeConditions = rawConditions.replace("<", "&lt;").replace(">", "&gt;");
                         sb.append("Conditions/Stages/Allergies: [").append(safeConditions).append("]\n");
                     }
                     if ("STRICT".equalsIgnoreCase(u.getStrictnessLevel())) {
@@ -457,7 +551,7 @@ public class ScanController {
                             
                     scanHistoryRepository.save(history);
                 } catch (Exception dbEx) {
-                    System.err.println("Failed to save scan history: " + dbEx.getMessage());
+                    log.warn("Failed to save scan history: {}", dbEx.getMessage());
                 }
             }
         }
@@ -483,8 +577,21 @@ public class ScanController {
 
     @GetMapping("/autocomplete")
     public ResponseEntity<List<ProductSuggestionDTO>> autocomplete(@RequestParam("query") String query, @RequestParam(value = "countryCode", defaultValue = "world") String countryCode) {
+        if (query == null || query.isBlank()) {
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
+        // Sanitize: trim and cap at 100 characters to prevent abuse
+        String sanitizedQuery = query.trim();
+        if (sanitizedQuery.length() > 100) {
+            sanitizedQuery = sanitizedQuery.substring(0, 100);
+        }
+        // Basic allowlist: only alphanumeric, spaces, hyphens, dots, apostrophes
+        sanitizedQuery = sanitizedQuery.replaceAll("[^\\w\\s\\-.'&()]", "").trim();
+        if (sanitizedQuery.isBlank()) {
+            return ResponseEntity.ok(java.util.Collections.emptyList());
+        }
         try {
-            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(query, countryCode);
+            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(sanitizedQuery, countryCode);
             return ResponseEntity.ok(suggestions);
         } catch (Exception e) {
             return ResponseEntity.ok(java.util.Collections.emptyList());
@@ -513,7 +620,7 @@ public class ScanController {
         return ResponseEntity.status(404).body(java.util.Map.of("message", "User not found"));
     }
 
-    @GetMapping("/clear-cache")
+    @DeleteMapping("/clear-cache")
     public ResponseEntity<?> clearCache() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {

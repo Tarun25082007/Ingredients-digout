@@ -1,18 +1,7 @@
 package com.digout.config;
 
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-
-@Configuration
-public class CorsConfig implements WebMvcConfigurer {
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true);
-    }
-}
+// This class is intentionally left empty.
+// CORS is fully configured in SecurityConfig.corsConfigurationSource()
+// which takes precedence over WebMvcConfigurer in Spring Security apps.
+// DO NOT add WebMvcConfigurer CORS here — it would be silently ignored
+// and could cause confusion during future maintenance.

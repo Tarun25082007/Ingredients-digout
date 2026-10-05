@@ -79,12 +79,13 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
         }
         String pwd = request.password();
-        boolean hasLetter = pwd.chars().anyMatch(Character::isLetter);
+        boolean hasUpper = pwd.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = pwd.chars().anyMatch(Character::isLowerCase);
         boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
         boolean hasSpecial = pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
 
-        if (!hasLetter || !hasDigit || !hasSpecial) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one letter, one number, and one special character (!@#$%^&* etc.)."));
+        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&* etc.)."));
         }
 
         if (userRepository.findByEmail(normalizedEmail).isPresent() || userRepository.findByCanonicalEmail(canonicalEmail).isPresent()) {
@@ -117,11 +118,12 @@ public class AuthController {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.password(), user.getPasswordHash())) {
                 String pwd = request.password();
-                boolean hasLetter = pwd.chars().anyMatch(Character::isLetter);
+                boolean hasUpper = pwd.chars().anyMatch(Character::isUpperCase);
+                boolean hasLower = pwd.chars().anyMatch(Character::isLowerCase);
                 boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
                 boolean hasSpecial = pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
 
-                if (pwd.length() < 8 || !hasLetter || !hasDigit || !hasSpecial) {
+                if (pwd.length() < 8 || !hasUpper || !hasLower || !hasDigit || !hasSpecial) {
                     return ResponseEntity.status(HttpStatus.UPGRADE_REQUIRED).body(Map.of(
                         "message", "Your password does not meet our new security requirements. Please update it.",
                         "requiresPasswordReset", true
@@ -152,12 +154,13 @@ public class AuthController {
         if (newPassword.length() < 8) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
         }
-        boolean hasLetter = newPassword.chars().anyMatch(Character::isLetter);
+        boolean hasUpper = newPassword.chars().anyMatch(Character::isUpperCase);
+        boolean hasLower = newPassword.chars().anyMatch(Character::isLowerCase);
         boolean hasDigit = newPassword.chars().anyMatch(Character::isDigit);
         boolean hasSpecial = newPassword.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
 
-        if (!hasLetter || !hasDigit || !hasSpecial) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one letter, one number, and one special character (!@#$%^&* etc.)."));
+        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&* etc.)."));
         }
         
         Optional<User> userOpt = userRepository.findByAnyEmail(email);
@@ -270,12 +273,12 @@ public class AuthController {
         } catch (HttpStatusCodeException e) {
             log.error("Google tokeninfo error: HTTP {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                "message", "Google verification failed: " + e.getResponseBodyAsString()
+                "message", "Google verification failed. Please try again."
             ));
         } catch (Exception e) {
             log.error("Google login failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                "message", "Google authentication failed: " + e.getMessage()
+                "message", "Google authentication failed. Please try again."
             ));
         }
     }

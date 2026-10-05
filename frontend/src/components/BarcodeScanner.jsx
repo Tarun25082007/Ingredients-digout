@@ -7,6 +7,13 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
   const [cameras, setCameras] = useState([]);
   const [activeCameraId, setActiveCameraId] = useState(null);
   const scannerRef = useRef(null);
+  const onResultRef = useRef(onResult);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onResultRef.current = onResult;
+    onErrorRef.current = onError;
+  }, [onResult, onError]);
 
   useEffect(() => {
     let isMounted = true;
@@ -20,24 +27,25 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
         const defaultCam = devices.length > 1 ? devices[devices.length - 1].id : devices[0].id;
         setActiveCameraId(defaultCam);
         
-        scannerRef.current = new Html5Qrcode("barcode-reader-element");
+        const scanner = new Html5Qrcode("barcode-reader-element");
+        scannerRef.current = scanner;
         setIsScanning(true);
         
-        scannerRef.current.start(
+        scanner.start(
           defaultCam, 
           {
             fps: 10,
             qrbox: { width: 250, height: 150 }
           },
           (decodedText, decodedResult) => {
-            if (scannerRef.current && scannerRef.current.isScanning) {
-                scannerRef.current.stop().then(() => {
-                    if (isMounted) setIsScanning(false);
-                    onResult(decodedText);
-                }).catch(err => {
-                    console.error("Failed to stop scanner.", err);
-                    onResult(decodedText);
-                });
+            if (scanner && scanner.isScanning) {
+              scanner.stop().then(() => {
+                if (isMounted) setIsScanning(false);
+                if (onResultRef.current) onResultRef.current(decodedText);
+              }).catch(err => {
+                console.warn("Failed to stop scanner after decode.", err);
+                if (onResultRef.current) onResultRef.current(decodedText);
+              });
             }
           },
           (errorMessage) => {
@@ -45,29 +53,42 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
           }
         ).then(() => {
           // Check if unmounted while camera was starting
-          if (!isMounted && scannerRef.current && scannerRef.current.isScanning) {
-            scannerRef.current.stop().catch(console.error);
+          if (!isMounted && scanner && scanner.isScanning) {
+            scanner.stop()
+              .then(() => scanner.clear().catch(() => {}))
+              .catch(console.warn);
           }
         }).catch(err => {
           if (isMounted) {
             setIsScanning(false);
-            onError("Failed to start camera for barcode scanning.");
+            if (onErrorRef.current) onErrorRef.current("Failed to start camera for barcode scanning.");
           }
         });
       } else {
-        if (isMounted) onError("No cameras found on your device.");
+        if (isMounted && onErrorRef.current) onErrorRef.current("No cameras found on your device.");
       }
     }).catch(err => {
-      if (isMounted) onError("Error getting cameras: " + err);
+      if (isMounted && onErrorRef.current) onErrorRef.current("Error getting cameras: " + err);
     });
 
     return () => {
       isMounted = false;
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(err => console.error("Failed to stop scanner on unmount.", err));
+      const scanner = scannerRef.current;
+      if (scanner) {
+        try {
+          if (scanner.isScanning) {
+            scanner.stop()
+              .then(() => scanner.clear().catch(() => {}))
+              .catch(err => console.warn("Failed to stop scanner on unmount.", err));
+          } else {
+            scanner.clear().catch(() => {});
+          }
+        } catch (e) {
+          console.warn("Error cleaning up scanner", e);
+        }
       }
     };
-  }, [onResult, onError]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center">
