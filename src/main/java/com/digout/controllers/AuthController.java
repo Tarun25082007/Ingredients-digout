@@ -63,6 +63,15 @@ public class AuthController {
         }
     }
 
+    /** Checks that a password meets the complexity rules (8+ chars, upper, lower, digit, special). */
+    private boolean isPasswordSecure(String pwd) {
+        if (pwd == null || pwd.length() < 8) return false;
+        return pwd.chars().anyMatch(Character::isUpperCase)
+            && pwd.chars().anyMatch(Character::isLowerCase)
+            && pwd.chars().anyMatch(Character::isDigit)
+            && pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",.//<>?~`".indexOf(ch) >= 0);
+    }
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         if (!verifyTurnstile(request.turnstileToken())) {
@@ -75,16 +84,7 @@ public class AuthController {
         String normalizedEmail = request.email().trim().toLowerCase();
         String canonicalEmail = EmailUtils.canonicalize(normalizedEmail);
         
-        if (request.password() == null || request.password().length() < 8) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
-        }
-        String pwd = request.password();
-        boolean hasUpper = pwd.chars().anyMatch(Character::isUpperCase);
-        boolean hasLower = pwd.chars().anyMatch(Character::isLowerCase);
-        boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
-        boolean hasSpecial = pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
-
-        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+        if (!isPasswordSecure(request.password())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&* etc.)."));
         }
 
@@ -117,13 +117,7 @@ public class AuthController {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-                String pwd = request.password();
-                boolean hasUpper = pwd.chars().anyMatch(Character::isUpperCase);
-                boolean hasLower = pwd.chars().anyMatch(Character::isLowerCase);
-                boolean hasDigit = pwd.chars().anyMatch(Character::isDigit);
-                boolean hasSpecial = pwd.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
-
-                if (pwd.length() < 8 || !hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+                if (!isPasswordSecure(request.password())) {
                     return ResponseEntity.status(HttpStatus.UPGRADE_REQUIRED).body(Map.of(
                         "message", "Your password does not meet our new security requirements. Please update it.",
                         "requiresPasswordReset", true
@@ -151,15 +145,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Missing fields"));
         }
         
-        if (newPassword.length() < 8) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must be at least 8 characters long."));
-        }
-        boolean hasUpper = newPassword.chars().anyMatch(Character::isUpperCase);
-        boolean hasLower = newPassword.chars().anyMatch(Character::isLowerCase);
-        boolean hasDigit = newPassword.chars().anyMatch(Character::isDigit);
-        boolean hasSpecial = newPassword.chars().anyMatch(ch -> "!@#$%^&*()_+-=[]{}|;':\",./<>?~`".indexOf(ch) >= 0);
-
-        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+        if (!isPasswordSecure(newPassword)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Password must include at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&* etc.)."));
         }
         

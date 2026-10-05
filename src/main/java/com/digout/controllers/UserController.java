@@ -40,6 +40,7 @@ public class UserController {
     }
 
     @PutMapping("/profile")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<?> updateProfile(@RequestBody UserProfileDTO dto) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {

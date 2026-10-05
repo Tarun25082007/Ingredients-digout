@@ -154,29 +154,33 @@ const HealthStatusCard = ({ assessment }) => {
   // Gender-aware safety filter to prevent male users from seeing pregnancy alerts or vice versa
   const activeGender = userProfile?.gender;
 
-  const safePersonalizedAlerts = (personalizedAlerts || []).filter(a => {
-    if (!a) return false;
-    const text = ((a.title || '') + ' ' + (a.explanation || '')).toLowerCase();
-    if (activeGender === 'MALE' && (text.includes('pregnan') || text.includes('lactat') || text.includes('breastfeed') || text.includes('fetus') || text.includes('maternal') || text.includes('pcos'))) {
-      return false;
-    }
-    if (activeGender === 'FEMALE' && text.includes('prostate')) {
-      return false;
-    }
-    return true;
-  });
+  const safePersonalizedAlerts = React.useMemo(() => {
+    return (personalizedAlerts || []).filter(a => {
+      if (!a) return false;
+      const text = ((a.title || '') + ' ' + (a.explanation || '')).toLowerCase();
+      if (activeGender === 'MALE' && (text.includes('pregnan') || text.includes('lactat') || text.includes('breastfeed') || text.includes('fetus') || text.includes('maternal') || text.includes('pcos'))) {
+        return false;
+      }
+      if (activeGender === 'FEMALE' && text.includes('prostate')) {
+        return false;
+      }
+      return true;
+    });
+  }, [personalizedAlerts, activeGender]);
 
-  const safeWhoFlags = (whoFlags || []).filter(f => {
-    if (!f) return false;
-    const text = ((f.name || '') + ' ' + (f.explanation || '')).toLowerCase();
-    if (activeGender === 'MALE' && (text.includes('pregnan') || text.includes('lactat') || text.includes('breastfeed') || text.includes('maternal') || text.includes('pcos'))) {
-      return false;
-    }
-    if (activeGender === 'FEMALE' && (text.includes('prostate') || (f.name || '').toLowerCase().includes('prostate'))) {
-      return false;
-    }
-    return true;
-  });
+  const safeWhoFlags = React.useMemo(() => {
+    return (whoFlags || []).filter(f => {
+      if (!f) return false;
+      const text = ((f.name || '') + ' ' + (f.explanation || '')).toLowerCase();
+      if (activeGender === 'MALE' && (text.includes('pregnan') || text.includes('lactat') || text.includes('breastfeed') || text.includes('maternal') || text.includes('pcos'))) {
+        return false;
+      }
+      if (activeGender === 'FEMALE' && (text.includes('prostate') || (f.name || '').toLowerCase().includes('prostate'))) {
+        return false;
+      }
+      return true;
+    });
+  }, [whoFlags, activeGender]);
 
   let safeRecommendedAdvice = recommendedServingAdvice;
   if (activeGender === 'MALE' && typeof safeRecommendedAdvice === 'string') {

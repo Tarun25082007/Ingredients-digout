@@ -128,7 +128,7 @@ public class ScanController {
                 .thenCompose(identifiedName -> {
                     String cleanName = identifiedName != null ? identifiedName.trim() : "";
                     if ("NOT_FOOD".equalsIgnoreCase(cleanName) || "Not Food".equalsIgnoreCase(cleanName) || "NOT FOOD".equalsIgnoreCase(cleanName)) {
-                        WhoAssessmentDTO notFood = new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
+                        WhoAssessmentDTO notFood = createNotFoodAssessment();
                         saveScanHistory(auth, notFood);
                         return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
                     }
@@ -160,7 +160,7 @@ public class ScanController {
                         String cleanFbName = fbName.trim();
                         
                         if ("NOT_FOOD".equalsIgnoreCase(cleanFbName) || "Not Food".equalsIgnoreCase(cleanFbName) || "NOT FOOD".equalsIgnoreCase(cleanFbName) || Boolean.FALSE.equals(assessment.isFood()) || "NOT_FOOD".equalsIgnoreCase(assessment.overallIndicator())) {
-                            WhoAssessmentDTO notFood = new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
+                            WhoAssessmentDTO notFood = createNotFoodAssessment();
                             saveScanHistory(auth, notFood);
                             return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
                         }
@@ -257,7 +257,7 @@ public class ScanController {
 
         String cleanName = productName != null ? productName.trim() : "";
         if ("NOT_FOOD".equalsIgnoreCase(cleanName) || "Not Food".equalsIgnoreCase(cleanName) || "NOT FOOD".equalsIgnoreCase(cleanName)) {
-            WhoAssessmentDTO notFood = new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
+            WhoAssessmentDTO notFood = createNotFoodAssessment();
             if (saveHistory) saveScanHistory(auth, notFood);
             return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
         }
@@ -635,5 +635,9 @@ public class ScanController {
         }
         cachedAnalysisRepository.deleteAll();
         return ResponseEntity.ok(java.util.Map.of("message", "Cache cleared successfully!"));
+    }
+
+    private WhoAssessmentDTO createNotFoodAssessment() {
+        return new WhoAssessmentDTO(false, "Not Food", new java.util.ArrayList<>(), new java.util.ArrayList<>(), "NOT_FOOD", null, null, null, null, new java.util.ArrayList<>(), "Please capture a food item.", null);
     }
 }

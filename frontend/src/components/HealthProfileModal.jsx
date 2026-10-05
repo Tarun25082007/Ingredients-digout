@@ -203,6 +203,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
         {!isMandatoryOnboarding && (
           <button 
             onClick={onClose}
+            aria-label="Close"
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition z-10"
           >
             <X className="w-4 h-4" />
@@ -492,6 +493,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Close"
                 className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-800 transition"
               >
                 {t('cancel')}
@@ -500,6 +502,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Close"
                 className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-gray-600 transition"
               >
                 {t('skip_for_now')}
