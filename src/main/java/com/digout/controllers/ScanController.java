@@ -210,10 +210,13 @@ public class ScanController {
         if (productName == null || productName.trim().isEmpty()) {
             throw new IllegalArgumentException("Product name is required");
         }
-        // Sanitize: cap length to prevent DB column overflow attacks
         productName = productName.trim();
         if (productName.length() > 255) {
-            productName = productName.substring(0, 255);
+            if (Character.isHighSurrogate(productName.charAt(254))) {
+                productName = productName.substring(0, 254);
+            } else {
+                productName = productName.substring(0, 255);
+            }
         }
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -265,7 +268,9 @@ public class ScanController {
             cachedOpt.ifPresent(cached -> {
                 try {
                     cachedAnalysisRepository.delete(cached);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.warn("Failed to delete forced cache entry: {}", e.getMessage());
+                }
             });
             cachedOpt = Optional.empty();
         }
@@ -274,7 +279,9 @@ public class ScanController {
             if (cached.isStale()) {
                 try {
                     cachedAnalysisRepository.delete(cached);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    log.warn("Failed to delete stale cache entry: {}", e.getMessage());
+                }
             } else {
                 try {
                     WhoAssessmentDTO genericCached = objectMapper.readValue(cached.getAnalysisResultJson(), WhoAssessmentDTO.class);
@@ -297,95 +304,87 @@ public class ScanController {
             }
         }
 
-        // Fetch exact ingredients from database first based on country (skip if forceAi)
-        String exactIngredients = null;
-        String servingSize = null;
-        String quantity = null;
-        String dataSourceRegion = forceAi ? null : countryCode;
-        
-        if (!forceAi) {
-            if ("fresh".equals(foodCategory)) {
-                try {
-                    com.digout.dto.OpenFoodFactsDTO dbProduct = usdaFoodDataService.searchFreshProductByName(productName);
-                    exactIngredients = dbProduct.ingredientsText();
-                    servingSize = dbProduct.servingSize();
-                    quantity = dbProduct.quantity();
-                    dataSourceRegion = "usda_foundation";
-                } catch (Exception e) {
-                    log.warn("Could not fetch exact ingredients from USDA for fresh food: {}", e.getMessage());
-                    dataSourceRegion = null; // AI fallback
-                }
-            } else {
-                // Tier 1: Regional Open Food Facts Database
-                try {
-                    com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
-                    if (dbProduct != null && dbProduct.ingredientsText() != null && !dbProduct.ingredientsText().isBlank()) {
+        return CompletableFuture.supplyAsync(() -> {
+            String exactIngredients = null;
+            String servingSize = null;
+            String quantity = null;
+            String dataSourceRegion = forceAi ? null : countryCode;
+            
+            if (!forceAi) {
+                if ("fresh".equals(foodCategory)) {
+                    try {
+                        com.digout.dto.OpenFoodFactsDTO dbProduct = usdaFoodDataService.searchFreshProductByName(productName);
                         exactIngredients = dbProduct.ingredientsText();
                         servingSize = dbProduct.servingSize();
                         quantity = dbProduct.quantity();
-                        dataSourceRegion = countryCode;
+                        dataSourceRegion = "usda_foundation";
+                    } catch (Exception e) {
+                        log.warn("Could not fetch exact ingredients from USDA for fresh food: {}", e.getMessage());
+                        dataSourceRegion = null;
                     }
-                } catch (Exception e) {
-                    log.debug("Tier 1 (Regional database) missed for {}: {}", productName, e.getMessage());
-                }
-
-                // Tier 2: Global Open Food Facts Database
-                if ((exactIngredients == null || exactIngredients.isBlank()) && !"world".equalsIgnoreCase(countryCode)) {
+                } else {
                     try {
-                        log.debug("Checking Tier 2 (Global Open Food Facts) for {}", productName);
-                        com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
-                        if (globalProduct != null && globalProduct.ingredientsText() != null && !globalProduct.ingredientsText().isBlank()) {
-                            exactIngredients = globalProduct.ingredientsText();
-                            if (servingSize == null) servingSize = globalProduct.servingSize();
-                            if (quantity == null) quantity = globalProduct.quantity();
-                            
-                            boolean matchesRegion = false;
-                            if (globalProduct.countriesTags() != null) {
-                                for (String tag : globalProduct.countriesTags()) {
-                                    String t = tag.toLowerCase();
-                                    if (countryCode.equalsIgnoreCase("in") && t.contains("india")) matchesRegion = true;
-                                    else if (countryCode.equalsIgnoreCase("us") && t.contains("united-states")) matchesRegion = true;
-                                    else if (countryCode.equalsIgnoreCase("uk") && (t.contains("united-kingdom") || t.contains("uk"))) matchesRegion = true;
-                                    else if (t.endsWith(":" + countryCode.toLowerCase())) matchesRegion = true;
+                        com.digout.dto.OpenFoodFactsDTO dbProduct = openFoodFactsService.searchProductByName(productName, countryCode);
+                        if (dbProduct != null && dbProduct.ingredientsText() != null && !dbProduct.ingredientsText().isBlank()) {
+                            exactIngredients = dbProduct.ingredientsText();
+                            servingSize = dbProduct.servingSize();
+                            quantity = dbProduct.quantity();
+                            dataSourceRegion = countryCode;
+                        }
+                    } catch (Exception e) {
+                        log.debug("Tier 1 missed for {}: {}", productName, e.getMessage());
+                    }
+
+                    if ((exactIngredients == null || exactIngredients.isBlank()) && !"world".equalsIgnoreCase(countryCode)) {
+                        try {
+                            com.digout.dto.OpenFoodFactsDTO globalProduct = openFoodFactsService.searchProductByName(productName, "world");
+                            if (globalProduct != null && globalProduct.ingredientsText() != null && !globalProduct.ingredientsText().isBlank()) {
+                                exactIngredients = globalProduct.ingredientsText();
+                                if (servingSize == null) servingSize = globalProduct.servingSize();
+                                if (quantity == null) quantity = globalProduct.quantity();
+                                
+                                boolean matchesRegion = false;
+                                if (globalProduct.countriesTags() != null) {
+                                    for (String tag : globalProduct.countriesTags()) {
+                                        String t = tag.toLowerCase();
+                                        if (countryCode.equalsIgnoreCase("in") && t.contains("india")) matchesRegion = true;
+                                        else if (countryCode.equalsIgnoreCase("us") && t.contains("united-states")) matchesRegion = true;
+                                        else if (countryCode.equalsIgnoreCase("uk") && (t.contains("united-kingdom") || t.contains("uk"))) matchesRegion = true;
+                                        else if (t.endsWith(":" + countryCode.toLowerCase())) matchesRegion = true;
+                                    }
                                 }
+                                dataSourceRegion = matchesRegion ? countryCode : "world_fallback";
                             }
-                            dataSourceRegion = matchesRegion ? countryCode : "world_fallback";
-                        }
-                    } catch (Exception e) {
-                        log.debug("Tier 2 (Global Open Food Facts) missed for {}", productName);
+                        } catch (Exception e) {}
                     }
-                }
 
-                // Tier 3: USDA FoodData Central (Branded Foods Database)
-                if (exactIngredients == null || exactIngredients.isBlank()) {
-                    try {
-                        log.debug("Checking Tier 3 (USDA FoodData Central) for {}", productName);
-                        com.digout.dto.OpenFoodFactsDTO usdaProduct = usdaFoodDataService.searchAnyProductByName(productName);
-                        if (usdaProduct != null && usdaProduct.ingredientsText() != null && !usdaProduct.ingredientsText().isBlank()) {
-                            exactIngredients = usdaProduct.ingredientsText();
-                            if (servingSize == null) servingSize = usdaProduct.servingSize();
-                            if (quantity == null) quantity = usdaProduct.quantity();
-                            dataSourceRegion = "usda_database";
-                            log.debug("Tier 3 (USDA FoodData Central) MATCHED for {}", productName);
-                        }
-                    } catch (Exception e) {
-                        log.debug("Tier 3 (USDA FoodData Central) missed for {}", productName);
+                    if (exactIngredients == null || exactIngredients.isBlank()) {
+                        try {
+                            com.digout.dto.OpenFoodFactsDTO usdaProduct = usdaFoodDataService.searchAnyProductByName(productName);
+                            if (usdaProduct != null && usdaProduct.ingredientsText() != null && !usdaProduct.ingredientsText().isBlank()) {
+                                exactIngredients = usdaProduct.ingredientsText();
+                                if (servingSize == null) servingSize = usdaProduct.servingSize();
+                                if (quantity == null) quantity = usdaProduct.quantity();
+                                dataSourceRegion = "usda_database";
+                            }
+                        } catch (Exception e) {}
                     }
-                }
 
-                // Tier 4: Fallback to AI (exactIngredients = null) if no database has the ingredients
-                if (exactIngredients == null || exactIngredients.isBlank()) {
-                    log.info("All databases checked without ingredients. Seamlessly falling back to AI for {}", productName);
-                    dataSourceRegion = null;
-                    
-                    if (!allowNameGuessingFallback) {
-                        // Bail out so the caller can perform a full image OCR scan instead of hallucinating ingredients from the text name
-                        return CompletableFuture.completedFuture(null);
+                    if (exactIngredients == null || exactIngredients.isBlank()) {
+                        dataSourceRegion = null;
+                        if (!allowNameGuessingFallback) {
+                            return null;
+                        }
                     }
                 }
             }
-        }
-        final String finalDataSourceRegion = dataSourceRegion;
+            return new Object[]{exactIngredients, servingSize, quantity, dataSourceRegion};
+        }).thenCompose(data -> {
+            if (data == null) return CompletableFuture.completedFuture(null);
+            String exactIngredients = (String) data[0];
+            String servingSize = (String) data[1];
+            String quantity = (String) data[2];
+            String finalDataSourceRegion = (String) data[3];
         // ALWAYS PASS NULL for userProfileSummary so we generate a generic assessment for the cache!
         return geminiService.analyzeIngredientsByName(productName, exactIngredients, servingSize, quantity, foodCategory, null, language, useFastModel)
                 .thenCompose(assessment -> {
@@ -534,7 +533,11 @@ public class ScanController {
                 try {
                     String pName = assessment.productName() != null ? assessment.productName().trim() : "Unknown Product";
                     if (pName.length() > 255) {
-                        pName = pName.substring(0, 255);
+                        if (Character.isHighSurrogate(pName.charAt(254))) {
+                            pName = pName.substring(0, 254);
+                        } else {
+                            pName = pName.substring(0, 255);
+                        }
                     }
                     
                     if (!"Unknown Product".equalsIgnoreCase(pName)) {
