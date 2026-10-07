@@ -76,6 +76,13 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
       terms: ['bleached flour', 'bleached wheat flour', 'benzoyl peroxide', 'chlorine gas', 'e928'],
       descriptionWithBad: 'uses chemically bleached flour treated with bleaching agents prohibited in the EU, unlike unbleached natural flour.',
       severity: 4
+    },
+    {
+      id: 'artificial_sweeteners',
+      title: 'Sweeteners: High-Intensity Non-Sugar Sweeteners (NSS)',
+      terms: ['aspartame', 'sucralose', 'acesulfame', 'ace-k', 'saccharin', 'e950', 'e951', 'e954', 'e955', 'ins 950', 'ins 951', 'ins 954', 'ins 955'],
+      descriptionWithBad: 'uses high-intensity non-nutritive synthetic sweeteners (Aspartame / Sucralose / Acesulfame-K) which per WHO guidelines should not be used as a means of achieving weight control.',
+      severity: 3
     }
   ], []);
 
@@ -118,19 +125,20 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
         }
       });
 
-      // Enforce Relative Score Integrity:
-      // 1. If one side carries higher cumulative penalties, ensure it cannot outscore the cleaner formulation.
+      // Enforce Relative Score Integrity across all formulation factors:
       if (localPenalty > intlPenalty) {
-        if (local >= intl) {
-          local = Math.max(0, intl - Math.max(2, localPenalty - intlPenalty));
+        const netPenalty = Math.max(2, localPenalty - intlPenalty);
+        if (local > intl - netPenalty) {
+          local = Math.max(0, intl - netPenalty);
         }
       } else if (intlPenalty > localPenalty) {
-        if (intl >= local) {
-          intl = Math.max(0, local - Math.max(2, intlPenalty - localPenalty));
+        const netPenalty = Math.max(2, intlPenalty - localPenalty);
+        if (intl > local - netPenalty) {
+          intl = Math.max(0, local - netPenalty);
         }
       } else if (localPenalty > 0 && intlPenalty > 0) {
-        // 2. If BOTH products carry distinct formulation penalties (e.g., Local has Palm Oil, Global has HFCS/Dyes),
-        // both are equally compromised ultra-processed formulations — equalize them so neither falsely appears healthier.
+        // Equal cumulative penalties across different synthetic factors (e.g., Local has Palm Oil, Global has HFCS):
+        // Both are compromised ultra-processed formulations — equalize them to the lower score so neither falsely appears healthier.
         const floor = Math.min(local, intl);
         local = floor;
         intl = floor;
