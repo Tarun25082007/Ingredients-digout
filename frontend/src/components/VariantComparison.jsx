@@ -12,32 +12,101 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
   const [error, setError] = useState('');
   const isMountedRef = useRef(true);
 
-  // Compute nutritionally consistent scores (enforces that a formulation with Palm Oil cannot score higher than a non-palm variant)
-  const { effectiveLocalScore, effectiveIntlScore } = useMemo(() => {
-    if (localHealthScore == null) return { effectiveLocalScore: null, effectiveIntlScore: internationalData?.healthScore ?? null };
+  // Comprehensive table of key formulation disparities across regional markets
+  const FORMULATION_FACTORS = useMemo(() => [
+    {
+      id: 'palm',
+      title: 'Oil Quality: Palm Oil vs Unsaturated / Dairy Fat',
+      terms: ['palm oil', 'palm fat', 'palmolein', 'palm kernel oil', 'fractionated palm'],
+      descriptionWithBad: 'lists Palm Oil (high in saturated fatty acids ~50%), whereas the other variant relies on unsaturated oils (sunflower/corn) or dairy fat.',
+      severity: 3
+    },
+    {
+      id: 'hfcs',
+      title: 'Sweetener: High Fructose Corn Syrup vs Cane Sugar',
+      terms: ['high fructose corn syrup', 'hfcs', 'glucose-fructose syrup', 'isoglucose', 'corn syrup'],
+      descriptionWithBad: 'uses High Fructose Corn Syrup (HFCS), which causes higher hepatic fat deposition and glycemic spikes compared to natural cane sugar or sucrose.',
+      severity: 3
+    },
+    {
+      id: 'artificial_dyes',
+      title: 'Coloring: Synthetic Petroleum Dyes vs Natural Extracts',
+      terms: ['red 40', 'allura red', 'yellow 5', 'tartrazine', 'yellow 6', 'sunset yellow', 'blue 1', 'brilliant blue', 'blue 2', 'red 3', 'e102', 'e110', 'e129', 'e133', 'ins 102', 'ins 110', 'ins 129', 'ins 133'],
+      descriptionWithBad: 'uses petroleum-derived synthetic dyes (such as Red 40 or Tartrazine) which require mandatory hyperactivity warning labels in the European Union, while the other variant uses natural plant extracts (paprika, beet, or turmeric).',
+      severity: 4
+    },
+    {
+      id: 'synthetic_preservatives',
+      title: 'Preservatives: Synthetic (TBHQ / BHA / BHT) vs Natural Antioxidants',
+      terms: ['tbhq', 'tertiary butylhydroquinone', 'e319', 'ins 319', 'bha', 'butylated hydroxyanisole', 'e320', 'ins 320', 'bht', 'butylated hydroxytoluene', 'e321', 'ins 321'],
+      descriptionWithBad: 'uses synthetic chemical antioxidants (TBHQ/BHA/BHT) to extend shelf life, whereas the other formulation relies on natural tocopherols (Vitamin E) or clean preservation.',
+      severity: 3
+    },
+    {
+      id: 'hydrogenated_fats',
+      title: 'Lipid Hydrogenation: Trans Fats / Hydrogenated Oils',
+      terms: ['partially hydrogenated', 'hydrogenated vegetable oil', 'shortening', 'vanaspati', 'hydrogenated palm'],
+      descriptionWithBad: 'contains partially hydrogenated fats or industrial shortening, which are primary sources of artificial trans fats that raise LDL and lower HDL cholesterol.',
+      severity: 5
+    },
+    {
+      id: 'bromated_flour',
+      title: 'Dough Conditioners: Banned Additives (Bromate / Azodicarbonamide)',
+      terms: ['potassium bromate', 'e924', 'azodicarbonamide', 'e927a', 'potassium iodate'],
+      descriptionWithBad: 'contains chemical dough conditioners (Potassium Bromate or Azodicarbonamide) which are prohibited across Europe, Canada, and India due to safety concerns.',
+      severity: 5
+    }
+  ], []);
+
+  // Compute nutritionally consistent scores across all major formulation differences
+  const { effectiveLocalScore, effectiveIntlScore, disparities } = useMemo(() => {
+    if (localHealthScore == null) return { effectiveLocalScore: null, effectiveIntlScore: internationalData?.healthScore ?? null, disparities: [] };
     let local = localHealthScore;
     let intl = internationalData?.healthScore ?? null;
+    const detectedDisparities = [];
 
     if (intl != null) {
-      const hasLocalPalm = Array.isArray(scannedIngredients) && scannedIngredients.some(i => {
-        const name = String((typeof i === 'string' ? i : i?.name) || '').toLowerCase();
-        return name.includes('palm');
-      });
-      const hasIntlPalm = Array.isArray(internationalData.ingredientsFound) && internationalData.ingredientsFound.some(i => {
-        const name = String((typeof i === 'string' ? i : i?.name) || '').toLowerCase();
-        return name.includes('palm');
+      const localNames = (Array.isArray(scannedIngredients) ? scannedIngredients : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
+      const intlNames = (Array.isArray(internationalData.ingredientsFound) ? internationalData.ingredientsFound : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
+
+      const hasAny = (list, terms) => list.some(text => terms.some(t => text.includes(t)));
+
+      let localPenalty = 0;
+      let intlPenalty = 0;
+
+      FORMULATION_FACTORS.forEach(factor => {
+        const localHas = hasAny(localNames, factor.terms);
+        const intlHas = hasAny(intlNames, factor.terms);
+
+        if (localHas && !intlHas) {
+          localPenalty += factor.severity;
+          detectedDisparities.push({
+            id: factor.id,
+            title: factor.title,
+            description: `Your local variant ${factor.descriptionWithBad}`,
+            favor: 'intl'
+          });
+        } else if (!localHas && intlHas) {
+          intlPenalty += factor.severity;
+          detectedDisparities.push({
+            id: factor.id,
+            title: factor.title,
+            description: `The global variant ${factor.descriptionWithBad}`,
+            favor: 'local'
+          });
+        }
       });
 
-      // Strict Nutritional Rule: A formulation using Palm Oil must receive a cardiovascular penalty and never score higher than the non-palm variant
-      if (hasLocalPalm && !hasIntlPalm && local >= intl) {
-        local = Math.max(0, intl - 3);
-      } else if (!hasLocalPalm && hasIntlPalm && intl >= local) {
-        intl = Math.max(0, local - 3);
+      // Enforce Relative Score Integrity: The variant carrying higher synthetic/processing risk factors cannot score equal to or higher than the cleaner variant
+      if (localPenalty > intlPenalty && local >= intl) {
+        local = Math.max(0, intl - Math.max(3, localPenalty - intlPenalty));
+      } else if (intlPenalty > localPenalty && intl >= local) {
+        intl = Math.max(0, local - Math.max(3, intlPenalty - localPenalty));
       }
     }
 
-    return { effectiveLocalScore: local, effectiveIntlScore: intl };
-  }, [localHealthScore, internationalData, scannedIngredients]);
+    return { effectiveLocalScore: local, effectiveIntlScore: intl, disparities: detectedDisparities };
+  }, [localHealthScore, internationalData, scannedIngredients, FORMULATION_FACTORS]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -426,40 +495,27 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                 return null;
               })()}
 
-              {/* Oil Formulation Difference Callout */}
-              {(() => {
-                const hasLocalPalm = Array.isArray(scannedIngredients) && scannedIngredients.some(i => {
-                  const name = String((typeof i === 'string' ? i : i?.name) || '').toLowerCase();
-                  return name.includes('palm');
-                });
-                const hasIntlPalm = Array.isArray(internationalData.ingredientsFound) && internationalData.ingredientsFound.some(i => {
-                  const name = String((typeof i === 'string' ? i : i?.name) || '').toLowerCase();
-                  return name.includes('palm');
-                });
-
-                if (hasLocalPalm && !hasIntlPalm) {
-                  return (
-                    <div className="p-4 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-900 flex items-start gap-3 shadow-sm">
-                      <span className="text-xl shrink-0">⚠️</span>
+              {/* Comprehensive Formulation Disparity Insights (Palm, HFCS, Dyes, Preservatives, Trans Fats) */}
+              {disparities && disparities.length > 0 && (
+                <div className="space-y-3">
+                  {disparities.map((disp, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`p-4 rounded-xl border text-xs flex items-start gap-3 shadow-sm ${
+                        disp.favor === 'intl' 
+                          ? 'bg-amber-50/90 border-amber-200 text-amber-900' 
+                          : 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                      }`}
+                    >
+                      <span className="text-xl shrink-0">{disp.favor === 'intl' ? '⚠️' : '✅'}</span>
                       <div>
-                        <span className="font-bold block text-sm mb-0.5">Key Oil Formulation Difference</span>
-                        <span>Your local variant lists <strong>Palm Oil</strong> (high in saturated fatty acids ~50%), whereas the global variant relies on alternative or unsaturated vegetable oils (e.g. sunflower/corn). Saturated fats raise LDL cholesterol and cardiovascular risk.</span>
+                        <span className="font-bold block text-sm mb-0.5">{disp.title}</span>
+                        <span>{disp.description}</span>
                       </div>
                     </div>
-                  );
-                } else if (!hasLocalPalm && hasIntlPalm) {
-                  return (
-                    <div className="p-4 rounded-xl bg-emerald-50/90 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3 shadow-sm">
-                      <span className="text-xl shrink-0">✅</span>
-                      <div>
-                        <span className="font-bold block text-sm mb-0.5">Key Oil Formulation Difference</span>
-                        <span>The global variant lists <strong>Palm Oil</strong>, while your local variant avoids pure palm oil, giving your local version a more favorable fatty acid profile.</span>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>
