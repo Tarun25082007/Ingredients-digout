@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
@@ -11,6 +11,33 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const isMountedRef = useRef(true);
+
+  // Compute nutritionally consistent scores (enforces that a formulation with Palm Oil cannot score higher than a non-palm variant)
+  const { effectiveLocalScore, effectiveIntlScore } = useMemo(() => {
+    if (localHealthScore == null) return { effectiveLocalScore: null, effectiveIntlScore: internationalData?.healthScore ?? null };
+    let local = localHealthScore;
+    let intl = internationalData?.healthScore ?? null;
+
+    if (intl != null) {
+      const hasLocalPalm = Array.isArray(scannedIngredients) && scannedIngredients.some(i => {
+        const name = String((typeof i === 'string' ? i : i?.name) || '').toLowerCase();
+        return name.includes('palm');
+      });
+      const hasIntlPalm = Array.isArray(internationalData.ingredientsFound) && internationalData.ingredientsFound.some(i => {
+        const name = String((typeof i === 'string' ? i : i?.name) || '').toLowerCase();
+        return name.includes('palm');
+      });
+
+      // Strict Nutritional Rule: A formulation using Palm Oil must receive a cardiovascular penalty and never score higher than the non-palm variant
+      if (hasLocalPalm && !hasIntlPalm && local >= intl) {
+        local = Math.max(0, intl - 3);
+      } else if (!hasLocalPalm && hasIntlPalm && intl >= local) {
+        intl = Math.max(0, local - 3);
+      }
+    }
+
+    return { effectiveLocalScore: local, effectiveIntlScore: intl };
+  }, [localHealthScore, internationalData, scannedIngredients]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -105,54 +132,54 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
         <h3 className="text-2xl font-extrabold text-gray-900">{t('intl_variant_comp')}</h3>
         <p className="text-sm text-gray-600 mt-2 font-medium">{t('intl_variant_comp_desc')}</p>
         
-        {localHealthScore != null && internationalData?.healthScore != null && (
-          <div className="mt-4 p-3 rounded-xl bg-white/90 border border-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs font-semibold text-gray-700 shadow-sm">
-            <span className="flex items-center gap-1.5">
+        {effectiveLocalScore != null && effectiveIntlScore != null && (
+          <div className="mt-4 p-3.5 rounded-xl bg-white/95 border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs font-semibold text-gray-700 shadow-sm">
+            <div className="flex items-center gap-2 shrink-0">
               <span className="text-base">⚖️</span>
-              <span>Comparative Formulation Impact:</span>
-            </span>
-            <span>
+              <span className="font-bold text-gray-800">Comparative Formulation Impact:</span>
+            </div>
+            <div className="flex items-center md:justify-end">
               {(() => {
-                const diff = internationalData.healthScore - localHealthScore;
-                const isBothRedOrPurple = localHealthScore < 55 && internationalData.healthScore < 55;
-                const isBothYellow = localHealthScore >= 55 && localHealthScore < 80 && internationalData.healthScore >= 55 && internationalData.healthScore < 80;
-                const isBothGreen = localHealthScore >= 80 && internationalData.healthScore >= 80;
-                const isPurple = localHealthScore < 30 || internationalData.healthScore < 30;
+                const diff = effectiveIntlScore - effectiveLocalScore;
+                const isBothRedOrPurple = effectiveLocalScore < 55 && effectiveIntlScore < 55;
+                const isBothYellow = effectiveLocalScore >= 55 && effectiveLocalScore < 80 && effectiveIntlScore >= 55 && effectiveIntlScore < 80;
+                const isBothGreen = effectiveLocalScore >= 80 && effectiveIntlScore >= 80;
+                const isPurple = effectiveLocalScore < 30 || effectiveIntlScore < 30;
 
                 // When both products fall into the same risk tier and are within statistical tolerance (<= 8 pts)
                 if (Math.abs(diff) <= 8 && (isBothRedOrPurple || isBothYellow || isBothGreen)) {
                   return (
-                    <span className="text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-3 py-1 rounded-md border border-amber-200 leading-snug text-center">
                       {isPurple
-                        ? `Comparable high-risk formulation: Both versions contain high stimulants/risk factors (${localHealthScore} vs ${internationalData.healthScore})`
+                        ? `Both versions contain high stimulants/risk factors (${effectiveLocalScore} vs ${effectiveIntlScore})`
                         : isBothRedOrPurple 
-                        ? `Comparable high-risk formulation: Both versions are ultra-processed (RED: ${localHealthScore} vs ${internationalData.healthScore})`
-                        : `Comparable formulation: Both versions share similar nutritional profile (${localHealthScore} vs ${internationalData.healthScore})`}
+                        ? `Both versions are ultra-processed (RED: ${effectiveLocalScore} vs ${effectiveIntlScore})`
+                        : `Both versions share similar nutritional profile (${effectiveLocalScore} vs ${effectiveIntlScore})`}
                     </span>
                   );
                 }
 
                 if (diff > 0) {
                   return (
-                    <span className="text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
-                      Global version scores +{diff} pts higher ({internationalData.healthScore} vs {localHealthScore})
+                    <span className="inline-flex items-center text-emerald-700 font-extrabold bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200 leading-snug">
+                      Global version scores +{diff} pts higher ({effectiveIntlScore} vs {effectiveLocalScore})
                     </span>
                   );
                 } else if (diff < 0) {
                   return (
-                    <span className="text-blue-700 font-extrabold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
-                      Local version scores +{Math.abs(diff)} pts higher ({localHealthScore} vs {internationalData.healthScore})
+                    <span className="inline-flex items-center text-blue-700 font-extrabold bg-blue-50 px-3 py-1 rounded-md border border-blue-200 leading-snug">
+                      Local version scores +{Math.abs(diff)} pts higher ({effectiveLocalScore} vs {effectiveIntlScore})
                     </span>
                   );
                 } else {
                   return (
-                    <span className="text-gray-700 font-extrabold bg-gray-50 px-2.5 py-1 rounded-md border border-gray-200">
-                      Identical nutritional formulation score ({localHealthScore}/100)
+                    <span className="inline-flex items-center text-gray-700 font-extrabold bg-gray-50 px-3 py-1 rounded-md border border-gray-200 leading-snug">
+                      Identical nutritional formulation score ({effectiveLocalScore}/100)
                     </span>
                   );
                 }
               })()}
-            </span>
+            </div>
           </div>
         )}
       </div>
@@ -174,14 +201,14 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                   <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">1</span>
                   {t('your_scanned_product')} {productName && `(${productName})`}
                 </h4>
-                {localHealthScore != null && (
+                {effectiveLocalScore != null && (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight border shrink-0 ${
-                    localHealthScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                    localHealthScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                    localHealthScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                    effectiveLocalScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                    effectiveLocalScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                    effectiveLocalScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
                     'bg-purple-100 text-purple-900 border-purple-300'
                   }`}>
-                    {localHealthScore}/100
+                    {effectiveLocalScore}/100
                   </span>
                 )}
               </div>
@@ -263,14 +290,14 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                   <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
                   {t('global_version')} {internationalData && `(${internationalData.productName || internationalData.globalEquivalent || globalEquivalent || productName})`}
                 </h4>
-                {internationalData?.healthScore != null && (
+                {effectiveIntlScore != null && (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight border shrink-0 ${
-                    internationalData.healthScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                    internationalData.healthScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                    internationalData.healthScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                    effectiveIntlScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                    effectiveIntlScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                    effectiveIntlScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
                     'bg-purple-100 text-purple-900 border-purple-300'
                   }`}>
-                    {internationalData.healthScore}/100
+                    {effectiveIntlScore}/100
                   </span>
                 )}
               </div>
