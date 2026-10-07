@@ -4,9 +4,22 @@ import { useLanguage } from '../context/LanguageContext';
 import { Link } from 'react-router-dom';
 import api from '../api';
 
+// Helper to match terms with word/delimiter boundaries to prevent false positive substring collisions
+// (e.g. Prevents "Pav Bhaji" or "Bhavnagari" from matching synthetic preservative acronym "bha")
+export const matchesTerm = (text, term) => {
+  if (!text || !term) return false;
+  const escaped = String(term).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^a-zA-Z0-9])${escaped}([^a-zA-Z0-9]|$)`, 'i').test(text);
+};
+
+export const hasAnyTerm = (list, terms) => {
+  if (!Array.isArray(list) || !Array.isArray(terms)) return false;
+  return list.some(text => terms.some(t => matchesTerm(text, t)));
+};
+
 const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, localHealthScore }) => {
   const { token } = useContext(AuthContext);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [internationalData, setInternationalData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -89,22 +102,23 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
   // Compute nutritionally consistent scores across all major formulation differences
   const { effectiveLocalScore, effectiveIntlScore, disparities } = useMemo(() => {
     if (localHealthScore == null) return { effectiveLocalScore: null, effectiveIntlScore: internationalData?.healthScore ?? null, disparities: [] };
-    let local = localHealthScore;
-    let intl = internationalData?.healthScore ?? null;
+    let local = Number(localHealthScore);
+    let intl = internationalData?.healthScore != null ? Number(internationalData.healthScore) : null;
     const detectedDisparities = [];
 
     if (intl != null) {
       const localNames = (Array.isArray(scannedIngredients) ? scannedIngredients : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
-      const intlNames = (Array.isArray(internationalData.ingredientsFound) ? internationalData.ingredientsFound : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
-
-      const hasAny = (list, terms) => list.some(text => terms.some(t => text.includes(t)));
+      const intlNames = [
+        ...(Array.isArray(internationalData.ingredientsFound) ? internationalData.ingredientsFound : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase()),
+        ...(internationalData.ingredientsText ? [String(internationalData.ingredientsText).toLowerCase()] : [])
+      ];
 
       let localPenalty = 0;
       let intlPenalty = 0;
 
       FORMULATION_FACTORS.forEach(factor => {
-        const localHas = hasAny(localNames, factor.terms);
-        const intlHas = hasAny(intlNames, factor.terms);
+        const localHas = hasAnyTerm(localNames, factor.terms);
+        const intlHas = hasAnyTerm(intlNames, factor.terms);
 
         if (localHas && !intlHas) {
           localPenalty += factor.severity;
@@ -171,7 +185,8 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
             productName: primaryTarget, 
             countryCode: 'world', 
             saveHistory: 'false', 
-            useFastModel: 'true' 
+            useFastModel: 'true',
+            language: language || 'English'
           });
           if (!isMountedRef.current) return;
           setInternationalData(response.data);
@@ -184,7 +199,8 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                 productName: productName.trim(), 
                 countryCode: 'world', 
                 saveHistory: 'false', 
-                useFastModel: 'true' 
+                useFastModel: 'true',
+                language: language || 'English'
               });
               if (!isMountedRef.current) return;
               setInternationalData(response2.data);
@@ -203,7 +219,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
       };
       fetchComparison();
     }
-  }, [token, productName, globalEquivalent]);
+  }, [token, productName, globalEquivalent, language]);
 
   // Unauthenticated view - Blurred background with lock overlay
   if (!token) {
@@ -514,27 +530,29 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
               {/* Variant Disparity Inspector Warning */}
               {(() => {
                 const localNames = (Array.isArray(scannedIngredients) ? scannedIngredients : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
-                const intlNames = (Array.isArray(internationalData.ingredientsFound) ? internationalData.ingredientsFound : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
-                const hasTerm = (list, terms) => list.some(text => terms.some(t => text.includes(t)));
+                const intlNames = [
+                  ...(Array.isArray(internationalData.ingredientsFound) ? internationalData.ingredientsFound : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase()),
+                  ...(internationalData.ingredientsText ? [String(internationalData.ingredientsText).toLowerCase()] : [])
+                ];
 
                 const sugarTerms = ['sugar', 'sucrose', 'glucose', 'fructose', 'cane sugar', 'corn syrup', 'dextrose', 'invert sugar', 'sucre'];
                 const nssTerms = ['aspartame', 'sucralose', 'acesulfame', 'ace-k', 'stevia', 'saccharin', 'erythritol', 'cyclamate', 'monk fruit'];
 
-                const localHasSugar = hasTerm(localNames, sugarTerms);
-                const localHasNSS = hasTerm(localNames, nssTerms);
-                const intlHasSugar = hasTerm(intlNames, sugarTerms);
-                const intlHasNSS = hasTerm(intlNames, nssTerms);
+                const localHasSugar = hasAnyTerm(localNames, sugarTerms);
+                const localHasNSS = hasAnyTerm(localNames, nssTerms);
+                const intlHasSugar = hasAnyTerm(intlNames, sugarTerms);
+                const intlHasNSS = hasAnyTerm(intlNames, nssTerms);
 
                 const isSugarVsDiet = (localHasSugar && !localHasNSS && intlHasNSS && !intlHasSugar) || (!localHasSugar && localHasNSS && !intlHasNSS && intlHasSugar);
 
                 const bakedTerms = ['baked', 'air popped', 'air-popped', 'oven baked'];
-                const localBaked = hasTerm(localNames, bakedTerms) || (productName && bakedTerms.some(t => productName.toLowerCase().includes(t)));
-                const intlBaked = hasTerm(intlNames, bakedTerms) || (internationalData.productName && bakedTerms.some(t => internationalData.productName.toLowerCase().includes(t)));
+                const localBaked = hasAnyTerm(localNames, bakedTerms) || (productName && bakedTerms.some(t => matchesTerm(productName, t)));
+                const intlBaked = hasAnyTerm(intlNames, bakedTerms) || (internationalData.productName && bakedTerms.some(t => matchesTerm(internationalData.productName, t)));
                 const isBakedMismatch = localBaked !== intlBaked;
 
                 const decafTerms = ['decaf', 'decaffeinated', 'caffeine-free', 'caffeine free', 'sans cafeine'];
-                const localDecaf = hasTerm(localNames, decafTerms) || (productName && decafTerms.some(t => productName.toLowerCase().includes(t)));
-                const intlDecaf = hasTerm(intlNames, decafTerms) || (internationalData.productName && decafTerms.some(t => internationalData.productName.toLowerCase().includes(t)));
+                const localDecaf = hasAnyTerm(localNames, decafTerms) || (productName && decafTerms.some(t => matchesTerm(productName, t)));
+                const intlDecaf = hasAnyTerm(intlNames, decafTerms) || (internationalData.productName && decafTerms.some(t => matchesTerm(internationalData.productName, t)));
                 const isDecafMismatch = localDecaf !== intlDecaf;
 
                 if (isSugarVsDiet || isBakedMismatch || isDecafMismatch) {

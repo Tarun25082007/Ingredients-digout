@@ -188,6 +188,7 @@ const HistoryDashboard = () => {
           <div className="relative w-full max-w-3xl my-8">
             <button
               onClick={() => setSelectedScan(null)}
+              aria-label="Close details"
               className="absolute -top-4 -right-4 bg-custom-900 text-custom-300 hover:text-white rounded-full w-10 h-10 shadow-lg flex items-center justify-center font-bold text-xl z-50 border border-custom-700 hover:border-custom-300 transition"
             >
               ×

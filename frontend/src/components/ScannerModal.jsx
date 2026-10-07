@@ -347,6 +347,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
         {/* Close Button */}
         <button 
           onClick={() => { stopCamera(); onClose(); }}
+          aria-label="Close"
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition z-10"
         >
           ✕

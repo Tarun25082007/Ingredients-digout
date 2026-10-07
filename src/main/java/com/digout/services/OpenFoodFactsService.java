@@ -19,8 +19,14 @@ public class OpenFoodFactsService {
     private static final Logger log = LoggerFactory.getLogger(OpenFoodFactsService.class);
 
     private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
-    private final java.util.Map<String, OpenFoodFactsDTO> cache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int MAX_CACHE_SIZE = 500;
+    private final java.util.Map<String, OpenFoodFactsDTO> cache =
+            java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(128, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<String, OpenFoodFactsDTO> eldest) {
+                    return size() > MAX_CACHE_SIZE;
+                }
+            });
     private static final OpenFoodFactsDTO NOT_FOUND_SENTINEL = new OpenFoodFactsDTO("__NOT_FOUND__", "", "", "", java.util.Collections.emptyList());
 
     private static final String SEARCH_NET_URL_TEMPLATE = "https://%s.openfoodfacts.net/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
