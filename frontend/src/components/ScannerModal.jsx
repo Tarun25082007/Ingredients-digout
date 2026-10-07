@@ -421,25 +421,23 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                   </button>
                 )}
 
-                <div className="flex-1 relative group cursor-pointer active:scale-95 transition-all">
+                <label className="flex-1 group flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-300 active:scale-95 cursor-pointer">
                   <input 
                     type="file" 
                     accept="image/*"
                     onChange={handleFileUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    className="hidden"
                   />
-                  <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-gray-200 rounded-2xl group-hover:border-emerald-500 group-hover:bg-emerald-50 transition-all duration-300">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
-                      <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </div>
-                    <span className="font-bold text-gray-800 text-sm sm:text-base">
-                      {foodCategory === 'fresh' ? t('upload_food_photo') : t('upload_image')}
-                    </span>
-                    <span className="text-[11px] sm:text-xs text-gray-400 mt-0.5">
-                      {foodCategory === 'fresh' ? t('dish_photo') : t('ingredients_list')}
-                    </span>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-2 sm:mb-3 group-hover:scale-110 transition-transform">
+                    <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                </div>
+                  <span className="font-bold text-gray-800 text-sm sm:text-base">
+                    {foodCategory === 'fresh' ? t('upload_food_photo') : t('upload_image')}
+                  </span>
+                  <span className="text-[11px] sm:text-xs text-gray-400 mt-0.5">
+                    {foodCategory === 'fresh' ? t('dish_photo') : t('ingredients_list')}
+                  </span>
+                </label>
 
                 {hasCamera && (
                   <button 
