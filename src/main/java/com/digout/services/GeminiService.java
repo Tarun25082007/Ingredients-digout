@@ -79,7 +79,10 @@ public class GeminiService {
 
                 String currentPrompt = PROMPT;
                 if ("fresh".equals(foodCategory)) {
-                    currentPrompt += " Note: This is a fresh or prepared food item (like a local dish, fruit, etc). State its place of origin in the explanation if applicable.";
+                    currentPrompt = currentPrompt.replace(
+                        "IF NO INGREDIENTS ARE LEGIBLE (e.g., this is just a photo of the front of the packaging): DO NOT evaluate anything. Instead, identify the product brand and name, and output a JSON with NO ingredients, exactly matching: { \"isFood\": true, \"productName\": \"Identified Brand and Flavor Name\", \"ingredientsFound\": [], \"overallIndicator\": \"BLACK\", \"recommendedServingAdvice\": \"Needs Database Lookup\", \"healthScore\": null }.",
+                        "CRITICAL OVERRIDE FOR FRESH FOOD: Since this is a photo of fresh food or a dish, there are no ingredient labels. You MUST visually identify the food/dish (e.g., 'Upma', 'Apple', 'Grilled Salmon') and ESTIMATE its standard ingredients based on your culinary knowledge base. Output the full evaluation and health score using these estimated ingredients. State its place of origin in the explanation if applicable."
+                    );
                 }
                 if (userProfileSummary != null && !userProfileSummary.isBlank()) {
                     currentPrompt += " <userProfile>" + userProfileSummary + "</userProfile>. Tailor the evaluation, flags, PURPLE status, and recommended serving to this profile.";
