@@ -119,39 +119,36 @@ public class ScanController {
         
         byte[] bytes = file.getBytes();
         String base64Image = Base64.getEncoder().encodeToString(bytes);
+        String imageHash = "img_" + org.springframework.util.DigestUtils.md5DigestAsHex(bytes);
         
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userProfileSummary = buildUserProfileSummary(auth);
 
-        // Fast path: Ask Groq Vision what the product is
-        return groqService.identifyProductFromImage(base64Image, mimeType)
-                .thenCompose(identifiedName -> {
-                    String cleanName = identifiedName != null ? identifiedName.trim() : "";
-                    if ("NOT_FOOD".equalsIgnoreCase(cleanName) || "Not Food".equalsIgnoreCase(cleanName) || "NOT FOOD".equalsIgnoreCase(cleanName)) {
-                        WhoAssessmentDTO notFood = createNotFoodAssessment();
-                        saveScanHistory(auth, notFood);
-                        return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
-                    }
+        // 1. Instant Cache Check: Has this exact image already been scanned?
+        java.util.Optional<CachedAnalysis> imgCached = cachedAnalysisRepository.findByProductNameAndCountryCode(imageHash, finalCountryCode.toLowerCase());
+        if (imgCached.isPresent()) {
+            log.info("Instant Image Hash Cache Hit for: {}", imageHash);
+            try {
+                WhoAssessmentDTO cached = objectMapper.readValue(imgCached.get().getAnalysisResultJson(), WhoAssessmentDTO.class);
+                if (userProfileSummary != null) {
+                    return groqService.personalizeAssessment(cached, userProfileSummary, finalLanguage).thenApply(personalized -> {
+                        saveScanHistory(auth, personalized);
+                        return ResponseEntity.ok((Object) personalized);
+                    });
+                } else {
+                    saveScanHistory(auth, cached);
+                    return CompletableFuture.completedFuture(ResponseEntity.ok((Object) cached));
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to parse cached image analysis: {}", ex.getMessage());
+            }
+        }
 
-                    if (!cleanName.isEmpty() && !cleanName.equalsIgnoreCase("Unknown Product") && !cleanName.equalsIgnoreCase("BACK_OF_PACK")) {
-                        // We found a product name! Try fetching from Database (without AI name guessing)
-                        return processAnalyzeNameLogic(cleanName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false, false)
-                                .thenCompose(dbResponse -> {
-                                    if (dbResponse != null) {
-                                        return CompletableFuture.completedFuture(dbResponse);
-                                    }
-                                    // Database response was poor/bad/not found!
-                                    // Fallback to analyzing the full image to read ingredients.
-                                    return runFullImageAnalysis(base64Image, mimeType, finalFoodCategory, finalLanguage, finalCountryCode, userProfileSummary, auth);
-                                });
-                    } else {
-                        // It's the back of the pack, or name recognition failed. Fallback to full deep OCR/extraction.
-                        return runFullImageAnalysis(base64Image, mimeType, finalFoodCategory, finalLanguage, finalCountryCode, userProfileSummary, auth);
-                    }
-                });
+        // Direct path: High-speed multimodal analysis via Gemini (bypasses decommissioned Groq Vision)
+        return runFullImageAnalysis(base64Image, mimeType, finalFoodCategory, finalLanguage, finalCountryCode, userProfileSummary, auth, imageHash);
     }
 
-    private CompletableFuture<ResponseEntity<Object>> runFullImageAnalysis(String base64Image, String mimeType, String finalFoodCategory, String finalLanguage, String finalCountryCode, String userProfileSummary, Authentication auth) {
+    private CompletableFuture<ResponseEntity<Object>> runFullImageAnalysis(String base64Image, String mimeType, String finalFoodCategory, String finalLanguage, String finalCountryCode, String userProfileSummary, Authentication auth, String imageHash) {
         return geminiService.analyzeIngredients(base64Image, mimeType, finalFoodCategory, null, finalLanguage)
                 .thenCompose(assessment -> {
                     if (assessment.ingredientsFound() == null || assessment.ingredientsFound().isEmpty()) {
@@ -165,24 +162,50 @@ public class ScanController {
                             return CompletableFuture.completedFuture(ResponseEntity.ok((Object) notFood));
                         }
 
-                        // Last resort: If image has NO ingredients on it, guess based on name.
-                        return processAnalyzeNameLogic(fbName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false, true);
+                        // Last resort: If image has NO ingredients on it, guess based on name and cache result
+                        return processAnalyzeNameLogic(fbName, finalCountryCode, finalLanguage, finalFoodCategory, false, userProfileSummary, auth, true, true, false, true)
+                                .thenApply(resp -> {
+                                    if (resp != null && resp.getBody() instanceof WhoAssessmentDTO fbAssessment) {
+                                        try {
+                                            String json = objectMapper.writeValueAsString(fbAssessment);
+                                            CachedAnalysis imgCache = new CachedAnalysis();
+                                            imgCache.setProductName(imageHash);
+                                            imgCache.setCountryCode(finalCountryCode);
+                                            imgCache.setAnalysisResultJson(json);
+                                            cachedAnalysisRepository.save(imgCache);
+                                        } catch (Exception e) {
+                                            log.warn("Failed to cache fallback image assessment: {}", e.getMessage());
+                                        }
+                                    }
+                                    return resp;
+                                });
                     }
                     
-                    // Valid ingredients found from image! Cache generic result by product name
-                    if (assessment.productName() != null && !assessment.productName().isBlank() && !"Unknown Product".equalsIgnoreCase(assessment.productName())) {
-                        try {
-                            String json = objectMapper.writeValueAsString(assessment);
-                            CachedAnalysis cacheEntry = cachedAnalysisRepository
+                    // Valid ingredients found from image! Cache generic result by both image hash and product name
+                    try {
+                        String json = objectMapper.writeValueAsString(assessment);
+                        
+                        // 1. Cache by image hash for instant re-scans
+                        CachedAnalysis imgCacheEntry = cachedAnalysisRepository
+                                .findByProductNameAndCountryCode(imageHash, finalCountryCode.toLowerCase())
+                                .orElseGet(CachedAnalysis::new);
+                        imgCacheEntry.setProductName(imageHash);
+                        imgCacheEntry.setCountryCode(finalCountryCode);
+                        imgCacheEntry.setAnalysisResultJson(json);
+                        cachedAnalysisRepository.save(imgCacheEntry);
+
+                        // 2. Cache by product name for search-by-name hits
+                        if (assessment.productName() != null && !assessment.productName().isBlank() && !"Unknown Product".equalsIgnoreCase(assessment.productName())) {
+                            CachedAnalysis nameCacheEntry = cachedAnalysisRepository
                                     .findByProductNameAndCountryCode(assessment.productName().trim().toLowerCase(), finalCountryCode.toLowerCase())
                                     .orElseGet(CachedAnalysis::new);
-                            cacheEntry.setProductName(assessment.productName().trim());
-                            cacheEntry.setCountryCode(finalCountryCode);
-                            cacheEntry.setAnalysisResultJson(json);
-                            cachedAnalysisRepository.save(cacheEntry);
-                        } catch (Exception e) {
-                            log.warn("Failed to cache generic image analysis: {}", e.getMessage());
+                            nameCacheEntry.setProductName(assessment.productName().trim());
+                            nameCacheEntry.setCountryCode(finalCountryCode);
+                            nameCacheEntry.setAnalysisResultJson(json);
+                            cachedAnalysisRepository.save(nameCacheEntry);
                         }
+                    } catch (Exception e) {
+                        log.warn("Failed to cache generic image analysis: {}", e.getMessage());
                     }
 
                     if (userProfileSummary != null) {
@@ -433,6 +456,7 @@ public class ScanController {
                         return CompletableFuture.completedFuture(ResponseEntity.ok((Object) returned));
                     }
                 });
+        });
     }
 
     private WhoAssessmentDTO addImageFallbackAlert(WhoAssessmentDTO assessment) {
