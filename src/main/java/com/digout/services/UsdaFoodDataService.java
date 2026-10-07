@@ -23,7 +23,7 @@ public class UsdaFoodDataService {
     private static final String USDA_API_URL_TEMPLATE = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=%s&query=%s&dataType=Foundation,SR%%20Legacy,Survey%%20(FNDDS)&pageSize=1";
     private static final String USDA_BRANDED_API_URL_TEMPLATE = "https://api.nal.usda.gov/fdc/v1/foods/search?api_key=%s&query=%s&dataType=Branded,Foundation,SR%%20Legacy&pageSize=5";
 
-    public UsdaFoodDataService(RestTemplate restTemplate, ObjectMapper objectMapper, @Value("${usda.api.key}") String usdaApiKey) {
+    public UsdaFoodDataService(@org.springframework.beans.factory.annotation.Qualifier("fastRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper, @Value("${usda.api.key}") String usdaApiKey) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
         this.usdaApiKey = usdaApiKey;

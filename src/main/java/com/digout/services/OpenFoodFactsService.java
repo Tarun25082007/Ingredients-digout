@@ -20,19 +20,33 @@ public class OpenFoodFactsService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final java.util.Map<String, OpenFoodFactsDTO> cache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final OpenFoodFactsDTO NOT_FOUND_SENTINEL = new OpenFoodFactsDTO("__NOT_FOUND__", "", "", "", java.util.Collections.emptyList());
 
     private static final String SEARCH_NET_URL_TEMPLATE = "https://%s.openfoodfacts.net/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
     private static final String SEARCH_ORG_URL_TEMPLATE = "https://%s.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
     private static final String SEARCH_API_URL_TEMPLATE = SEARCH_NET_URL_TEMPLATE;
 
-    public OpenFoodFactsService(RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public OpenFoodFactsService(@org.springframework.beans.factory.annotation.Qualifier("fastRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
 
     public OpenFoodFactsDTO searchProductByName(String productName, String countryCode) {
+        if (productName == null || productName.trim().isEmpty()) {
+            throw new RuntimeException("Product name cannot be empty");
+        }
         String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
-        
+        String cacheKey = productName.trim().toLowerCase() + "::" + cc;
+
+        OpenFoodFactsDTO cached = cache.get(cacheKey);
+        if (cached != null) {
+            if ("__NOT_FOUND__".equals(cached.productName())) {
+                throw new RuntimeException("No products found matching name: " + productName);
+            }
+            return cached;
+        }
+
         try {
             OpenFoodFactsDTO result = doSearch(productName, cc);
             
@@ -41,6 +55,7 @@ public class OpenFoodFactsService {
                     String corrected = productName.toLowerCase().replace("orea", "oreo");
                     OpenFoodFactsDTO fallbackResult = doSearch(corrected, cc);
                     if (fallbackResult != null && fallbackResult.ingredientsText() != null && !fallbackResult.ingredientsText().isBlank()) {
+                        cache.put(cacheKey, fallbackResult);
                         return fallbackResult;
                     }
                 }
@@ -49,15 +64,18 @@ public class OpenFoodFactsService {
                 if (tokens.length > 1) {
                     OpenFoodFactsDTO firstTokenResult = doSearch(tokens[0], cc);
                     if (firstTokenResult != null && firstTokenResult.ingredientsText() != null && !firstTokenResult.ingredientsText().isBlank()) {
+                        cache.put(cacheKey, firstTokenResult);
                         return firstTokenResult;
                     }
                 }
             }
             
             if (result == null) {
+                cache.put(cacheKey, NOT_FOUND_SENTINEL);
                 throw new RuntimeException("No products found matching name: " + productName);
             }
             
+            cache.put(cacheKey, result);
             return result;
 
         } catch (HttpClientErrorException.NotFound e) {

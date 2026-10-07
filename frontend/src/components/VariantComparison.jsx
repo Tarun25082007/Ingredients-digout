@@ -17,7 +17,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
     {
       id: 'palm',
       title: 'Oil Quality: Palm Oil vs Unsaturated / Dairy Fat',
-      terms: ['palm oil', 'palm fat', 'palmolein', 'palm kernel oil', 'fractionated palm'],
+      terms: ['palm oil', 'palm fat', 'palmolein', 'palm kernel oil', 'fractionated palm', 'interesterified vegetable fat'],
       descriptionWithBad: 'lists Palm Oil (high in saturated fatty acids ~50%), whereas the other variant relies on unsaturated oils (sunflower/corn) or dairy fat.',
       severity: 3
     },
@@ -55,6 +55,27 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
       terms: ['potassium bromate', 'e924', 'azodicarbonamide', 'e927a', 'potassium iodate'],
       descriptionWithBad: 'contains chemical dough conditioners (Potassium Bromate or Azodicarbonamide) which are prohibited across Europe, Canada, and India due to safety concerns.',
       severity: 5
+    },
+    {
+      id: 'titanium_dioxide',
+      title: 'Coloring: Titanium Dioxide (E171 - Banned in EU)',
+      terms: ['titanium dioxide', 'e171', 'ins 171', 'ci 77891'],
+      descriptionWithBad: 'contains Titanium Dioxide (E171), which was banned by the European Food Safety Authority (EFSA) due to genotoxicity concerns.',
+      severity: 4
+    },
+    {
+      id: 'flavor_enhancers',
+      title: 'Flavor Enhancement: Concentrated MSG & Ribonucleotides',
+      terms: ['monosodium glutamate', 'msg', 'e621', 'ins 621', 'disodium inosinate', 'e631', 'ins 631', 'disodium guanylate', 'e627', 'ins 627'],
+      descriptionWithBad: 'uses concentrated flavor enhancers (MSG / Ribonucleotides) to artificially heighten savory cravings and hyper-palatability.',
+      severity: 3
+    },
+    {
+      id: 'bleached_flour',
+      title: 'Flour Treatment: Chemical Bleaching Agents',
+      terms: ['bleached flour', 'bleached wheat flour', 'benzoyl peroxide', 'chlorine gas', 'e928'],
+      descriptionWithBad: 'uses chemically bleached flour treated with bleaching agents prohibited in the EU, unlike unbleached natural flour.',
+      severity: 4
     }
   ], []);
 
@@ -97,11 +118,22 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
         }
       });
 
-      // Enforce Relative Score Integrity: The variant carrying higher synthetic/processing risk factors cannot score equal to or higher than the cleaner variant
-      if (localPenalty > intlPenalty && local >= intl) {
-        local = Math.max(0, intl - Math.max(3, localPenalty - intlPenalty));
-      } else if (intlPenalty > localPenalty && intl >= local) {
-        intl = Math.max(0, local - Math.max(3, intlPenalty - localPenalty));
+      // Enforce Relative Score Integrity:
+      // 1. If one side carries higher cumulative penalties, ensure it cannot outscore the cleaner formulation.
+      if (localPenalty > intlPenalty) {
+        if (local >= intl) {
+          local = Math.max(0, intl - Math.max(2, localPenalty - intlPenalty));
+        }
+      } else if (intlPenalty > localPenalty) {
+        if (intl >= local) {
+          intl = Math.max(0, local - Math.max(2, intlPenalty - localPenalty));
+        }
+      } else if (localPenalty > 0 && intlPenalty > 0) {
+        // 2. If BOTH products carry distinct formulation penalties (e.g., Local has Palm Oil, Global has HFCS/Dyes),
+        // both are equally compromised ultra-processed formulations — equalize them so neither falsely appears healthier.
+        const floor = Math.min(local, intl);
+        local = floor;
+        intl = floor;
       }
     }
 
@@ -202,12 +234,12 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
         <p className="text-sm text-gray-600 mt-2 font-medium">{t('intl_variant_comp_desc')}</p>
         
         {effectiveLocalScore != null && effectiveIntlScore != null && (
-          <div className="mt-4 p-3.5 rounded-xl bg-white/95 border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-2.5 text-xs font-semibold text-gray-700 shadow-sm">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-base">⚖️</span>
-              <span className="font-bold text-gray-800">Comparative Formulation Impact:</span>
+          <div className="mt-4 p-3 rounded-xl bg-white/95 border border-emerald-200/80 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 text-xs shadow-sm">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base shrink-0">⚖️</span>
+              <span className="font-bold text-gray-800 whitespace-nowrap">Formulation Impact:</span>
             </div>
-            <div className="flex items-center md:justify-end">
+            <div className="min-w-0 flex items-center justify-end">
               {(() => {
                 const diff = effectiveIntlScore - effectiveLocalScore;
                 const isBothRedOrPurple = effectiveLocalScore < 55 && effectiveIntlScore < 55;
@@ -215,35 +247,39 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                 const isBothGreen = effectiveLocalScore >= 80 && effectiveIntlScore >= 80;
                 const isPurple = effectiveLocalScore < 30 || effectiveIntlScore < 30;
 
+                if (effectiveLocalScore === effectiveIntlScore) {
+                  return (
+                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug text-center">
+                      {isBothRedOrPurple
+                        ? `Equalized Ultra-Processed Tier (${effectiveLocalScore}/100)`
+                        : `Identical Formulation Score (${effectiveLocalScore}/100)`}
+                    </span>
+                  );
+                }
+
                 // When both products fall into the same risk tier and are within statistical tolerance (<= 8 pts)
                 if (Math.abs(diff) <= 8 && (isBothRedOrPurple || isBothYellow || isBothGreen)) {
                   return (
-                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-3 py-1 rounded-md border border-amber-200 leading-snug text-center">
+                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug text-center">
                       {isPurple
-                        ? `Both versions contain high stimulants/risk factors (${effectiveLocalScore} vs ${effectiveIntlScore})`
+                        ? `High Risk Profile (${effectiveLocalScore} vs ${effectiveIntlScore})`
                         : isBothRedOrPurple 
-                        ? `Both versions are ultra-processed (RED: ${effectiveLocalScore} vs ${effectiveIntlScore})`
-                        : `Both versions share similar nutritional profile (${effectiveLocalScore} vs ${effectiveIntlScore})`}
+                        ? `Both Ultra-Processed (RED: ${effectiveLocalScore} vs ${effectiveIntlScore})`
+                        : `Similar Nutritional Profile (${effectiveLocalScore} vs ${effectiveIntlScore})`}
                     </span>
                   );
                 }
 
                 if (diff > 0) {
                   return (
-                    <span className="inline-flex items-center text-emerald-700 font-extrabold bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200 leading-snug">
-                      Global version scores +{diff} pts higher ({effectiveIntlScore} vs {effectiveLocalScore})
-                    </span>
-                  );
-                } else if (diff < 0) {
-                  return (
-                    <span className="inline-flex items-center text-blue-700 font-extrabold bg-blue-50 px-3 py-1 rounded-md border border-blue-200 leading-snug">
-                      Local version scores +{Math.abs(diff)} pts higher ({effectiveLocalScore} vs {effectiveIntlScore})
+                    <span className="inline-flex items-center text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 leading-snug">
+                      Global version +{diff} pts ({effectiveIntlScore} vs {effectiveLocalScore})
                     </span>
                   );
                 } else {
                   return (
-                    <span className="inline-flex items-center text-gray-700 font-extrabold bg-gray-50 px-3 py-1 rounded-md border border-gray-200 leading-snug">
-                      Identical nutritional formulation score ({effectiveLocalScore}/100)
+                    <span className="inline-flex items-center text-blue-700 font-extrabold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 leading-snug">
+                      Local version +{Math.abs(diff)} pts ({effectiveLocalScore} vs {effectiveIntlScore})
                     </span>
                   );
                 }
@@ -266,10 +302,19 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
             {/* Column 1: Scanned Ingredients */}
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4 gap-2">
-                <h4 className="font-bold text-gray-800 flex items-center text-lg">
-                  <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">1</span>
-                  {t('your_scanned_product')} {productName && `(${productName})`}
-                </h4>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="bg-primary-light text-white w-7 h-7 rounded-full flex items-center justify-center text-sm shadow-sm shrink-0">1</span>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-gray-800 text-base leading-tight">
+                      {t('your_scanned_product')}
+                    </h4>
+                    {productName && (
+                      <p className="text-xs text-gray-500 font-medium truncate max-w-[180px] sm:max-w-[240px] md:max-w-[180px] lg:max-w-[260px]">
+                        {productName}
+                      </p>
+                    )}
+                  </div>
+                </div>
                 {effectiveLocalScore != null && (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight border shrink-0 ${
                     effectiveLocalScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
@@ -355,10 +400,19 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
             {/* Column 2: International Data */}
             <div className="flex-1">
               <div className="flex items-center justify-between mb-4 gap-2">
-                <h4 className="font-bold text-gray-800 flex items-center text-lg">
-                  <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">2</span>
-                  {t('global_version')} {internationalData && `(${internationalData.productName || internationalData.globalEquivalent || globalEquivalent || productName})`}
-                </h4>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="bg-blue-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm shadow-sm shrink-0">2</span>
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-gray-800 text-base leading-tight">
+                      {t('global_version')}
+                    </h4>
+                    {internationalData && (
+                      <p className="text-xs text-gray-500 font-medium truncate max-w-[180px] sm:max-w-[240px] md:max-w-[180px] lg:max-w-[260px]">
+                        {internationalData.productName || internationalData.globalEquivalent || globalEquivalent || productName}
+                      </p>
+                    )}
+                  </div>
+                </div>
                 {effectiveIntlScore != null && (
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-black tracking-tight border shrink-0 ${
                     effectiveIntlScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
