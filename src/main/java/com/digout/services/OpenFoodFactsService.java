@@ -19,6 +19,7 @@ public class OpenFoodFactsService {
     private static final Logger log = LoggerFactory.getLogger(OpenFoodFactsService.class);
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
     private static final int MAX_CACHE_SIZE = 500;
     private final java.util.Map<String, OpenFoodFactsDTO> cache =
             java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(128, 0.75f, true) {
