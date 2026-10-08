@@ -281,8 +281,8 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                   );
                 }
 
-                // When both products fall into the same risk tier and are within statistical tolerance (<= 8 pts)
-                if (Math.abs(diff) <= 8 && (isBothRedOrPurple || isBothYellow || isBothGreen)) {
+                // When both products fall into the same risk tier and are within statistical tolerance (<= 8 pts) with NO specific formulation disparities:
+                if (disparities.length === 0 && Math.abs(diff) <= 8 && (isBothRedOrPurple || isBothYellow || isBothGreen)) {
                   return (
                     <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug text-center">
                       {isPurple

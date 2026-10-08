@@ -98,10 +98,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private Bucket createNewBucket(String key) {
-        // 60 requests per minute to accommodate autocomplete typing
+        // 60 requests per minute with smooth continuous refill (1 token/sec) to accommodate autocomplete typing
         Bandwidth limit = Bandwidth.builder()
                 .capacity(60)
-                .refillIntervally(60, Duration.ofMinutes(1))
+                .refillGreedy(60, Duration.ofMinutes(1))
                 .build();
         return Bucket.builder().addLimit(limit).build();
     }

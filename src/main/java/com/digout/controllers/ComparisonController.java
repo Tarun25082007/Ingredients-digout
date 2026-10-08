@@ -27,7 +27,11 @@ public class ComparisonController {
 
         String sanitizedName = name.trim();
         if (sanitizedName.length() > 255) {
-            sanitizedName = sanitizedName.substring(0, 255);
+            if (Character.isHighSurrogate(sanitizedName.charAt(254))) {
+                sanitizedName = sanitizedName.substring(0, 254);
+            } else {
+                sanitizedName = sanitizedName.substring(0, 255);
+            }
         }
 
         String sanitizedCountry = (countryCode != null && !countryCode.trim().isEmpty()) 

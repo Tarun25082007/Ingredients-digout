@@ -588,7 +588,7 @@ public class ScanController {
     public ResponseEntity<?> getScanHistory() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || auth.getPrincipal().equals("anonymousUser")) {
-            return ResponseEntity.status(401).body("Unauthorized");
+            return ResponseEntity.status(401).body(java.util.Map.of("message", "Unauthorized"));
         }
 
         String email = auth.getName();
@@ -599,7 +599,7 @@ public class ScanController {
             return ResponseEntity.ok(history);
         }
         
-        return ResponseEntity.status(404).body("User not found");
+        return ResponseEntity.status(404).body(java.util.Map.of("message", "User not found"));
     }
 
     @GetMapping("/autocomplete")
