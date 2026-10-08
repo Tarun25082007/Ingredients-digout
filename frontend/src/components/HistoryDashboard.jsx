@@ -141,7 +141,7 @@ const HistoryDashboard = () => {
                           score >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                           score >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
                           score >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                          'bg-purple-100 text-purple-900 border-purple-300'
+                          'bg-purple-50 text-purple-700 border border-purple-200'
                         }`}>
                           {score}/100
                         </span>

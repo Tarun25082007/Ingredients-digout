@@ -117,7 +117,7 @@ const HealthStatusCard = ({ assessment }) => {
   let statusText = t('status_unknown');
 
   if (overallIndicator === 'PURPLE') {
-    bannerClass = "bg-purple-950 text-purple-100 border-purple-600";
+    bannerClass = "bg-purple-100 text-purple-900 border-purple-300";
     statusText = t('status_purple');
   } else if (overallIndicator === 'RED') {
     bannerClass = "bg-red-100 text-red-800 border-red-300";
@@ -134,7 +134,7 @@ const HealthStatusCard = ({ assessment }) => {
     if (!statusStr) return 'bg-gray-200 text-gray-800';
     const s = String(statusStr).toUpperCase();
     if (s === 'PURPLE' || s.includes('PURPLE') || s.includes('CONTRAINDICATED') || s.includes('STRICTLY')) {
-      return 'bg-purple-900 text-white border border-purple-400 font-extrabold shadow-sm';
+      return 'bg-purple-100 text-purple-800 border border-purple-300 font-bold';
     }
     if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) {
       return 'bg-gray-900 text-white';
@@ -236,7 +236,7 @@ const HealthStatusCard = ({ assessment }) => {
                   healthScore >= 80 ? 'text-emerald-600' :
                   healthScore >= 55 ? 'text-amber-600' :
                   healthScore >= 30 ? 'text-orange-600' :
-                  'text-purple-800'
+                  'text-purple-700'
                 }`}>
                   {healthScore}
                 </span>
@@ -250,7 +250,7 @@ const HealthStatusCard = ({ assessment }) => {
                   healthScore >= 80 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
                   healthScore >= 55 ? 'bg-amber-100 text-amber-800 border border-amber-200' :
                   healthScore >= 30 ? 'bg-orange-100 text-orange-800 border border-orange-200' :
-                  'bg-purple-100 text-purple-900 border border-purple-300 font-extrabold'
+                  'bg-purple-50 text-purple-700 border border-purple-200 font-bold'
                 }`}>
                   {healthScore >= 80 ? t('optimal') :
                    healthScore >= 55 ? t('moderate') :
@@ -267,10 +267,10 @@ const HealthStatusCard = ({ assessment }) => {
 
         {/* 1. Strict Hazard Warning Banner (for PURPLE) */}
         {isSevereHazard && (
-          <div className="p-4 bg-purple-950 text-white rounded-xl border-2 border-purple-500 shadow-md flex items-start space-x-3">
+          <div className="p-4 bg-purple-900/85 text-purple-50 rounded-xl border border-purple-400/80 shadow-sm flex items-start space-x-3">
             <span className="text-2xl mt-0.5">⛔</span>
             <div className="flex-1">
-              <h4 className="font-extrabold text-xs uppercase tracking-wider text-purple-300">
+              <h4 className="font-extrabold text-xs uppercase tracking-wider text-purple-200">
                 {t('strict_warning_title')}
               </h4>
               <p className="text-xs text-purple-100 mt-1 font-medium leading-relaxed">

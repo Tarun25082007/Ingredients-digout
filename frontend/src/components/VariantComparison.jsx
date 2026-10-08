@@ -101,7 +101,7 @@ export const getIngredientStatusColor = (statusStr) => {
   if (!statusStr) return 'bg-gray-100 text-gray-700 border border-gray-200';
   const s = String(statusStr).toUpperCase();
   if (s === 'PURPLE' || s.includes('PURPLE') || s.includes('STRICTLY') || s.includes('CONTRAINDICATED')) {
-    return 'bg-purple-900 text-white border border-purple-950';
+    return 'bg-purple-100 text-purple-700 border border-purple-200 font-bold';
   }
   if (s === 'UNKNOWN' || s.includes('UNKNOWN') || s.includes('NOT FOUND')) {
     return 'bg-gray-900 text-white border border-black';
@@ -510,7 +510,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
               {/* Column 1: Scanned Ingredients */}
-              <div className="flex flex-col bg-white/90 border border-emerald-200/90 rounded-2xl p-4 sm:p-5 shadow-sm transition-all">
+              <div className="flex flex-col bg-white border border-gray-200/90 rounded-2xl p-4 sm:p-5 shadow-sm transition-all">
                 {/* Aligned Header */}
                 <div className="flex items-start justify-between gap-3 mb-4 min-h-[4.75rem]">
                   <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -538,21 +538,21 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                       effectiveLocalScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                       effectiveLocalScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
                       effectiveLocalScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                      'bg-purple-100 text-purple-900 border-purple-300'
+                      'bg-purple-50 text-purple-700 border border-purple-200 font-bold'
                     }`}>
                       {effectiveLocalScore}/100
                     </span>
                   )}
                 </div>
 
-                {/* Symmetrical Ingredients Box */}
-                <div className="flex-1 h-72 overflow-y-auto bg-emerald-50/20 p-4 rounded-xl border border-emerald-100/90 shadow-inner">
+                {/* Symmetrical Ingredients Box - Pure Clean White */}
+                <div className="flex-1 h-72 overflow-y-auto bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   {renderIngredientList(scannedIngredients, t('no_ingredients'), false)}
                 </div>
               </div>
 
               {/* Column 2: International Data */}
-              <div className="flex flex-col bg-white/90 border border-blue-200/90 rounded-2xl p-4 sm:p-5 shadow-sm transition-all">
+              <div className="flex flex-col bg-white border border-gray-200/90 rounded-2xl p-4 sm:p-5 shadow-sm transition-all">
                 {/* Aligned Header */}
                 <div className="flex items-start justify-between gap-3 mb-4 min-h-[4.75rem]">
                   <div className="flex items-start gap-2.5 min-w-0 flex-1">
@@ -586,15 +586,15 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                       effectiveIntlScore >= 80 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                       effectiveIntlScore >= 55 ? 'bg-amber-100 text-amber-800 border-amber-300' :
                       effectiveIntlScore >= 30 ? 'bg-orange-100 text-orange-800 border-orange-300' :
-                      'bg-purple-100 text-purple-900 border-purple-300'
+                      'bg-purple-50 text-purple-700 border border-purple-200 font-bold'
                     }`}>
                       {effectiveIntlScore}/100
                     </span>
                   )}
                 </div>
 
-                {/* Symmetrical Ingredients Box */}
-                <div className="flex-1 h-72 overflow-y-auto bg-blue-50/20 p-4 rounded-xl border border-blue-100/90 shadow-inner">
+                {/* Symmetrical Ingredients Box - Pure Clean White */}
+                <div className="flex-1 h-72 overflow-y-auto bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   {renderIngredientList(
                     internationalData?.ingredientsFound,
                     productName ? t('not_in_db') : t('scan_to_fetch'),
