@@ -87,8 +87,8 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   let computedBmi = null;
   let bmiCategory = '';
   let bmiColor = {
-    bg: 'bg-emerald-50/80',
-    border: 'border-emerald-200',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-300',
     text: 'text-emerald-900',
     strongText: 'text-emerald-700',
     badgeBg: 'bg-emerald-100',
@@ -103,19 +103,19 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
     if (bmiNum < 18.5) {
       bmiCategory = t('bmi_underweight');
       bmiColor = {
-        bg: 'bg-sky-50/80',
-        border: 'border-sky-200',
-        text: 'text-sky-900',
-        strongText: 'text-sky-700',
-        badgeBg: 'bg-sky-100',
-        badgeText: 'text-sky-800',
-        badgeBorder: 'border-sky-300'
+        bg: 'bg-purple-50',
+        border: 'border-purple-300',
+        text: 'text-purple-900',
+        strongText: 'text-purple-700',
+        badgeBg: 'bg-purple-100',
+        badgeText: 'text-purple-700',
+        badgeBorder: 'border-purple-200'
       };
     } else if (bmiNum < 25.0) {
       bmiCategory = t('bmi_healthy');
       bmiColor = {
-        bg: 'bg-emerald-50/80',
-        border: 'border-emerald-200',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-300',
         text: 'text-emerald-900',
         strongText: 'text-emerald-700',
         badgeBg: 'bg-emerald-100',
@@ -125,24 +125,35 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
     } else if (bmiNum < 30.0) {
       bmiCategory = t('bmi_overweight');
       bmiColor = {
-        bg: 'bg-amber-50/80',
-        border: 'border-amber-200',
-        text: 'text-amber-900',
-        strongText: 'text-amber-800',
-        badgeBg: 'bg-amber-100',
-        badgeText: 'text-amber-800',
-        badgeBorder: 'border-amber-300'
+        bg: 'bg-yellow-50',
+        border: 'border-yellow-300',
+        text: 'text-yellow-900',
+        strongText: 'text-yellow-800',
+        badgeBg: 'bg-yellow-100',
+        badgeText: 'text-yellow-800',
+        badgeBorder: 'border-yellow-300'
       };
-    } else {
+    } else if (bmiNum < 35.0) {
       bmiCategory = t('bmi_obese');
       bmiColor = {
-        bg: 'bg-rose-50/80',
-        border: 'border-rose-200',
-        text: 'text-rose-900',
-        strongText: 'text-rose-800',
-        badgeBg: 'bg-rose-100',
-        badgeText: 'text-rose-800',
-        badgeBorder: 'border-rose-300'
+        bg: 'bg-red-50',
+        border: 'border-red-300',
+        text: 'text-red-900',
+        strongText: 'text-red-800',
+        badgeBg: 'bg-red-100',
+        badgeText: 'text-red-800',
+        badgeBorder: 'border-red-300'
+      };
+    } else {
+      bmiCategory = t('bmi_severely_obese') || 'Severely Obese';
+      bmiColor = {
+        bg: 'bg-purple-50',
+        border: 'border-purple-300',
+        text: 'text-purple-900',
+        strongText: 'text-purple-700',
+        badgeBg: 'bg-purple-100',
+        badgeText: 'text-purple-700',
+        badgeBorder: 'border-purple-200'
       };
     }
   }
@@ -366,13 +377,136 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
 
             {/* Live BMI Display */}
             {computedBmi && (
-              <div className={`mt-3 p-2.5 ${bmiColor.bg} border ${bmiColor.border} rounded-lg flex items-center justify-between text-xs ${bmiColor.text} transition-colors duration-200 shadow-sm`}>
-                <span>{t('calculated_bmi')}: <strong className={`${bmiColor.strongText} text-sm font-extrabold`}>{computedBmi}</strong></span>
-                <span className={`px-2.5 py-0.5 ${bmiColor.badgeBg} ${bmiColor.badgeText} border ${bmiColor.badgeBorder} font-bold rounded-full`}>
+              <div className={`mt-3 p-3 ${bmiColor.bg} border ${bmiColor.border} rounded-xl flex items-center justify-between text-xs ${bmiColor.text} transition-colors duration-200 shadow-sm`}>
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-gray-700">{t('calculated_bmi')}:</span>
+                  <strong className={`${bmiColor.strongText} text-base font-black`}>{computedBmi}</strong>
+                </div>
+                <span className={`px-2.5 py-1 ${bmiColor.badgeBg} ${bmiColor.badgeText} border ${bmiColor.badgeBorder} font-bold rounded-full text-xs shadow-xs`}>
                   {bmiCategory}
                 </span>
               </div>
             )}
+
+            {/* Visual BMI Color Scale & Spectrum */}
+            <div className="mt-3 p-3 bg-gray-50/90 border border-gray-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+                <span className="flex items-center space-x-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{t('bmi_scale_title')}</span>
+                </span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">WHO Guidelines</span>
+              </div>
+
+              {/* Multi-segment Spectrum Bar */}
+              <div className="relative">
+                <div className="grid grid-cols-5 gap-1.5 h-2.5 rounded-full overflow-hidden bg-gray-200/80 p-0.5 shadow-inner">
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      computedBmi && parseFloat(computedBmi) < 18.5 
+                        ? 'bg-purple-600 ring-2 ring-purple-600 ring-offset-1 scale-y-125 shadow-sm' 
+                        : 'bg-purple-400 opacity-60'
+                    }`} 
+                    title="< 18.5: Underweight"
+                  />
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      computedBmi && parseFloat(computedBmi) >= 18.5 && parseFloat(computedBmi) < 25.0 
+                        ? 'bg-emerald-600 ring-2 ring-emerald-600 ring-offset-1 scale-y-125 shadow-sm' 
+                        : 'bg-emerald-400 opacity-60'
+                    }`} 
+                    title="18.5 - 24.9: Healthy Weight"
+                  />
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      computedBmi && parseFloat(computedBmi) >= 25.0 && parseFloat(computedBmi) < 30.0 
+                        ? 'bg-yellow-400 ring-2 ring-yellow-500 ring-offset-1 scale-y-125 shadow-sm' 
+                        : 'bg-yellow-300 opacity-60'
+                    }`} 
+                    title="25.0 - 29.9: Overweight"
+                  />
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      computedBmi && parseFloat(computedBmi) >= 30.0 && parseFloat(computedBmi) < 35.0 
+                        ? 'bg-red-600 ring-2 ring-red-600 ring-offset-1 scale-y-125 shadow-sm' 
+                        : 'bg-red-400 opacity-60'
+                    }`} 
+                    title="30.0 - 34.9: Obese"
+                  />
+                  <div 
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      computedBmi && parseFloat(computedBmi) >= 35.0 
+                        ? 'bg-purple-600 ring-2 ring-purple-600 ring-offset-1 scale-y-125 shadow-sm' 
+                        : 'bg-purple-400 opacity-60'
+                    }`} 
+                    title="≥ 35.0: Severely Obese"
+                  />
+                </div>
+              </div>
+
+              {/* Color Legend Chips */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 pt-1 text-[11px]">
+                <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border transition-all ${
+                  computedBmi && parseFloat(computedBmi) < 18.5 
+                    ? 'bg-purple-50 border-purple-300 text-purple-900 font-bold shadow-xs ring-1 ring-purple-300' 
+                    : 'bg-white/80 border-gray-200 text-gray-600'
+                }`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0"></span>
+                  <div className="truncate">
+                    <span className="block leading-tight font-medium">&lt; 18.5</span>
+                    <span className="text-[10px] text-gray-500 block leading-tight">{t('bmi_underweight')}</span>
+                  </div>
+                </div>
+
+                <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border transition-all ${
+                  computedBmi && parseFloat(computedBmi) >= 18.5 && parseFloat(computedBmi) < 25.0 
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold shadow-xs ring-1 ring-emerald-300' 
+                    : 'bg-white/80 border-gray-200 text-gray-600'
+                }`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+                  <div className="truncate">
+                    <span className="block leading-tight font-medium">18.5–24.9</span>
+                    <span className="text-[10px] text-gray-500 block leading-tight">{t('bmi_healthy')}</span>
+                  </div>
+                </div>
+
+                <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border transition-all ${
+                  computedBmi && parseFloat(computedBmi) >= 25.0 && parseFloat(computedBmi) < 30.0 
+                    ? 'bg-yellow-50 border-yellow-300 text-yellow-900 font-bold shadow-xs ring-1 ring-yellow-300' 
+                    : 'bg-white/80 border-gray-200 text-gray-600'
+                }`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shrink-0"></span>
+                  <div className="truncate">
+                    <span className="block leading-tight font-medium">25–29.9</span>
+                    <span className="text-[10px] text-gray-500 block leading-tight">{t('bmi_overweight')}</span>
+                  </div>
+                </div>
+
+                <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border transition-all ${
+                  computedBmi && parseFloat(computedBmi) >= 30.0 && parseFloat(computedBmi) < 35.0 
+                    ? 'bg-red-50 border-red-300 text-red-900 font-bold shadow-xs ring-1 ring-red-300' 
+                    : 'bg-white/80 border-gray-200 text-gray-600'
+                }`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0"></span>
+                  <div className="truncate">
+                    <span className="block leading-tight font-medium">30–34.9</span>
+                    <span className="text-[10px] text-gray-500 block leading-tight">{t('bmi_obese')}</span>
+                  </div>
+                </div>
+
+                <div className={`flex items-center space-x-1.5 px-2 py-1 rounded-lg border transition-all col-span-2 sm:col-span-1 ${
+                  computedBmi && parseFloat(computedBmi) >= 35.0 
+                    ? 'bg-purple-50 border-purple-300 text-purple-900 font-bold shadow-xs ring-1 ring-purple-300' 
+                    : 'bg-white/80 border-gray-200 text-gray-600'
+                }`}>
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-600 shrink-0"></span>
+                  <div className="truncate">
+                    <span className="block leading-tight font-medium">≥ 35.0</span>
+                    <span className="text-[10px] text-gray-500 block leading-tight">{t('bmi_severely_obese')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Section 2: Fitness & Calorie Goals */}
