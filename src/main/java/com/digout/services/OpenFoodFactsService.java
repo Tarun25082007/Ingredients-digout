@@ -30,9 +30,9 @@ public class OpenFoodFactsService {
             });
     private static final OpenFoodFactsDTO NOT_FOUND_SENTINEL = new OpenFoodFactsDTO("__NOT_FOUND__", "", "", "", java.util.Collections.emptyList());
 
-    private static final String SEARCH_NET_URL_TEMPLATE = "https://%s.openfoodfacts.net/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
     private static final String SEARCH_ORG_URL_TEMPLATE = "https://%s.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
-    private static final String SEARCH_API_URL_TEMPLATE = SEARCH_NET_URL_TEMPLATE;
+    private static final String SEARCH_NET_URL_TEMPLATE = "https://%s.openfoodfacts.net/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
+    private static final String SEARCH_API_URL_TEMPLATE = SEARCH_ORG_URL_TEMPLATE;
 
     public OpenFoodFactsService(@org.springframework.beans.factory.annotation.Qualifier("fastRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
@@ -71,8 +71,11 @@ public class OpenFoodFactsService {
                 if (tokens.length > 1) {
                     OpenFoodFactsDTO firstTokenResult = doSearch(tokens[0], cc);
                     if (firstTokenResult != null && firstTokenResult.ingredientsText() != null && !firstTokenResult.ingredientsText().isBlank()) {
-                        cache.put(cacheKey, firstTokenResult);
-                        return firstTokenResult;
+                        int relevance = computeRelevanceScore(firstTokenResult.productName(), productName);
+                        if (relevance >= 35) {
+                            cache.put(cacheKey, firstTokenResult);
+                            return firstTokenResult;
+                        }
                     }
                 }
             }
@@ -108,13 +111,13 @@ public class OpenFoodFactsService {
 
         ResponseEntity<String> response = null;
         try {
-            response = restTemplate.exchange(netUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+            response = restTemplate.exchange(orgUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
         } catch (Exception ex) {
-            log.warn("OpenFoodFacts .net endpoint failed for '{}', trying .org fallback: {}", productName, ex.getMessage());
+            log.warn("OpenFoodFacts .org endpoint failed for '{}', trying .net fallback: {}", productName, ex.getMessage());
             try {
-                response = restTemplate.exchange(orgUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
-            } catch (Exception exOrg) {
-                log.warn("OpenFoodFacts .org endpoint also failed: {}", exOrg.getMessage());
+                response = restTemplate.exchange(netUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+            } catch (Exception exNet) {
+                log.warn("OpenFoodFacts .net endpoint also failed: {}", exNet.getMessage());
                 return null;
             }
         }

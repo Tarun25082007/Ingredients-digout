@@ -17,7 +17,34 @@ export const hasAnyTerm = (list, terms) => {
   return list.some(text => terms.some(t => matchesTerm(text, t)));
 };
 
-const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, localHealthScore }) => {
+const extractAllTexts = (ingredients, flags) => {
+  const texts = [];
+  if (Array.isArray(ingredients)) {
+    ingredients.forEach(item => {
+      if (!item) return;
+      if (typeof item === 'string') {
+        texts.push(item.toLowerCase());
+      } else {
+        if (item.name) texts.push(String(item.name).toLowerCase());
+        if (item.explanation) texts.push(String(item.explanation).toLowerCase());
+      }
+    });
+  }
+  if (Array.isArray(flags)) {
+    flags.forEach(flag => {
+      if (!flag) return;
+      if (typeof flag === 'string') {
+        texts.push(flag.toLowerCase());
+      } else {
+        if (flag.name) texts.push(String(flag.name).toLowerCase());
+        if (flag.explanation) texts.push(String(flag.explanation).toLowerCase());
+      }
+    });
+  }
+  return texts;
+};
+
+const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, localHealthScore, localWhoFlags }) => {
   const { token } = useContext(AuthContext);
   const { t, language } = useLanguage();
   const [internationalData, setInternationalData] = useState(null);
@@ -30,35 +57,35 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
     {
       id: 'palm',
       title: 'Oil Quality: Palm Oil vs Unsaturated / Dairy Fat',
-      terms: ['palm oil', 'palm fat', 'palmolein', 'palm kernel oil', 'fractionated palm', 'interesterified vegetable fat'],
+      terms: ['palm', 'palm oil', 'palm fat', 'palmolein', 'palm kernel oil', 'fractionated palm', 'interesterified vegetable fat', 'palm olein', 'palm stearin', 'interesterified palm'],
       descriptionWithBad: 'lists Palm Oil (high in saturated fatty acids ~50%), whereas the other variant relies on unsaturated oils (sunflower/corn) or dairy fat.',
       severity: 3
     },
     {
       id: 'hfcs',
       title: 'Sweetener: High Fructose Corn Syrup vs Cane Sugar',
-      terms: ['high fructose corn syrup', 'hfcs', 'glucose-fructose syrup', 'isoglucose', 'corn syrup'],
+      terms: ['high fructose corn syrup', 'hfcs', 'glucose-fructose syrup', 'glucose fructose syrup', 'glucose-fructose', 'isoglucose', 'corn syrup'],
       descriptionWithBad: 'uses High Fructose Corn Syrup (HFCS), which causes higher hepatic fat deposition and glycemic spikes compared to natural cane sugar or sucrose.',
       severity: 3
     },
     {
       id: 'artificial_dyes',
       title: 'Coloring: Synthetic Petroleum Dyes vs Natural Extracts',
-      terms: ['red 40', 'allura red', 'yellow 5', 'tartrazine', 'yellow 6', 'sunset yellow', 'blue 1', 'brilliant blue', 'blue 2', 'red 3', 'e102', 'e110', 'e129', 'e133', 'ins 102', 'ins 110', 'ins 129', 'ins 133'],
+      terms: ['red 40', 'allura red', 'yellow 5', 'tartrazine', 'yellow 6', 'sunset yellow', 'blue 1', 'brilliant blue', 'blue 2', 'red 3', 'e102', 'e110', 'e129', 'e133', 'ins 102', 'ins 110', 'ins 129', 'ins 133', 'synthetic color', 'artificial color'],
       descriptionWithBad: 'uses petroleum-derived synthetic dyes (such as Red 40 or Tartrazine) which require mandatory hyperactivity warning labels in the European Union, while the other variant uses natural plant extracts (paprika, beet, or turmeric).',
       severity: 4
     },
     {
       id: 'synthetic_preservatives',
       title: 'Preservatives: Synthetic (TBHQ / BHA / BHT) vs Natural Antioxidants',
-      terms: ['tbhq', 'tertiary butylhydroquinone', 'e319', 'ins 319', 'bha', 'butylated hydroxyanisole', 'e320', 'ins 320', 'bht', 'butylated hydroxytoluene', 'e321', 'ins 321'],
+      terms: ['tbhq', 'tertiary butylhydroquinone', 'e319', 'ins 319', 'bha', 'butylated hydroxyanisole', 'e320', 'ins 320', 'bht', 'butylated hydroxytoluene', 'e321', 'ins 321', 'sodium benzoate', 'e211', 'ins 211', 'potassium sorbate', 'e202', 'ins 202'],
       descriptionWithBad: 'uses synthetic chemical antioxidants (TBHQ/BHA/BHT) to extend shelf life, whereas the other formulation relies on natural tocopherols (Vitamin E) or clean preservation.',
       severity: 3
     },
     {
       id: 'hydrogenated_fats',
       title: 'Lipid Hydrogenation: Trans Fats / Hydrogenated Oils',
-      terms: ['partially hydrogenated', 'hydrogenated vegetable oil', 'shortening', 'vanaspati', 'hydrogenated palm'],
+      terms: ['partially hydrogenated', 'hydrogenated vegetable oil', 'shortening', 'vanaspati', 'hydrogenated palm', 'hydrogenated fat', 'trans fat'],
       descriptionWithBad: 'contains partially hydrogenated fats or industrial shortening, which are primary sources of artificial trans fats that raise LDL and lower HDL cholesterol.',
       severity: 5
     },
@@ -93,7 +120,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
     {
       id: 'artificial_sweeteners',
       title: 'Sweeteners: High-Intensity Non-Sugar Sweeteners (NSS)',
-      terms: ['aspartame', 'sucralose', 'acesulfame', 'ace-k', 'saccharin', 'e950', 'e951', 'e954', 'e955', 'ins 950', 'ins 951', 'ins 954', 'ins 955'],
+      terms: ['aspartame', 'sucralose', 'acesulfame', 'ace-k', 'saccharin', 'e950', 'e951', 'e954', 'e955', 'ins 950', 'ins 951', 'ins 954', 'ins 955', 'neotame', 'e961'],
       descriptionWithBad: 'uses high-intensity non-nutritive synthetic sweeteners (Aspartame / Sucralose / Acesulfame-K) which per WHO guidelines should not be used as a means of achieving weight control.',
       severity: 3
     }
@@ -107,18 +134,18 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
     const detectedDisparities = [];
 
     if (intl != null) {
-      const localNames = (Array.isArray(scannedIngredients) ? scannedIngredients : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase());
-      const intlNames = [
-        ...(Array.isArray(internationalData.ingredientsFound) ? internationalData.ingredientsFound : []).map(i => String((typeof i === 'string' ? i : i?.name) || '').toLowerCase()),
-        ...(internationalData.ingredientsText ? [String(internationalData.ingredientsText).toLowerCase()] : [])
-      ];
+      const localTexts = extractAllTexts(scannedIngredients, localWhoFlags);
+      const intlTexts = extractAllTexts(internationalData.ingredientsFound, internationalData.whoFlags);
+      if (internationalData.ingredientsText) {
+        intlTexts.push(String(internationalData.ingredientsText).toLowerCase());
+      }
 
       let localPenalty = 0;
       let intlPenalty = 0;
 
       FORMULATION_FACTORS.forEach(factor => {
-        const localHas = hasAnyTerm(localNames, factor.terms);
-        const intlHas = hasAnyTerm(intlNames, factor.terms);
+        const localHas = hasAnyTerm(localTexts, factor.terms);
+        const intlHas = hasAnyTerm(intlTexts, factor.terms);
 
         if (localHas && !intlHas) {
           localPenalty += factor.severity;
@@ -141,18 +168,23 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
 
       // Enforce Relative Score Integrity across all formulation factors:
       if (localPenalty > intlPenalty) {
-        const netPenalty = Math.max(2, localPenalty - intlPenalty);
-        if (local > intl - netPenalty) {
+        // Local has inferior formulation (e.g. Palm Oil in India vs Sunflower/Canola in Global)
+        const netPenalty = Math.max(6, (localPenalty - intlPenalty) * 3);
+        if (local >= intl) {
+          local = Math.max(0, intl - netPenalty);
+        } else if (intl - local < netPenalty) {
           local = Math.max(0, intl - netPenalty);
         }
       } else if (intlPenalty > localPenalty) {
-        const netPenalty = Math.max(2, intlPenalty - localPenalty);
-        if (intl > local - netPenalty) {
+        // Global has inferior formulation (e.g. HFCS in US vs Cane Sugar in India)
+        const netPenalty = Math.max(6, (intlPenalty - localPenalty) * 3);
+        if (intl >= local) {
+          intl = Math.max(0, local - netPenalty);
+        } else if (local - intl < netPenalty) {
           intl = Math.max(0, local - netPenalty);
         }
       } else if (localPenalty > 0 && intlPenalty > 0) {
-        // Equal cumulative penalties across different synthetic factors (e.g., Local has Palm Oil, Global has HFCS):
-        // Both are compromised ultra-processed formulations — equalize them to the lower score so neither falsely appears healthier.
+        // Equal cumulative penalties across different synthetic factors
         const floor = Math.min(local, intl);
         local = floor;
         intl = floor;
@@ -160,7 +192,7 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
     }
 
     return { effectiveLocalScore: local, effectiveIntlScore: intl, disparities: detectedDisparities };
-  }, [localHealthScore, internationalData, scannedIngredients, FORMULATION_FACTORS]);
+  }, [localHealthScore, internationalData, scannedIngredients, localWhoFlags, FORMULATION_FACTORS]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -258,12 +290,12 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
         <p className="text-sm text-gray-600 mt-2 font-medium">{t('intl_variant_comp_desc')}</p>
         
         {effectiveLocalScore != null && effectiveIntlScore != null && (
-          <div className="mt-4 p-3 rounded-xl bg-white/95 border border-emerald-200/80 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 text-xs shadow-sm">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="mt-4 p-3 rounded-xl bg-white/95 border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-sm">
+            <div className="flex items-center gap-2 min-w-0 shrink-0">
               <span className="text-base shrink-0">⚖️</span>
               <span className="font-bold text-gray-800 whitespace-nowrap">Formulation Impact:</span>
             </div>
-            <div className="min-w-0 flex items-center justify-end">
+            <div className="min-w-0 flex items-center justify-start sm:justify-end">
               {(() => {
                 const diff = effectiveIntlScore - effectiveLocalScore;
                 const isBothRedOrPurple = effectiveLocalScore < 55 && effectiveIntlScore < 55;
@@ -273,10 +305,10 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
 
                 if (effectiveLocalScore === effectiveIntlScore) {
                   return (
-                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug text-center">
+                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug whitespace-nowrap text-center">
                       {isBothRedOrPurple
-                        ? `Equalized Ultra-Processed Tier (${effectiveLocalScore}/100)`
-                        : `Identical Formulation Score (${effectiveLocalScore}/100)`}
+                        ? `Equalized Tier (${effectiveLocalScore}/100)`
+                        : `Identical Formulation (${effectiveLocalScore}/100)`}
                     </span>
                   );
                 }
@@ -284,26 +316,26 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                 // When both products fall into the same risk tier and are within statistical tolerance (<= 8 pts) with NO specific formulation disparities:
                 if (disparities.length === 0 && Math.abs(diff) <= 8 && (isBothRedOrPurple || isBothYellow || isBothGreen)) {
                   return (
-                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug text-center">
+                    <span className="inline-flex items-center text-amber-800 font-extrabold bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 leading-snug whitespace-nowrap text-center">
                       {isPurple
                         ? `High Risk Profile (${effectiveLocalScore} vs ${effectiveIntlScore})`
                         : isBothRedOrPurple 
-                        ? `Both Ultra-Processed (RED: ${effectiveLocalScore} vs ${effectiveIntlScore})`
-                        : `Similar Nutritional Profile (${effectiveLocalScore} vs ${effectiveIntlScore})`}
+                        ? `Both Ultra-Processed (${effectiveLocalScore} vs ${effectiveIntlScore})`
+                        : `Similar Profile (${effectiveLocalScore} vs ${effectiveIntlScore})`}
                     </span>
                   );
                 }
 
                 if (diff > 0) {
                   return (
-                    <span className="inline-flex items-center text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 leading-snug">
-                      Global version +{diff} pts ({effectiveIntlScore} vs {effectiveLocalScore})
+                    <span className="inline-flex items-center text-emerald-700 font-extrabold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 leading-snug whitespace-nowrap">
+                      Global +{diff} pts ({effectiveIntlScore} vs {effectiveLocalScore})
                     </span>
                   );
                 } else {
                   return (
-                    <span className="inline-flex items-center text-blue-700 font-extrabold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 leading-snug">
-                      Local version +{Math.abs(diff)} pts ({effectiveLocalScore} vs {effectiveIntlScore})
+                    <span className="inline-flex items-center text-blue-700 font-extrabold bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 leading-snug whitespace-nowrap">
+                      Local +{Math.abs(diff)} pts ({effectiveLocalScore} vs {effectiveIntlScore})
                     </span>
                   );
                 }

@@ -741,6 +741,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     productName={assessment.productName}
                     globalEquivalent={assessment.globalEquivalent}
                     localHealthScore={assessment.healthScore}
+                    localWhoFlags={assessment.whoFlags}
                   />
                 )}
               
