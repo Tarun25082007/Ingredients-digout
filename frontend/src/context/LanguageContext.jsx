@@ -197,6 +197,11 @@ export const translations = {
     // History Dashboard
     scan_history_desc: "Review your previously evaluated food products and health assessments",
     confirm_delete_scan: "Are you sure you want to delete this scan?",
+    delete_scan_title: "Delete Scan History?",
+    delete_scan_subtitle: "Permanently remove from your scan history",
+    confirm_delete_scan_body: "Are you sure you want to delete this scan? This action cannot be undone.",
+    delete: "Delete",
+    deleting: "Deleting...",
     recent: "Recent",
     delete_scan: "Delete Scan",
     history_disclaimer: "Historical health indicators reflect guidelines at the time of scan. AI can make mistakes — always consult healthcare providers for medical advice."
@@ -396,6 +401,11 @@ export const translations = {
     // History Dashboard
     scan_history_desc: "अपने पूर्व-मूल्यांकित खाद्य उत्पादों और स्वास्थ्य रिपोर्ट की समीक्षा करें",
     confirm_delete_scan: "क्या आप वाकई इस स्कैन को हटाना चाहते हैं?",
+    delete_scan_title: "स्कैन इतिहास हटाएं?",
+    delete_scan_subtitle: "अपने स्कैन इतिहास से स्थायी रूप से हटाएं",
+    confirm_delete_scan_body: "क्या आप वाकई इस स्कैन को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
+    delete: "हटाएं",
+    deleting: "हटाया जा रहा है...",
     recent: "हाल ही में",
     delete_scan: "स्कैन हटाएं",
     history_disclaimer: "ऐतिहासिक स्वास्थ्य संकेतक स्कैन के समय के दिशानिर्देशों को दर्शाते हैं। AI से गलतियाँ हो सकती हैं — हमेशा डॉक्टरों से परामर्श लें।"

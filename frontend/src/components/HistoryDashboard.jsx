@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
+import { Trash2, X } from 'lucide-react';
 
 const HistoryDashboard = () => {
   const { token, logout } = useContext(AuthContext);
@@ -13,6 +14,8 @@ const HistoryDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedScan, setSelectedScan] = useState(null);
+  const [scanToDelete, setScanToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -65,15 +68,37 @@ const HistoryDashboard = () => {
     return () => abortController.abort();
   }, [token, navigate]);
 
-  const deleteScan = async (id, e) => {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && scanToDelete && !isDeleting) {
+        setScanToDelete(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [scanToDelete, isDeleting]);
+
+  const promptDeleteScan = (scan, e) => {
     e.stopPropagation();
-    if (!window.confirm(t('confirm_delete_scan'))) return;
-    
+    setScanToDelete(scan);
+  };
+
+  const handleCancelDelete = () => {
+    if (isDeleting) return;
+    setScanToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!scanToDelete) return;
+    setIsDeleting(true);
     try {
-      await api.delete(`/scan/history/${id}`);
-      setHistory(prev => prev.filter(scan => scan.id !== id));
+      await api.delete(`/scan/history/${scanToDelete.id}`);
+      setHistory(prev => prev.filter(scan => scan.id !== scanToDelete.id));
+      setScanToDelete(null);
     } catch (err) {
       setError('Failed to delete scan.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -164,11 +189,12 @@ const HistoryDashboard = () => {
                       }) : t('recent')}
                     </p>
                     <button 
-                      onClick={(e) => deleteScan(scan.id, e)}
+                      onClick={(e) => promptDeleteScan(scan, e)}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                       title={t('delete_scan')}
+                      aria-label={t('delete_scan')}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -181,6 +207,90 @@ const HistoryDashboard = () => {
           ℹ️ {t('history_disclaimer')}
         </div>
       </div>
+
+      {/* In-App Custom Delete Confirmation Modal */}
+      {scanToDelete && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+          onClick={handleCancelDelete}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-100 transform transition-all relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={handleCancelDelete}
+              disabled={isDeleting}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-lg transition"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3.5 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 text-red-600 flex items-center justify-center shrink-0 shadow-xs">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900 leading-tight">
+                  {t('delete_scan_title')}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {t('delete_scan_subtitle')}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50/80 rounded-xl p-3 mb-4 border border-gray-200/70 flex items-center justify-between gap-2">
+              <div className="font-semibold text-gray-800 text-sm truncate">
+                {scanToDelete.productName || 'Unknown Product'}
+              </div>
+              {scanToDelete.healthStatus && (
+                <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                  scanToDelete.healthStatus === 'PURPLE' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                  scanToDelete.healthStatus === 'RED' ? 'bg-red-100 text-red-800 border border-red-200' :
+                  scanToDelete.healthStatus === 'YELLOW' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                  'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                }`}>
+                  {scanToDelete.healthStatus}
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-600 mb-6 leading-relaxed">
+              {t('confirm_delete_scan_body')}
+            </p>
+
+            <div className="flex items-center justify-end space-x-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleCancelDelete}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl transition disabled:opacity-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-xl shadow-md hover:shadow-lg transition flex items-center space-x-1.5 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <span>{t('deleting')}</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{t('delete')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Details Modal */}
       {selectedScan && (
