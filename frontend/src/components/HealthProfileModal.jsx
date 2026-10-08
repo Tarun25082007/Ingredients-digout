@@ -86,13 +86,65 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   const weightVal = parseFloat(weightKg);
   let computedBmi = null;
   let bmiCategory = '';
+  let bmiColor = {
+    bg: 'bg-emerald-50/80',
+    border: 'border-emerald-200',
+    text: 'text-emerald-900',
+    strongText: 'text-emerald-700',
+    badgeBg: 'bg-emerald-100',
+    badgeText: 'text-emerald-800',
+    badgeBorder: 'border-emerald-300'
+  };
+
   if (heightVal > 50 && weightVal > 20) {
     const hM = heightVal / 100.0;
-    computedBmi = (weightVal / (hM * hM)).toFixed(1);
-    if (computedBmi < 18.5) bmiCategory = t('bmi_underweight');
-    else if (computedBmi < 25.0) bmiCategory = t('bmi_healthy');
-    else if (computedBmi < 30.0) bmiCategory = t('bmi_overweight');
-    else bmiCategory = t('bmi_obese');
+    const bmiNum = weightVal / (hM * hM);
+    computedBmi = bmiNum.toFixed(1);
+    if (bmiNum < 18.5) {
+      bmiCategory = t('bmi_underweight');
+      bmiColor = {
+        bg: 'bg-sky-50/80',
+        border: 'border-sky-200',
+        text: 'text-sky-900',
+        strongText: 'text-sky-700',
+        badgeBg: 'bg-sky-100',
+        badgeText: 'text-sky-800',
+        badgeBorder: 'border-sky-300'
+      };
+    } else if (bmiNum < 25.0) {
+      bmiCategory = t('bmi_healthy');
+      bmiColor = {
+        bg: 'bg-emerald-50/80',
+        border: 'border-emerald-200',
+        text: 'text-emerald-900',
+        strongText: 'text-emerald-700',
+        badgeBg: 'bg-emerald-100',
+        badgeText: 'text-emerald-800',
+        badgeBorder: 'border-emerald-300'
+      };
+    } else if (bmiNum < 30.0) {
+      bmiCategory = t('bmi_overweight');
+      bmiColor = {
+        bg: 'bg-amber-50/80',
+        border: 'border-amber-200',
+        text: 'text-amber-900',
+        strongText: 'text-amber-800',
+        badgeBg: 'bg-amber-100',
+        badgeText: 'text-amber-800',
+        badgeBorder: 'border-amber-300'
+      };
+    } else {
+      bmiCategory = t('bmi_obese');
+      bmiColor = {
+        bg: 'bg-rose-50/80',
+        border: 'border-rose-200',
+        text: 'text-rose-900',
+        strongText: 'text-rose-800',
+        badgeBg: 'bg-rose-100',
+        badgeText: 'text-rose-800',
+        badgeBorder: 'border-rose-300'
+      };
+    }
   }
 
   const toggleCondition = (id) => {
@@ -314,9 +366,11 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
 
             {/* Live BMI Display */}
             {computedBmi && (
-              <div className="mt-3 p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-900">
-                <span>{t('calculated_bmi')}: <strong className="text-emerald-800 text-sm">{computedBmi}</strong></span>
-                <span className="px-2.5 py-0.5 bg-emerald-200/80 font-bold rounded-full">{bmiCategory}</span>
+              <div className={`mt-3 p-2.5 ${bmiColor.bg} border ${bmiColor.border} rounded-lg flex items-center justify-between text-xs ${bmiColor.text} transition-colors duration-200 shadow-sm`}>
+                <span>{t('calculated_bmi')}: <strong className={`${bmiColor.strongText} text-sm font-extrabold`}>{computedBmi}</strong></span>
+                <span className={`px-2.5 py-0.5 ${bmiColor.badgeBg} ${bmiColor.badgeText} border ${bmiColor.badgeBorder} font-bold rounded-full`}>
+                  {bmiCategory}
+                </span>
               </div>
             )}
           </div>
