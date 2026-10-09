@@ -161,6 +161,7 @@ export const translations = {
     danger_zone: "Danger Zone",
     danger_zone_desc: "Permanently delete your account, health profile, and all scan data. This action cannot be undone.",
     delete_account_btn: "Delete Account",
+    confirm_delete_account: "Permanently Delete",
     skip_for_now: "Skip for now",
     saving_profile: "Saving Profile...",
     ai_profile_disclaimer: "AI-generated health guidance. AI can make mistakes — always consult a healthcare professional.",
@@ -204,6 +205,8 @@ export const translations = {
     deleting: "Deleting...",
     recent: "Recent",
     delete_scan: "Delete Scan",
+    back_to_scanner: "Back to Scanner",
+    start_new_scan: "Start a New Scan",
     history_disclaimer: "Historical health indicators reflect guidelines at the time of scan. AI can make mistakes — always consult healthcare providers for medical advice."
   },
   Hindi: {
@@ -365,6 +368,7 @@ export const translations = {
     danger_zone: "डेंजर ज़ोन",
     danger_zone_desc: "अपना खाता, स्वास्थ्य प्रोफ़ाइल और सारा डेटा स्थायी रूप से हटाएं। इसे वापस नहीं लाया जा सकता।",
     delete_account_btn: "खाता हटाएं",
+    confirm_delete_account: "स्थायी रूप से हटाएं",
     skip_for_now: "अभी छोड़ें",
     saving_profile: "प्रोफ़ाइल सहेजी जा रही है...",
     ai_profile_disclaimer: "AI-जनरेटेड स्वास्थ्य मार्गदर्शन। AI से गलतियाँ हो सकती हैं — हमेशा डॉक्टर से परामर्श लें।",
@@ -408,6 +412,8 @@ export const translations = {
     deleting: "हटाया जा रहा है...",
     recent: "हाल ही में",
     delete_scan: "स्कैन हटाएं",
+    back_to_scanner: "स्कैनर पर वापस जाएं",
+    start_new_scan: "नया स्कैन शुरू करें",
     history_disclaimer: "ऐतिहासिक स्वास्थ्य संकेतक स्कैन के समय के दिशानिर्देशों को दर्शाते हैं। AI से गलतियाँ हो सकती हैं — हमेशा डॉक्टरों से परामर्श लें।"
   },
   Spanish: {

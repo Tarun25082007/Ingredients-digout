@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
-import { X, Activity, Heart, ShieldAlert, Sparkles, Check } from 'lucide-react';
+import { X, Activity, Heart, ShieldAlert, Sparkles, Check, Trash2 } from 'lucide-react';
 
 const KNOWN_CONDITION_IDS = ['PREGNANCY', 'PCOS', 'PROSTATE', 'DIABETES', 'ULCERS', 'HYPERTENSION', 'CHOLESTEROL', 'GLUTEN_ALLERGY', 'LACTOSE_INTOLERANCE', 'NUT_ALLERGY'];
 
@@ -661,61 +661,21 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           </div>
 
           {/* Danger Zone */}
+          {/* Danger Zone */}
           {!isMandatoryOnboarding && initialProfile && (
             <div className="pt-4 mt-2 border-t border-red-100">
-              <div className="bg-red-50 rounded-xl p-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-bold text-red-800">{t('danger_zone')}</h4>
-                    <p className="text-xs text-red-600 mt-1">{t('danger_zone_desc')}</p>
-                  </div>
-                  {!showDeleteAccountConfirm && (
-                    <button
-                      type="button"
-                      onClick={() => setShowDeleteAccountConfirm(true)}
-                      className="mt-3 sm:mt-0 px-4 py-2 bg-red-100 hover:bg-red-600 text-red-700 hover:text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                    >
-                      {t('delete_account_btn')}
-                    </button>
-                  )}
+              <div className="bg-red-50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold text-red-800">{t('danger_zone')}</h4>
+                  <p className="text-xs text-red-600 mt-0.5">{t('danger_zone_desc')}</p>
                 </div>
-
-                {showDeleteAccountConfirm && (
-                  <div className="mt-3 pt-3 border-t border-red-200/60 animate-fadeIn">
-                    <p className="text-xs font-medium text-red-700 mb-2">
-                      ⚠️ Type <strong className="font-mono bg-white px-1.5 py-0.5 rounded border border-red-200 text-red-800">DELETE</strong> to permanently delete your account, health profile, and all scan history:
-                    </p>
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <input
-                        type="text"
-                        value={deleteConfirmText}
-                        onChange={(e) => setDeleteConfirmText(e.target.value)}
-                        placeholder="Type DELETE to confirm"
-                        className="px-3 py-1.5 border border-red-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-red-500 bg-white"
-                      />
-                      <div className="flex items-center space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowDeleteAccountConfirm(false);
-                            setDeleteConfirmText('');
-                          }}
-                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold transition"
-                        >
-                          {t('cancel')}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
-                          onClick={handleConfirmDeleteAccount}
-                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white rounded-lg text-xs font-bold transition shadow-sm"
-                        >
-                          {isDeletingAccount ? t('deleting') : (t('confirm_delete_account') || 'Permanently Delete')}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteAccountConfirm(true)}
+                  className="px-4 py-2 bg-red-100 hover:bg-red-600 text-red-700 hover:text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap cursor-pointer active:scale-95 shrink-0"
+                >
+                  {t('delete_account_btn')}
+                </button>
               </div>
             </div>
           )}
@@ -759,6 +719,77 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
           </div>
         </form>
       </div>
+
+      {/* Dedicated In-App Account Deletion Confirmation Modal Overlay */}
+      {showDeleteAccountConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div 
+            className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-red-200 text-gray-800 animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-3 bg-red-100 rounded-xl text-red-600 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-red-900">
+                  {t('delete_account_btn') || "Delete Account"}
+                </h3>
+                <p className="text-xs text-red-600 font-medium">
+                  {t('danger_zone') || "Danger Zone"}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 mb-4 text-xs text-red-700 space-y-1">
+              <p className="font-semibold text-red-900">
+                ⚠️ {t('danger_zone_desc') || "Permanently delete your account, health profile, and all scan data. This action cannot be undone."}
+              </p>
+              <p className="text-[11px] text-red-600">
+                Type <strong className="font-mono bg-white px-1.5 py-0.5 rounded border border-red-300 text-red-900 font-bold">DELETE</strong> below to confirm:
+              </p>
+            </div>
+
+            <input
+              type="text"
+              autoFocus
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="w-full px-3.5 py-2 border border-red-300 rounded-xl text-xs sm:text-sm outline-none focus:ring-2 focus:ring-red-500 bg-white mb-5 font-mono"
+            />
+
+            <div className="flex items-center justify-end space-x-2.5">
+              <button
+                type="button"
+                disabled={isDeletingAccount}
+                onClick={() => {
+                  setShowDeleteAccountConfirm(false);
+                  setDeleteConfirmText('');
+                }}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
+                onClick={handleConfirmDeleteAccount}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 rounded-xl shadow-md hover:shadow-lg transition flex items-center space-x-1.5 cursor-pointer"
+              >
+                {isDeletingAccount ? (
+                  <span>{t('deleting')}</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{t('confirm_delete_account') || 'Permanently Delete'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

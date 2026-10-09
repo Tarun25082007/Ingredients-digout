@@ -1,5 +1,5 @@
 import React, { useContext, useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getUserCountry, setUserCountry, getAllCountries } from '../utils/countryUtils';
@@ -14,7 +14,8 @@ const Navbar = () => {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [country, setCountry] = useState(getUserCountry().toUpperCase());
   const countries = getAllCountries();
-  const availableLanguages = getLanguagesForCountry(country);
+  const location = useLocation();
+  const isSubPage = location.pathname !== '/';
   const { isInstallable, installApp } = usePWA();
 
   const selectCountry = (selected) => {
@@ -61,11 +62,25 @@ const Navbar = () => {
   return (
     <nav className="bg-custom-900/95 backdrop-blur-lg border-b border-custom-700 shadow-sm px-3 py-2.5 sm:px-6 sm:py-4 flex justify-between items-center sticky top-0 z-50 transition-all duration-300 w-full max-w-full">
       
-      {/* Left side: Logo */}
-      <Link to="/" className="font-extrabold text-custom-300 tracking-wide shrink-0 flex items-center">
-        <span className="sm:hidden text-lg font-black tracking-tight">DigOut</span>
-        <span className="hidden sm:inline text-xl sm:text-2xl">{t('app_title')}</span>
-      </Link>
+      {/* Left side: Back Button (if on subpage) + Logo */}
+      <div className="flex items-center gap-2 shrink-0">
+        {isSubPage && (
+          <Link
+            to="/"
+            className="p-1.5 sm:p-2 rounded-xl bg-custom-800 hover:bg-custom-700 text-custom-300 hover:text-white border border-custom-600 transition flex items-center justify-center active:scale-95 cursor-pointer shadow-sm"
+            title={t('back_to_scanner') || "Back to Scanner"}
+            aria-label={t('back_to_scanner') || "Back to Scanner"}
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+        )}
+        <Link to="/" className="font-extrabold text-custom-300 tracking-wide shrink-0 flex items-center">
+          <span className="sm:hidden text-lg font-black tracking-tight">DigOut</span>
+          <span className="hidden sm:inline text-xl sm:text-2xl">{t('app_title')}</span>
+        </Link>
+      </div>
 
       {/* Right side: Actions */}
       <div className="flex items-center gap-1 sm:gap-3 shrink-0">

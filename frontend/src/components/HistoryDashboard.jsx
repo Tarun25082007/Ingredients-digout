@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, ArrowLeft, Scan } from 'lucide-react';
 
 const HistoryDashboard = () => {
   const { token, logout } = useContext(AuthContext);
@@ -127,22 +127,61 @@ const HistoryDashboard = () => {
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto">
-        <div className="mb-6 sm:mb-8 bg-emerald-50/95 p-4 sm:p-6 rounded-2xl shadow-lg border border-emerald-200">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">{t('scan_history')}</h2>
-          <p className="text-gray-600 text-xs sm:text-sm font-medium mt-1">{t('scan_history_desc')}</p>
+        <div className="mb-6 sm:mb-8 bg-emerald-50/95 p-4 sm:p-6 rounded-2xl shadow-lg border border-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="p-2 sm:p-2.5 rounded-xl bg-white hover:bg-emerald-100 text-gray-700 hover:text-emerald-800 border border-emerald-200 shadow-sm transition flex items-center justify-center shrink-0 active:scale-95 cursor-pointer"
+              title={t('back_to_scanner') || "Back to Scanner"}
+              aria-label={t('back_to_scanner') || "Back to Scanner"}
+            >
+              <ArrowLeft className="w-5 h-5 text-emerald-700" />
+            </button>
+            <div>
+              <h2 className="text-xl sm:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
+                {t('scan_history')}
+              </h2>
+              <p className="text-gray-600 text-xs sm:text-sm font-medium mt-0.5">{t('scan_history_desc')}</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="self-stretch sm:self-auto px-4 py-2.5 sm:px-5 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+          >
+            <Scan className="w-4 h-4" />
+            <span>{t('start_new_scan') || "Start a New Scan"}</span>
+          </button>
         </div>
         
         {error && (
-          <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 border border-red-200 backdrop-blur-md font-medium">
-            ⚠️ {error}
+          <div className="bg-red-50 text-red-700 p-4 rounded-xl mb-6 border border-red-200 backdrop-blur-md font-medium flex items-center justify-between gap-3">
+            <span>⚠️ {error}</span>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-3 py-1.5 bg-white text-gray-700 hover:text-gray-900 rounded-lg text-xs font-semibold shadow-sm border border-red-200 shrink-0 cursor-pointer"
+            >
+              {t('back_to_scanner') || "Back to Scanner"}
+            </button>
           </div>
         )}
 
         {history.length === 0 && !error ? (
-          <div className="text-center py-20 bg-emerald-50/95 backdrop-blur-md rounded-3xl shadow-xl border border-emerald-200">
+          <div className="text-center py-16 px-4 bg-emerald-50/95 backdrop-blur-md rounded-3xl shadow-xl border border-emerald-200 flex flex-col items-center">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">{t('no_history')}</h3>
-            <p className="text-gray-600 text-md">{t('start_first_scan')}</p>
+            <p className="text-gray-600 text-sm max-w-md mb-6">{t('start_first_scan')}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition flex items-center gap-2 active:scale-95 cursor-pointer"
+            >
+              <Scan className="w-5 h-5" />
+              <span>{t('start_new_scan') || "Start a New Scan"}</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
