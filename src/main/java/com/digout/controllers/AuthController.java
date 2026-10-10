@@ -232,6 +232,12 @@ public class AuthController {
                     User existingUser = userOpt.get();
                     if (sub != null && !sub.isBlank() && existingUser.getGoogleId() == null) {
                         existingUser.setGoogleId(sub);
+                        
+                        // SECURITY FIX: Invalidate the password hash when auto-linking Google Auth.
+                        // Since standard registration does not require email verification, an attacker could have pre-registered this email.
+                        // Invalidating the password ensures the attacker immediately loses access once the legitimate owner claims the account via Google Auth.
+                        existingUser.setPasswordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+                        
                         userRepository.save(existingUser);
                     }
                 }

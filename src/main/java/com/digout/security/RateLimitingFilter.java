@@ -75,25 +75,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     private String getClientIp(HttpServletRequest request) {
-        String cfIp = request.getHeader("CF-Connecting-IP");
-        if (cfIp != null && !cfIp.isBlank()) {
-            return sanitizeIp(cfIp.trim());
-        }
-
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
-            // May contain multiple comma-separated IPs: client, proxy1, proxy2...
-            String[] ips = xForwardedFor.split(",");
-            if (ips.length > 0 && !ips[0].isBlank()) {
-                return sanitizeIp(ips[0].trim());
-            }
-        }
-
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isBlank()) {
-            return sanitizeIp(xRealIp.trim());
-        }
-
+        // SECURITY FIX: Removed manual parsing of X-Forwarded-For and CF-Connecting-IP.
+        // Parsing these manually without verifying the proxy IP allows attackers to bypass rate limits trivially by spoofing the headers.
+        // Instead, rely on request.getRemoteAddr(). In production, configure Spring Boot's 'server.forward-headers-strategy' 
+        // to safely extract the client IP from trusted proxies.
         return sanitizeIp(request.getRemoteAddr());
     }
 
