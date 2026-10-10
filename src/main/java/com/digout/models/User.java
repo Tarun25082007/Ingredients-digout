@@ -75,7 +75,7 @@ public class User {
     @PrePersist
     @PreUpdate
     public void populateCanonicalEmail() {
-        if (this.canonicalEmail == null && this.email != null) {
+        if (this.email != null) {
             this.canonicalEmail = com.digout.util.EmailUtils.canonicalize(this.email);
         }
     }

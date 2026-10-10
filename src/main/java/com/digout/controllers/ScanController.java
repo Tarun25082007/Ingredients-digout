@@ -403,7 +403,12 @@ public class ScanController {
             }
             return new Object[]{exactIngredients, servingSize, quantity, dataSourceRegion};
         }).thenCompose(data -> {
-            if (data == null) return CompletableFuture.completedFuture(null);
+            if (data == null) {
+                return CompletableFuture.completedFuture(
+                    ResponseEntity.status(org.springframework.http.HttpStatus.NOT_FOUND)
+                        .body((Object) java.util.Map.of("message", "Product ingredients not found in database."))
+                );
+            }
             String exactIngredients = (String) data[0];
             String servingSize = (String) data[1];
             String quantity = (String) data[2];
@@ -564,9 +569,7 @@ public class ScanController {
                         }
                     }
                     
-                    if (!"Unknown Product".equalsIgnoreCase(pName)) {
-                        scanHistoryRepository.deleteByUserIdAndProductNameIgnoreCase(user.getId(), pName);
-                    }
+                    scanHistoryRepository.deleteByUserIdAndProductNameIgnoreCase(user.getId(), pName);
 
                     ScanHistory history = ScanHistory.builder()
                             .user(user)

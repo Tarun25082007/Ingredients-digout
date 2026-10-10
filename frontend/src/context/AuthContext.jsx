@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('userProfile');
       setUserProfile(null);
     }
-  }, [token]);
+  }, [token, user]);
 
   useEffect(() => {
     const handleUnauthorized = () => {
