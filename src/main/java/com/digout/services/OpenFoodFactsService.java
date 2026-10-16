@@ -150,12 +150,37 @@ public class OpenFoodFactsService {
 
             int scoreName = computeRelevanceScore(candidateName, productName);
             int scoreFull = computeRelevanceScore(fullName, productName);
-            int scoreBrand = computeRelevanceScore(brand, productName);
-            int score = Math.max(scoreName, Math.max(scoreFull, scoreBrand));
 
-            // Bonus for well-structured ingredients lists containing commas
+            // True exact match on the actual product name gets top priority
+            if (candidateName.trim().equalsIgnoreCase(productName.trim())) {
+                scoreName = 150;
+            }
+
+            int score;
+            if (scoreName > 0) {
+                score = Math.max(scoreName, scoreFull);
+                // Minor brand bonus if brand aligns with query or candidate
+                if (!brand.isBlank() && (brand.toLowerCase().contains(productName.toLowerCase()) || productName.toLowerCase().contains(brand.toLowerCase()))) {
+                    score += 10;
+                }
+            } else if (candidateName.isBlank() || isGenericDescriptor(candidateName)) {
+                // If product name was left blank or is just a generic descriptor, consider brand
+                int scoreBrand = computeRelevanceScore(brand, productName);
+                score = Math.min(scoreBrand, 70);
+            } else {
+                // Candidate name is a distinct other product (e.g., "Aquafina" when searching for "Pepsi")
+                score = 0;
+            }
+
+            // Bonus for well-structured and comprehensive ingredients lists
             if (ingText.contains(",")) {
                 score += 5;
+            }
+            int ingredientCount = ingText.split("[,;]").length;
+            if (ingredientCount >= 5) {
+                score += 10;
+            } else if (ingredientCount <= 2 && !productName.toLowerCase().contains("water") && !productName.toLowerCase().contains("salt") && !productName.toLowerCase().contains("sugar")) {
+                score -= 30; // Strongly penalize sparse mineral-only or incomplete lists for complex items
             }
 
             // Ingredient-level sweetness formulation fidelity
@@ -332,7 +357,7 @@ public class OpenFoodFactsService {
             "munch", "cookie", "cookies", "cake", "cupcake", "pie", "muffin", "brownie",
             "chip", "chips", "crisps", "cracker", "bread", "bun", "bagel", "pizza",
             "soup", "sauce", "dressing", "dip", "seasoning", "mix", "dough",
-            "pasta", "noodle", "cereal"
+            "pasta", "noodle", "cereal", "water", "aqua", "mineral water", "eau de source"
         };
         boolean conflictFound = false;
         for (String cat : conflictingCategories) {
@@ -374,6 +399,14 @@ public class OpenFoodFactsService {
         }
 
         return score;
+    }
+
+    private boolean isGenericDescriptor(String name) {
+        if (name == null || name.isBlank()) return true;
+        String n = name.trim().toLowerCase();
+        return n.equals("original") || n.equals("classic") || n.equals("regular") || 
+               n.equals("drink") || n.equals("beverage") || n.equals("soda") || 
+               n.equals("snack") || n.equals("pack") || n.equals("can") || n.equals("bottle");
     }
 
     private final java.util.Map<String, java.util.List<ProductSuggestionDTO>> autocompleteCache =
