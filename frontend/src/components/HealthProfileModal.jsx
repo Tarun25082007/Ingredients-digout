@@ -82,6 +82,16 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
     }
   }, [initialProfile, isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen && !showDeleteAccountConfirm && !saving) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, showDeleteAccountConfirm, saving, onClose]);
+
   if (!isOpen) return null;
 
   // Calculate live BMI
@@ -263,19 +273,28 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto relative border border-gray-100">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 animate-fadeIn"
+      onClick={() => {
+        if (!showDeleteAccountConfirm && !saving) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto relative border border-gray-100"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        {/* Close Button (if not mandatory) */}
-        {!isMandatoryOnboarding && (
-          <button 
-            onClick={onClose}
-            aria-label="Close"
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full transition z-10"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        {/* Close Button - Always visible for quick exit */}
+        <button 
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center bg-white/20 hover:bg-white/30 text-white rounded-full transition z-20 backdrop-blur-md cursor-pointer border border-white/20 shadow-sm active:scale-95"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
         {/* Modal Header */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-6 text-white rounded-t-2xl relative">
