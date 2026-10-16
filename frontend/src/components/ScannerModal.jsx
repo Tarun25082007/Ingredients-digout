@@ -3,9 +3,29 @@ import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import HealthStatusCard from './HealthStatusCard';
 import VariantComparison from './VariantComparison';
-import { Upload, Camera, X, Barcode, RefreshCw, FlipHorizontal } from 'lucide-react';
+import { Upload, Camera, X, Barcode, RefreshCw, FlipHorizontal, Clock, Flame, Sparkles, Search, Trash2 } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import { getUserCountry, getAllCountries } from '../utils/countryUtils';
+
+const HighlightMatch = ({ text, query }) => {
+  if (!query || !query.trim() || !text) return <span>{text}</span>;
+  const escaped = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = String(text).split(regex);
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.trim().toLowerCase() ? (
+          <strong key={i} className="text-emerald-700 font-extrabold bg-emerald-50 px-0.5 rounded">
+            {part}
+          </strong>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+};
 
 const ScannerModal = ({ onClose, onScanComplete }) => {
   const { t } = useLanguage();
@@ -16,6 +36,16 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [recentSearches, setRecentSearches] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('recent_searches') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const searchInputRef = useRef(null);
+  const searchDropdownRef = useRef(null);
   const [promptCountry, setPromptCountry] = useState(getUserCountry().toUpperCase());
   const [scanRegion, setScanRegion] = useState(getUserCountry());
   const countries = getAllCountries();
@@ -78,6 +108,18 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    const handleSearchOutside = (e) => {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+        setSelectedIndex(-1);
+      }
+    };
+    document.addEventListener('pointerdown', handleSearchOutside);
+    return () => document.removeEventListener('pointerdown', handleSearchOutside);
+  }, []);
+
   // Debounce autocomplete search
   useEffect(() => {
     let isActive = true;
@@ -85,7 +127,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     
     if (searchName.trim().length < 2) {
       setSuggestions([]);
-      setShowSuggestions(false);
+      setSelectedIndex(-1);
       setIsTyping(false);
       return;
     }
@@ -94,9 +136,9 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${encodeURIComponent(promptCountry)}`);
-        // Ensure response is an array of strings
         if (isActive && Array.isArray(response.data)) {
           setSuggestions(response.data || []);
+          setSelectedIndex(-1);
           setShowSuggestions(true);
         }
       } catch (err) {
@@ -225,6 +267,53 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     }
   }, [isMirrored, stopCamera, uploadImage]);
 
+  const popularStaples = foodCategory === 'fresh'
+    ? ['Masala Dosa', 'Apple', 'Grilled Chicken Salad', 'Oatmeal', 'Dal Tadka']
+    : ["Lay's Classic", "Coca-Cola", "Nutella", "Oreo", "Maggi Noodles"];
+
+  const saveRecentSearch = useCallback((query) => {
+    if (!query || !query.trim()) return;
+    const trimmed = query.trim();
+    setRecentSearches(prev => {
+      const next = [trimmed, ...prev.filter(item => item.toLowerCase() !== trimmed.toLowerCase())].slice(0, 5);
+      try {
+        localStorage.setItem('recent_searches', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save recent search', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const removeRecentSearch = useCallback((itemToRemove, e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setRecentSearches(prev => {
+      const next = prev.filter(item => item !== itemToRemove);
+      try {
+        localStorage.setItem('recent_searches', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to remove recent search', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearAllRecentSearches = useCallback((e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setRecentSearches([]);
+    try {
+      localStorage.removeItem('recent_searches');
+    } catch (e) {
+      console.error('Failed to clear recent searches', e);
+    }
+  }, []);
+
   const searchByProductName = useCallback(async (e, customName = null, customCountry = null, forceAi = false) => {
     if (e) e.preventDefault();
     const query = customName !== null ? customName : searchName;
@@ -232,6 +321,11 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     
     // Sanitize: allow letters in all languages (Unicode), numbers, spaces, and safe food name punctuation (-, ', ., &, /)
     const sanitizedSearch = query.replace(/[^\p{L}\p{N}\s\-'.&/]/gu, '').replace(/\s+/g, ' ').trim();
+    if (!sanitizedSearch) return;
+
+    saveRecentSearch(sanitizedSearch);
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
     
     setMode('uploading');
     setError('');
@@ -263,7 +357,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       setError(serverMsg ? `Server Error: ${serverMsg}` : err.message || 'Failed to analyze product. Please try again.');
       setMode('select');
     }
-  }, [searchName, foodCategory, onScanComplete]);
+  }, [searchName, foodCategory, onScanComplete, saveRecentSearch]);
 
   const resetScanner = useCallback(() => {
     stopCamera();
@@ -337,8 +431,58 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   const handleSuggestionClick = useCallback((suggestionName, forceAi = false) => {
     setSearchName(suggestionName);
     setShowSuggestions(false);
+    setSelectedIndex(-1);
     searchByProductName(null, suggestionName, null, forceAi);
   }, [searchByProductName]);
+
+  const handleSearchKeyDown = useCallback((e) => {
+    if (!showSuggestions) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        setShowSuggestions(true);
+        e.preventDefault();
+      }
+      return;
+    }
+
+    const isLiveSearch = searchName.trim().length >= 2;
+    const selectableCount = isLiveSearch 
+      ? (suggestions.length + 1)
+      : (recentSearches.length + popularStaples.length);
+
+    if (selectableCount === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev < selectableCount - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : selectableCount - 1));
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+    } else if (e.key === 'Enter') {
+      if (selectedIndex >= 0) {
+        e.preventDefault();
+        if (isLiveSearch) {
+          if (selectedIndex < suggestions.length) {
+            handleSuggestionClick(suggestions[selectedIndex].productName);
+          } else {
+            handleSuggestionClick(searchName, true);
+          }
+        } else {
+          if (selectedIndex < recentSearches.length) {
+            handleSuggestionClick(recentSearches[selectedIndex]);
+          } else {
+            const popularIndex = selectedIndex - recentSearches.length;
+            if (popularStaples[popularIndex]) {
+              handleSuggestionClick(popularStaples[popularIndex]);
+            }
+          }
+        }
+      }
+    }
+  }, [showSuggestions, searchName, suggestions, recentSearches, popularStaples, selectedIndex, handleSuggestionClick]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
@@ -355,8 +499,25 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
         <div className="p-4 sm:p-8">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm font-medium">
-              ⚠️ {error}
+            <div className="mb-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-medium flex items-start justify-between gap-3 animate-fadeIn">
+              <div className="flex items-start gap-2">
+                <span className="text-lg">⚠️</span>
+                <div>
+                  <p>{error}</p>
+                  {error.includes('Barcode') && (
+                    <p className="text-xs text-red-600 mt-1 font-normal">
+                      💡 Tip: You can type the name in the search bar below or upload an image to analyze it instantly with AI!
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button 
+                onClick={() => setError('')} 
+                className="text-red-400 hover:text-red-700 p-1 rounded-lg text-base leading-none transition"
+                aria-label="Dismiss message"
+              >
+                ✕
+              </button>
             </div>
           )}
 
@@ -459,59 +620,208 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
               </div>
 
               <div className="mt-6 sm:mt-10 flex items-center justify-center">
-                <div className="w-full max-w-md">
+                <div className="w-full max-w-md" ref={searchDropdownRef}>
                   <div className="flex items-center space-x-4 mb-4">
                     <hr className="flex-1 border-gray-300" />
                     <span className="text-gray-400 font-medium">{t('search_by_name')}</span>
                     <hr className="flex-1 border-gray-300" />
                   </div>
-                  <form onSubmit={searchByProductName} className="flex gap-2">
+                  <form onSubmit={searchByProductName} className="flex gap-2 relative">
                     <div className="relative flex-1">
                       <input
+                        ref={searchInputRef}
                         type="text"
                         placeholder={foodCategory === 'fresh' ? 'e.g. Dosa, Apple, Grilled Salad, Dal' : t('search_placeholder')}
                         value={searchName}
                         onChange={(e) => setSearchName(e.target.value)}
-                        onFocus={() => { if (searchName.trim().length >= 2) setShowSuggestions(true); }}
-                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-dark shadow-sm"
+                        onFocus={() => setShowSuggestions(true)}
+                        onKeyDown={handleSearchKeyDown}
+                        className="w-full px-4 py-3 pr-10 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-dark shadow-sm transition"
                       />
-                      {/* Autocomplete Dropdown */}
-                      {showSuggestions && searchName.trim().length >= 2 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
-                          {isTyping && suggestions.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-gray-500">{t('loading_suggestions')}</div>
-                          ) : (
+                      {/* One-tap Clear button inside search input */}
+                      {searchName && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchName('');
+                            setSuggestions([]);
+                            setSelectedIndex(-1);
+                            searchInputRef.current?.focus();
+                          }}
+                          aria-label="Clear search input"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {/* Dropdown Menu */}
+                      {showSuggestions && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto animate-fadeIn divide-y divide-gray-100">
+                          {/* Case A: Live Autocomplete Suggestions (length >= 2) */}
+                          {searchName.trim().length >= 2 ? (
                             <>
-                              {suggestions.map((item, idx) => (
-                                <div 
-                                  key={idx} 
-                                  onMouseDown={() => handleSuggestionClick(item.productName)}
-                                  className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                                >
-                                  {item.imageUrl ? (
-                                    <img src={item.imageUrl} alt={item.productName} className="w-10 h-10 object-contain rounded bg-white border border-gray-100" />
-                                  ) : (
-                                    <div className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded text-gray-400">
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                    </div>
-                                  )}
-                                  <span className="font-medium text-gray-800 text-sm truncate">{item.productName}</span>
+                              {isTyping && suggestions.length === 0 ? (
+                                <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-500">
+                                  <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+                                  <span>{t('loading_suggestions')}</span>
                                 </div>
-                              ))}
-                              {/* Always show the AI fallback option */}
+                              ) : suggestions.length > 0 ? (
+                                <div className="py-1">
+                                  <div className="px-3 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Matches Found
+                                  </div>
+                                  {suggestions.map((item, idx) => {
+                                    const isSelected = selectedIndex === idx;
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        onPointerDown={(e) => {
+                                          e.preventDefault();
+                                          handleSuggestionClick(item.productName);
+                                        }}
+                                        className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition ${
+                                          isSelected 
+                                            ? 'bg-emerald-50 text-emerald-900 font-semibold border-l-4 border-emerald-500 pl-2' 
+                                            : 'hover:bg-gray-50 text-gray-800'
+                                        }`}
+                                      >
+                                        {item.imageUrl ? (
+                                          <img src={item.imageUrl} alt={item.productName} className="w-9 h-9 object-contain rounded-lg bg-white border border-gray-100 shrink-0 shadow-xs" />
+                                        ) : (
+                                          <div className="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-lg text-gray-400 shrink-0">
+                                            <Search className="w-4 h-4" />
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm truncate">
+                                            <HighlightMatch text={item.productName} query={searchName} />
+                                          </p>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="p-3 text-center text-xs text-gray-500 bg-gray-50/50">
+                                  No direct barcode database match for "{searchName}".
+                                </div>
+                              )}
+
+                              {/* Prominent AI Analysis Option */}
                               <div 
-                                onMouseDown={() => handleSuggestionClick(searchName, true)}
-                                className="flex items-center gap-3 p-3 hover:bg-indigo-50 cursor-pointer border-t border-gray-200 bg-gray-50"
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                  handleSuggestionClick(searchName, true);
+                                }}
+                                className={`flex items-center gap-3 p-3 cursor-pointer transition ${
+                                  selectedIndex === suggestions.length
+                                    ? 'bg-indigo-100 text-indigo-900 border-l-4 border-indigo-600 pl-2'
+                                    : 'bg-gradient-to-r from-indigo-50/90 to-purple-50/90 hover:from-indigo-100 hover:to-purple-100 text-indigo-800'
+                                }`}
                               >
-                                <div className="w-10 h-10 flex items-center justify-center bg-indigo-100 rounded text-indigo-600">
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
+                                <div className="w-9 h-9 flex items-center justify-center bg-indigo-500 text-white rounded-lg shadow-sm shrink-0">
+                                  <Sparkles className="w-5 h-5" />
                                 </div>
-                                <span className="font-medium text-indigo-700 text-sm truncate">
-                                  ✨ {t('search_ai_btn')} <strong>"{searchName}"</strong>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold text-indigo-950 uppercase tracking-wider flex items-center gap-1">
+                                    Instant Deep Analysis
+                                  </p>
+                                  <p className="text-sm font-medium truncate text-indigo-900">
+                                    Analyze <strong className="font-bold underline decoration-indigo-400">"{searchName}"</strong> with AI
+                                  </p>
+                                </div>
+                                <span className="text-xs font-bold text-indigo-600 bg-white/80 px-2 py-1 rounded-full shadow-xs">
+                                  ↵ Enter
                                 </span>
                               </div>
                             </>
+                          ) : (
+                            /* Case B: Zero-State Dropdown (Recent searches + Popular quick ideas) */
+                            <div className="p-3 space-y-3">
+                              {/* Recent Searches */}
+                              {recentSearches.length > 0 && (
+                                <div>
+                                  <div className="flex items-center justify-between mb-1.5 px-1">
+                                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                      Recent Searches
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onPointerDown={clearAllRecentSearches}
+                                      className="text-[11px] text-gray-400 hover:text-red-600 flex items-center gap-1 transition"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      Clear all
+                                    </button>
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {recentSearches.map((item, idx) => {
+                                      const isSelected = selectedIndex === idx;
+                                      return (
+                                        <div
+                                          key={idx}
+                                          onPointerDown={(e) => {
+                                            e.preventDefault();
+                                            handleSuggestionClick(item);
+                                          }}
+                                          className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm cursor-pointer transition ${
+                                            isSelected
+                                              ? 'bg-emerald-50 text-emerald-900 font-semibold'
+                                              : 'hover:bg-gray-100 text-gray-700'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2 truncate">
+                                            <Clock className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 shrink-0" />
+                                            <span className="truncate">{item}</span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onPointerDown={(e) => removeRecentSearch(item, e)}
+                                            aria-label={`Remove ${item}`}
+                                            className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-700 rounded-full hover:bg-gray-200 transition"
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Popular Quick Suggestions */}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-1.5 mb-2 px-1">
+                                  <Flame className="w-3.5 h-3.5 text-orange-500" />
+                                  {foodCategory === 'fresh' ? 'Popular Fresh Dishes' : 'Popular Packaged Staples'}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {popularStaples.map((staple, idx) => {
+                                    const overallIdx = recentSearches.length + idx;
+                                    const isSelected = selectedIndex === overallIdx;
+                                    return (
+                                      <button
+                                        key={idx}
+                                        type="button"
+                                        onPointerDown={(e) => {
+                                          e.preventDefault();
+                                          handleSuggestionClick(staple);
+                                        }}
+                                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition active:scale-95 ${
+                                          isSelected
+                                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                            : 'bg-gray-50 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 border-gray-200 hover:border-emerald-200'
+                                        }`}
+                                      >
+                                        {staple}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}
@@ -519,7 +829,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                     <button 
                       type="submit"
                       disabled={!searchName.trim()}
-                      className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold shadow-sm transition disabled:opacity-50"
+                      className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold shadow-sm transition disabled:opacity-50 shrink-0"
                     >
                       {t('search_btn')}
                     </button>
