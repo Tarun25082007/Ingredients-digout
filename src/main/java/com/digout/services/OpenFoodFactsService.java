@@ -43,7 +43,7 @@ public class OpenFoodFactsService {
         if (productName == null || productName.trim().isEmpty()) {
             throw new RuntimeException("Product name cannot be empty");
         }
-        String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
+        String cc = sanitizeCountryCode(countryCode);
         String cacheKey = productName.trim().toLowerCase() + "::" + cc;
 
         OpenFoodFactsDTO cached = cache.get(cacheKey);
@@ -409,6 +409,12 @@ public class OpenFoodFactsService {
                n.equals("snack") || n.equals("pack") || n.equals("can") || n.equals("bottle");
     }
 
+    private String sanitizeCountryCode(String cc) {
+        if (cc == null || cc.isBlank()) return "world";
+        String clean = cc.trim().toLowerCase().replaceAll("[^a-z0-9-]", "");
+        return (clean.isEmpty() || clean.length() > 32) ? "world" : clean;
+    }
+
     private final java.util.Map<String, java.util.List<ProductSuggestionDTO>> autocompleteCache =
             java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(128, 0.75f, true) {
                 @Override
@@ -454,7 +460,7 @@ public class OpenFoodFactsService {
         }
         
         String cleanQuery = query.trim();
-        String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
+        String cc = sanitizeCountryCode(countryCode);
         String cat = (category != null) ? category.trim().toLowerCase() : "";
         String cacheKey = cleanQuery.toLowerCase() + "::" + cc + "::" + cat;
 

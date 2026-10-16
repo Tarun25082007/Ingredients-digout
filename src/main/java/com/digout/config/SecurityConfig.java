@@ -80,10 +80,7 @@ public class SecurityConfig {
             "https://127.0.0.1:*",
             "http://127.0.0.1:*",
             "https://*.digout.app",
-            "https://digout.app",
-            "https://*.ngrok-free.dev",
-            "https://*.ngrok.app",
-            "https://*.ngrok.io"
+            "https://digout.app"
         ));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));

@@ -51,12 +51,12 @@ const HealthStatusCard = ({ assessment }) => {
       return;
     }
 
-    let isMounted = true;
+    const controller = new AbortController();
     setTranslating(true);
 
-    api.post('/scan/translate', { assessment, language })
+    api.post('/scan/translate', { assessment, language }, { signal: controller.signal })
       .then(res => {
-        if (!isMounted) return;
+        if (controller.signal.aborted) return;
         if (res.data) {
           if (translationCache.size > 50) translationCache.clear();
           translationCache.set(cacheKey, res.data);
@@ -66,16 +66,16 @@ const HealthStatusCard = ({ assessment }) => {
         }
       })
       .catch(err => {
-        if (!isMounted) return;
+        if (err.name === 'CanceledError' || err.name === 'AbortError' || controller.signal.aborted) return;
         console.warn('Failed to dynamically translate assessment:', err);
         setActiveAssessment(assessment);
       })
       .finally(() => {
-        if (isMounted) setTranslating(false);
+        if (!controller.signal.aborted) setTranslating(false);
       });
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, [assessment, language]);
 

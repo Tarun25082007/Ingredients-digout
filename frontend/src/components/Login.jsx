@@ -401,7 +401,7 @@ const Login = () => {
             <div className="transform scale-90 sm:scale-100 origin-center">
               <Turnstile
                 ref={turnstileRef}
-                siteKey="1x00000000000000000000AA"
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
                 onSuccess={(token) => setTurnstileToken(token)}
                 onExpire={() => setTurnstileToken('')}
                 onError={() => { setTurnstileToken(''); setError("Captcha error. Please try again."); }}

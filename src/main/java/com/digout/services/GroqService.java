@@ -373,16 +373,22 @@ public class GroqService {
         throw new RuntimeException("No choices found in Groq response");
     }
 
+    private static final java.util.regex.Pattern THINK_TAG_PATTERN = 
+            java.util.regex.Pattern.compile("<think>.*?</think>", java.util.regex.Pattern.DOTALL);
+    private static final java.util.regex.Pattern JSON_EXTRACT_PATTERN = 
+            java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL);
+
     private String extractJson(String rawText) {
+        if (rawText == null) return "";
         // Clean out think tags and their content if the model ignored the prompt
-        String cleanedText = rawText.replaceAll("(?s)<think>.*?</think>", "").trim();
+        String cleanedText = THINK_TAG_PATTERN.matcher(rawText).replaceAll("").trim();
         
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL).matcher(cleanedText);
+        java.util.regex.Matcher matcher = JSON_EXTRACT_PATTERN.matcher(cleanedText);
         if (matcher.find()) {
             return matcher.group();
         }
         // Fallback to original text if regex failed on cleaned text
-        matcher = java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL).matcher(rawText);
+        matcher = JSON_EXTRACT_PATTERN.matcher(rawText);
         if (matcher.find()) {
             return matcher.group();
         }

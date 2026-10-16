@@ -97,6 +97,18 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     };
   }, [stopCamera]);
 
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        stopCamera();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [stopCamera, onClose]);
+
   // Close country dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -122,7 +134,6 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
   // Debounce autocomplete search
   useEffect(() => {
-    let isActive = true;
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     
     if (searchName.trim().length < 2) {
@@ -132,24 +143,29 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       return;
     }
 
+    const controller = new AbortController();
     setIsTyping(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${encodeURIComponent(promptCountry)}&category=${encodeURIComponent(foodCategory || '')}`);
-        if (isActive && Array.isArray(response.data)) {
+        const response = await api.get(
+          `/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${encodeURIComponent(promptCountry)}&category=${encodeURIComponent(foodCategory || '')}`,
+          { signal: controller.signal }
+        );
+        if (!controller.signal.aborted && Array.isArray(response.data)) {
           setSuggestions(response.data || []);
           setSelectedIndex(-1);
           setShowSuggestions(true);
         }
       } catch (err) {
-        if (isActive) console.error('Autocomplete failed:', err);
+        if (err.name === 'CanceledError' || err.name === 'AbortError' || controller.signal.aborted) return;
+        console.error('Autocomplete failed:', err);
       } finally {
-        if (isActive) setIsTyping(false);
+        if (!controller.signal.aborted) setIsTyping(false);
       }
     }, 200);
     
     return () => {
-      isActive = false;
+      controller.abort();
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [searchName, promptCountry, foodCategory]);
@@ -246,6 +262,10 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
+      if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
+        setError('Camera is still loading. Please wait a second and try again.');
+        return;
+      }
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
@@ -379,7 +399,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
       let data = null;
       try {
-        const regionalRes = await fetch(`https://${countryPrefix}.openfoodfacts.org/api/v0/product/${barcode}.json`);
+        const regionalRes = await fetch(`https://${countryPrefix}.openfoodfacts.org/api/v0/product/${barcode}.json`, { signal: AbortSignal.timeout(10000) });
         data = await regionalRes.json();
       } catch (regionalErr) {
         // Continue to world fallback
@@ -387,7 +407,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
 
       if ((!data || data.status !== 1) && countryPrefix !== 'world') {
         try {
-          const worldRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+          const worldRes = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, { signal: AbortSignal.timeout(10000) });
           data = await worldRes.json();
         } catch (worldErr) {
           // Handled below
@@ -485,7 +505,15 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   }, [showSuggestions, searchName, suggestions, recentSearches, popularStaples, selectedIndex, handleSuggestionClick]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+    <div 
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          stopCamera();
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white text-gray-900 rounded-t-[2rem] sm:rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto relative animate-slideUp sm:animate-fadeIn">
         
         {/* Close Button */}

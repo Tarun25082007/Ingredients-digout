@@ -284,57 +284,63 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
   }, []);
 
   useEffect(() => {
-    if (token && productName) {
-      const fetchComparison = async () => {
-        // Clear stale data from previous scan before loading new one
-        setInternationalData(null);
-        setLoading(true);
-        setError('');
+    if (!token || !productName) return;
+    const controller = new AbortController();
 
-        // Prioritize specific global equivalent (e.g. "Monster Energy Original") over ambiguous single word ("Monster")
-        const primaryTarget = (globalEquivalent && globalEquivalent.trim().length > 0 && globalEquivalent.toLowerCase() !== productName.toLowerCase())
-          ? globalEquivalent.trim()
-          : productName.trim();
+    const fetchComparison = async () => {
+      // Clear stale data from previous scan before loading new one
+      setInternationalData(null);
+      setLoading(true);
+      setError('');
 
-        try {
-          const response = await api.post('/scan/analyze-name', { 
-            productName: primaryTarget, 
-            countryCode: 'world', 
-            saveHistory: 'false', 
-            useFastModel: 'true',
-            language: language || 'English'
-          });
-          if (!isMountedRef.current) return;
-          setInternationalData(response.data);
-        } catch (err) {
-          if (!isMountedRef.current) return;
-          // If primaryTarget was globalEquivalent and failed, fallback to productName
-          if (primaryTarget !== productName.trim()) {
-            try {
-              const response2 = await api.post('/scan/analyze-name', { 
-                productName: productName.trim(), 
-                countryCode: 'world', 
-                saveHistory: 'false', 
-                useFastModel: 'true',
-                language: language || 'English'
-              });
-              if (!isMountedRef.current) return;
-              setInternationalData(response2.data);
-              setLoading(false);
-              return;
-            } catch (err2) {
-              // Fall through to error
-            }
+      // Prioritize specific global equivalent (e.g. "Monster Energy Original") over ambiguous single word ("Monster")
+      const primaryTarget = (globalEquivalent && globalEquivalent.trim().length > 0 && globalEquivalent.toLowerCase() !== productName.toLowerCase())
+        ? globalEquivalent.trim()
+        : productName.trim();
+
+      try {
+        const response = await api.post('/scan/analyze-name', { 
+          productName: primaryTarget, 
+          countryCode: 'world', 
+          saveHistory: 'false', 
+          useFastModel: 'true',
+          language: language || 'English'
+        }, { signal: controller.signal });
+        if (controller.signal.aborted || !isMountedRef.current) return;
+        setInternationalData(response.data);
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.name === 'AbortError' || controller.signal.aborted) return;
+        // If primaryTarget was globalEquivalent and failed, fallback to productName
+        if (primaryTarget !== productName.trim()) {
+          try {
+            const response2 = await api.post('/scan/analyze-name', { 
+              productName: productName.trim(), 
+              countryCode: 'world', 
+              saveHistory: 'false', 
+              useFastModel: 'true',
+              language: language || 'English'
+            }, { signal: controller.signal });
+            if (controller.signal.aborted || !isMountedRef.current) return;
+            setInternationalData(response2.data);
+            setLoading(false);
+            return;
+          } catch (err2) {
+            if (err2.name === 'CanceledError' || err2.name === 'AbortError' || controller.signal.aborted) return;
+            // Fall through to error
           }
-          if (!isMountedRef.current) return;
+        }
+        if (!controller.signal.aborted && isMountedRef.current) {
           setError('Failed to load international comparison data. This product might not be listed in the global OpenFoodFacts database.');
           setInternationalData(null);
-        } finally {
-          if (isMountedRef.current) setLoading(false);
         }
-      };
-      fetchComparison();
-    }
+      } finally {
+        if (!controller.signal.aborted && isMountedRef.current) setLoading(false);
+      }
+    };
+    fetchComparison();
+    return () => {
+      controller.abort();
+    };
   }, [token, productName, globalEquivalent, language]);
 
   // Unauthenticated view - Blurred background with lock overlay
@@ -596,7 +602,11 @@ const VariantComparison = ({ scannedIngredients, productName, globalEquivalent, 
                 {/* Symmetrical Ingredients Box - Pure Clean White */}
                 <div className="flex-1 h-72 overflow-y-auto bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   {renderIngredientList(
-                    internationalData?.ingredientsFound,
+                    (Array.isArray(internationalData?.ingredientsFound) && internationalData.ingredientsFound.length > 0)
+                      ? internationalData.ingredientsFound
+                      : (internationalData?.ingredientsText
+                          ? internationalData.ingredientsText.split(/[,;]\s*/).map(s => s.trim()).filter(Boolean)
+                          : []),
                     productName ? t('not_in_db') : t('scan_to_fetch'),
                     true
                   )}

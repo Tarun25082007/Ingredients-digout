@@ -10,6 +10,8 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
 
+  const hasDecodedRef = useRef(false);
+
   useEffect(() => {
     onResultRef.current = onResult;
     onErrorRef.current = onError;
@@ -17,6 +19,7 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
 
   useEffect(() => {
     let isMounted = true;
+    hasDecodedRef.current = false;
     
     Html5Qrcode.getCameras().then(devices => {
       if (!isMounted) return;
@@ -38,6 +41,8 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
             qrbox: { width: 250, height: 150 }
           },
           (decodedText, decodedResult) => {
+            if (hasDecodedRef.current) return;
+            hasDecodedRef.current = true;
             if (scanner && scanner.isScanning) {
               scanner.stop().then(() => {
                 if (isMounted) setIsScanning(false);
@@ -46,6 +51,8 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
                 console.warn("Failed to stop scanner after decode.", err);
                 if (onResultRef.current) onResultRef.current(decodedText);
               });
+            } else if (onResultRef.current) {
+              onResultRef.current(decodedText);
             }
           },
           (errorMessage) => {
@@ -53,10 +60,16 @@ const BarcodeScanner = ({ onResult, onError, onClose }) => {
           }
         ).then(() => {
           // Check if unmounted while camera was starting
-          if (!isMounted && scanner && scanner.isScanning) {
-            scanner.stop()
-              .then(() => scanner.clear().catch(() => {}))
-              .catch(console.warn);
+          if (!isMounted && scanner) {
+            try {
+              if (scanner.isScanning) {
+                scanner.stop().then(() => scanner.clear().catch(() => {})).catch(console.warn);
+              } else {
+                scanner.clear().catch(() => {});
+              }
+            } catch (e) {
+              console.warn("Error stopping scanner after late start", e);
+            }
           }
         }).catch(err => {
           if (isMounted) {

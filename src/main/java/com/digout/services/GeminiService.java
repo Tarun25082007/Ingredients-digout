@@ -349,8 +349,12 @@ public class GeminiService {
         return sb.toString();
     }
 
+    private static final java.util.regex.Pattern JSON_EXTRACT_PATTERN = 
+            java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL);
+
     private String extractJson(String rawText) {
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\{.*\\}", java.util.regex.Pattern.DOTALL).matcher(rawText);
+        if (rawText == null) return "";
+        java.util.regex.Matcher matcher = JSON_EXTRACT_PATTERN.matcher(rawText);
         if (matcher.find()) {
             return matcher.group();
         }
@@ -362,7 +366,8 @@ public class GeminiService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            String dbPrompt = "You are a product ingredient database. The user is searching for '" + productName.replace("'", "") + "'. Output a JSON object containing 'product_name' and 'ingredients_text' (a comma separated string of typical ingredients for the global/popular version of this product) based on your knowledge. Output RAW JSON ONLY.";
+            String safeName = productName != null ? productName.replace("'", "").replace("\"", "").replace("\n", " ").trim() : "";
+            String dbPrompt = "You are a product ingredient database. The user is searching for '" + safeName + "'. Output a JSON object containing 'product_name' and 'ingredients_text' (a comma separated string of typical ingredients for the global/popular version of this product) based on your knowledge. Output RAW JSON ONLY.";
             
             ResponseEntity<String> response = executeWithModelFallback(headers, model -> Map.of(
                     "model", model,

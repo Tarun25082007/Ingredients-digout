@@ -519,7 +519,11 @@ public class ScanController {
                         sb.append("Height: ").append(u.getHeightCm()).append("cm, Weight: ").append(u.getWeightKg()).append("kg (BMI: ").append(bmi).append(")\n");
                     }
                     if (u.getActivityLevel() != null) sb.append("Activity: ").append(u.getActivityLevel().replaceAll("[\\r\\n]", " ").trim()).append("\n");
-                    if (u.getCalorieGoal() != null) sb.append("Calorie Goal: ").append(u.getCalorieGoal()).append("\n");
+                    if (u.getCalorieGoal() != null) {
+                        String cleanGoal = u.getCalorieGoal().replaceAll("[<>]", "").replaceAll("[\\r\\n]", " ").trim();
+                        if (cleanGoal.length() > 50) cleanGoal = cleanGoal.substring(0, 50);
+                        sb.append("Calorie Goal: ").append(cleanGoal).append("\n");
+                    }
                     if (u.getMedicalConditions() != null && !u.getMedicalConditions().isBlank()) {
                         String rawConditions = u.getMedicalConditions();
                         if ("MALE".equalsIgnoreCase(u.getGender())) {
@@ -628,8 +632,15 @@ public class ScanController {
         if (sanitizedQuery.isBlank()) {
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
+
+        String sanitizedCountry = (countryCode != null && !countryCode.trim().isEmpty())
+                ? countryCode.trim().toLowerCase().replaceAll("[^a-zA-Z0-9-]", "")
+                : "world";
+        if (sanitizedCountry.length() > 32) sanitizedCountry = sanitizedCountry.substring(0, 32);
+        if (sanitizedCountry.isEmpty()) sanitizedCountry = "world";
+
         try {
-            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(sanitizedQuery, countryCode, category);
+            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(sanitizedQuery, sanitizedCountry, category);
             return ResponseEntity.ok(suggestions);
         } catch (Exception e) {
             return ResponseEntity.ok(java.util.Collections.emptyList());
