@@ -14,6 +14,7 @@ const Navbar = () => {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [country, setCountry] = useState(getUserCountry().toUpperCase());
   const countries = getAllCountries();
+  const availableLanguages = getLanguagesForCountry(country);
   const location = useLocation();
   const isSubPage = location.pathname !== '/';
   const { isInstallable, installApp } = usePWA();
