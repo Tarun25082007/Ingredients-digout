@@ -5,6 +5,11 @@ import './index.css';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { initDevToolsProtection } from './utils/devToolsGuard.js';
 
+import { registerSW } from 'virtual:pwa-register';
+
+// Auto-activate and update service worker immediately
+registerSW({ immediate: true });
+
 // Initialize DevTools security protection for non-host machines
 initDevToolsProtection();
 
