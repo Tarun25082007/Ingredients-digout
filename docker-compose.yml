@@ -38,10 +38,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8443/api/scan/autocomplete?query=test&countryCode=US"]
+      test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost:8443/api/scan/health"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
     deploy:
       resources:
         limits:

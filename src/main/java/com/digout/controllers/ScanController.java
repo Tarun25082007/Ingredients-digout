@@ -90,6 +90,11 @@ public class ScanController {
         return category.trim().toLowerCase();
     }
 
+    @GetMapping("/health")
+    public ResponseEntity<java.util.Map<String, String>> health() {
+        return ResponseEntity.ok(java.util.Map.of("status", "UP"));
+    }
+
     @PostMapping("/analyze")
     public CompletableFuture<ResponseEntity<Object>> analyzeImage(
             @RequestParam("file") MultipartFile file, 
