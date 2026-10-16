@@ -135,7 +135,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     setIsTyping(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${encodeURIComponent(promptCountry)}`);
+        const response = await api.get(`/scan/autocomplete?query=${encodeURIComponent(searchName.trim())}&countryCode=${encodeURIComponent(promptCountry)}&category=${encodeURIComponent(foodCategory || '')}`);
         if (isActive && Array.isArray(response.data)) {
           setSuggestions(response.data || []);
           setSelectedIndex(-1);
@@ -146,13 +146,13 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
       } finally {
         if (isActive) setIsTyping(false);
       }
-    }, 300);
+    }, 200);
     
     return () => {
       isActive = false;
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
-  }, [searchName, promptCountry]);
+  }, [searchName, promptCountry, foodCategory]);
 
   const startCamera = useCallback(async (targetFacing = facingMode) => {
     setError('');

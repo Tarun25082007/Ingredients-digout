@@ -32,7 +32,7 @@ public class OpenFoodFactsService {
 
     private static final String SEARCH_ORG_URL_TEMPLATE = "https://%s.openfoodfacts.org/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
     private static final String SEARCH_NET_URL_TEMPLATE = "https://%s.openfoodfacts.net/cgi/search.pl?search_terms=%s&search_simple=1&action=process&json=1&sort_by=popularity_key&page_size=10";
-    private static final String SEARCH_API_URL_TEMPLATE = SEARCH_ORG_URL_TEMPLATE;
+    private static final String SEARCH_API_URL_TEMPLATE = SEARCH_NET_URL_TEMPLATE;
 
     public OpenFoodFactsService(@org.springframework.beans.factory.annotation.Qualifier("fastRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
@@ -111,13 +111,13 @@ public class OpenFoodFactsService {
 
         ResponseEntity<String> response = null;
         try {
-            response = restTemplate.exchange(orgUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
-        } catch (Exception ex) {
-            log.warn("OpenFoodFacts .org endpoint failed for '{}', trying .net fallback: {}", productName, ex.getMessage());
+            response = restTemplate.exchange(netUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+        } catch (Exception exNet) {
+            log.warn("OpenFoodFacts .net endpoint failed for '{}', trying .org fallback: {}", productName, exNet.getMessage());
             try {
-                response = restTemplate.exchange(netUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
-            } catch (Exception exNet) {
-                log.warn("OpenFoodFacts .net endpoint also failed: {}", exNet.getMessage());
+                response = restTemplate.exchange(orgUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+            } catch (Exception exOrg) {
+                log.warn("OpenFoodFacts .org endpoint also failed: {}", exOrg.getMessage());
                 return null;
             }
         }
@@ -376,21 +376,71 @@ public class OpenFoodFactsService {
         return score;
     }
 
+    private final java.util.Map<String, java.util.List<ProductSuggestionDTO>> autocompleteCache =
+            java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(128, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<String, java.util.List<ProductSuggestionDTO>> eldest) {
+                    return size() > 250;
+                }
+            });
+
+    private static final java.util.List<String> FRESH_FOOD_ITEMS = java.util.List.of(
+        "Fresh Red Apple", "Green Apple", "Banana", "Orange", "Mango", "Strawberries", 
+        "Blueberries", "Avocado", "Watermelon", "Papaya", "Pomegranate", "Grapes",
+        "Broccoli", "Spinach Salad", "Carrot", "Cucumber Salad", "Tomato",
+        "Masala Dosa", "Plain Dosa", "Rava Dosa", "Idli Sambar", "Medu Vada",
+        "Dal Tadka", "Dal Makhani", "Paneer Butter Masala", "Palak Paneer", "Paneer Tikka",
+        "Chicken Biryani", "Mutton Biryani", "Veg Biryani", "Butter Chicken", "Tandoori Chicken",
+        "Chapati / Roti", "Butter Naan", "Garlic Naan", "Aloo Paratha", "Paneer Paratha",
+        "Chole Bhature", "Rajma Chawal", "Poha", "Upma", "Khichdi", "Samosa", "Pav Bhaji",
+        "Grilled Chicken Salad", "Caesar Salad", "Greek Salad", "Oatmeal with Berries",
+        "Greek Yogurt with Honey", "Boiled Eggs", "Scrambled Eggs", "Omelette with Toast",
+        "Avocado Toast", "Grilled Salmon", "Margherita Pizza", "Veggie Burger", 
+        "Chicken Burger", "French Fries", "Pasta Alfredo", "Spaghetti Bolognese",
+        "Filter Coffee", "Masala Chai", "Green Tea", "Fresh Orange Juice", "Mango Lassi",
+        "Sweet Lassi", "Buttermilk (Chaas)", "Fresh Coconut Water"
+    );
+
+    private static final java.util.List<String> PACKAGED_FOOD_ITEMS = java.util.List.of(
+        "Lay's Classic Salted", "Lay's India's Magic Masala", "Lay's American Style Cream & Onion",
+        "Kurkure Masala Munch", "Doritos Nacho Cheese", "Pringles Original", "Pringles Sour Cream & Onion",
+        "Maggi 2-Minute Noodles", "Maggi Masala Noodles", "Top Ramen Curry", "Knorr Tomato Soup",
+        "Oreo Original Sandwich Cookies", "Parle-G Glucose Biscuits", "Britannia Good Day Butter",
+        "Britannia Bourbon", "Cadbury Dairy Milk Silk", "KitKat 4-Finger", "Snickers Chocolate Bar",
+        "Nutella Hazelnut Spread", "Amul Butter", "Amul Processed Cheese", "Kellogg's Corn Flakes",
+        "Quaker Rolled Oats", "Coca-Cola Original", "Coca-Cola Zero Sugar", "Pepsi", "Sprite", "Red Bull Energy Drink"
+    );
+
     public java.util.List<ProductSuggestionDTO> autocompleteProducts(String query, String countryCode) {
+        return autocompleteProducts(query, countryCode, null);
+    }
+
+    public java.util.List<ProductSuggestionDTO> autocompleteProducts(String query, String countryCode, String category) {
         if (query == null || query.trim().isEmpty()) {
             return java.util.Collections.emptyList();
         }
         
+        String cleanQuery = query.trim();
         String cc = (countryCode != null && !countryCode.trim().isEmpty()) ? countryCode.trim().toLowerCase() : "world";
-        String encodedQuery = java.net.URLEncoder.encode(query, java.nio.charset.StandardCharsets.UTF_8);
-        String url = String.format(SEARCH_API_URL_TEMPLATE, cc, encodedQuery) + "&page_size=10";
+        String cat = (category != null) ? category.trim().toLowerCase() : "";
+        String cacheKey = cleanQuery.toLowerCase() + "::" + cc + "::" + cat;
 
-        java.util.List<ProductSuggestionDTO> suggestions = fetchAutocomplete(url);
+        java.util.List<ProductSuggestionDTO> cached = autocompleteCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        String encodedQuery = java.net.URLEncoder.encode(cleanQuery, java.nio.charset.StandardCharsets.UTF_8);
+        String netUrl = String.format(SEARCH_NET_URL_TEMPLATE, cc, encodedQuery);
+        String orgUrl = String.format(SEARCH_ORG_URL_TEMPLATE, cc, encodedQuery);
+
+        java.util.List<ProductSuggestionDTO> suggestions = fetchAutocomplete(netUrl, orgUrl);
 
         // Augment with global search if regional results are sparse
         if (suggestions.size() < 4 && !"world".equals(cc)) {
-            String globalUrl = String.format(SEARCH_API_URL_TEMPLATE, "world", encodedQuery) + "&page_size=5";
-            java.util.List<ProductSuggestionDTO> globalSuggestions = fetchAutocomplete(globalUrl);
+            String globalNetUrl = String.format(SEARCH_NET_URL_TEMPLATE, "world", encodedQuery);
+            String globalOrgUrl = String.format(SEARCH_ORG_URL_TEMPLATE, "world", encodedQuery);
+            java.util.List<ProductSuggestionDTO> globalSuggestions = fetchAutocomplete(globalNetUrl, globalOrgUrl);
             for (ProductSuggestionDTO dto : globalSuggestions) {
                 boolean exists = suggestions.stream().anyMatch(s -> s.productName().equalsIgnoreCase(dto.productName()));
                 if (!exists) {
@@ -399,44 +449,99 @@ public class OpenFoodFactsService {
                 if (suggestions.size() >= 8) break;
             }
         }
-        // Sort suggestions to prioritize closer string matches, keeping popularity as secondary
-        suggestions.sort((a, b) -> {
+
+        // Augment with curated suggestions matching the query
+        String qLower = cleanQuery.toLowerCase();
+        java.util.List<String> targetCuratedList = new java.util.ArrayList<>();
+        if ("fresh".equals(cat)) {
+            targetCuratedList.addAll(FRESH_FOOD_ITEMS);
+            targetCuratedList.addAll(PACKAGED_FOOD_ITEMS);
+        } else {
+            targetCuratedList.addAll(PACKAGED_FOOD_ITEMS);
+            targetCuratedList.addAll(FRESH_FOOD_ITEMS);
+        }
+
+        java.util.List<ProductSuggestionDTO> curatedMatches = new java.util.ArrayList<>();
+        for (String item : targetCuratedList) {
+            if (item.toLowerCase().contains(qLower)) {
+                boolean alreadyInList = suggestions.stream().anyMatch(s -> s.productName().equalsIgnoreCase(item));
+                if (!alreadyInList) {
+                    curatedMatches.add(new ProductSuggestionDTO(item, null));
+                }
+            }
+        }
+
+        // If category is fresh, prioritize curated fresh dishes at the top
+        if ("fresh".equals(cat)) {
+            curatedMatches.addAll(suggestions);
+            suggestions = curatedMatches;
+        } else {
+            suggestions.addAll(curatedMatches);
+        }
+
+        // Deduplicate suggestions preserving order
+        java.util.List<ProductSuggestionDTO> deduplicated = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (ProductSuggestionDTO s : suggestions) {
+            String norm = s.productName().trim().toLowerCase();
+            if (seen.add(norm)) {
+                deduplicated.add(s);
+            }
+            if (deduplicated.size() >= 8) break;
+        }
+
+        // Sort suggestions to prioritize closer string matches
+        deduplicated.sort((a, b) -> {
             String nameA = a.productName().toLowerCase();
             String nameB = b.productName().toLowerCase();
-            String q = query.toLowerCase().trim();
             
-            boolean aExact = nameA.equals(q);
-            boolean bExact = nameB.equals(q);
+            boolean aExact = nameA.equals(qLower);
+            boolean bExact = nameB.equals(qLower);
             if (aExact && !bExact) return -1;
             if (!aExact && bExact) return 1;
             
-            boolean aStartsWith = nameA.startsWith(q);
-            boolean bStartsWith = nameB.startsWith(q);
+            boolean aStartsWith = nameA.startsWith(qLower);
+            boolean bStartsWith = nameB.startsWith(qLower);
             if (aStartsWith && !bStartsWith) return -1;
             if (!aStartsWith && bStartsWith) return 1;
             
-            // Length penalty: shorter names that contain the query are preferred (e.g. "Kit Kat" over "Kit Kat x 10")
-            boolean aContains = nameA.contains(q);
-            boolean bContains = nameB.contains(q);
+            boolean aContains = nameA.contains(qLower);
+            boolean bContains = nameB.contains(qLower);
             if (aContains && bContains) {
                 return Integer.compare(nameA.length(), nameB.length());
             }
-            
             return 0;
         });
-        
-        return suggestions;
+
+        autocompleteCache.put(cacheKey, deduplicated);
+        return deduplicated;
     }
 
-    private java.util.List<ProductSuggestionDTO> fetchAutocomplete(String url) {
+    private java.util.List<ProductSuggestionDTO> fetchAutocomplete(String netUrl, String orgUrl) {
         try {
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.set(org.springframework.http.HttpHeaders.USER_AGENT, "DigOut/1.0 (https://digout.com; contact@digout.com)");
+            headers.set(org.springframework.http.HttpHeaders.USER_AGENT, "DigOutApp - Android - Version 1.0 - www.digout.com");
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
             
-            ResponseEntity<String> response = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, entity, String.class);
-            JsonNode root = objectMapper.readTree(response.getBody());
+            ResponseEntity<String> response = null;
+            try {
+                response = restTemplate.exchange(netUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+            } catch (Exception exNet) {
+                log.warn("OpenFoodFacts .net autocomplete failed, trying .org fallback: {}", exNet.getMessage());
+                if (orgUrl != null) {
+                    try {
+                        response = restTemplate.exchange(orgUrl, org.springframework.http.HttpMethod.GET, entity, String.class);
+                    } catch (Exception exOrg) {
+                        log.warn("OpenFoodFacts .org autocomplete fallback also failed: {}", exOrg.getMessage());
+                    }
+                }
+            }
 
+            if (response == null || response.getBody() == null) {
+                return new java.util.ArrayList<>();
+            }
+
+            JsonNode root = objectMapper.readTree(response.getBody());
             JsonNode products = root.path("products");
             java.util.List<ProductSuggestionDTO> suggestions = new java.util.ArrayList<>();
             
@@ -452,7 +557,7 @@ public class OpenFoodFactsService {
             }
             return suggestions;
         } catch (Exception e) {
-            log.warn("Failed to fetch autocomplete from OpenFoodFacts: {}", e.getMessage());
+            log.warn("Failed to parse autocomplete from OpenFoodFacts: {}", e.getMessage());
             return new java.util.ArrayList<>();
         }
     }

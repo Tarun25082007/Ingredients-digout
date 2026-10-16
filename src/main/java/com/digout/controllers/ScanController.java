@@ -606,7 +606,10 @@ public class ScanController {
     }
 
     @GetMapping("/autocomplete")
-    public ResponseEntity<List<ProductSuggestionDTO>> autocomplete(@RequestParam("query") String query, @RequestParam(value = "countryCode", defaultValue = "world") String countryCode) {
+    public ResponseEntity<List<ProductSuggestionDTO>> autocomplete(
+            @RequestParam("query") String query, 
+            @RequestParam(value = "countryCode", defaultValue = "world") String countryCode,
+            @RequestParam(value = "category", required = false) String category) {
         if (query == null || query.isBlank()) {
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
@@ -621,7 +624,7 @@ public class ScanController {
             return ResponseEntity.ok(java.util.Collections.emptyList());
         }
         try {
-            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(sanitizedQuery, countryCode);
+            List<ProductSuggestionDTO> suggestions = openFoodFactsService.autocompleteProducts(sanitizedQuery, countryCode, category);
             return ResponseEntity.ok(suggestions);
         } catch (Exception e) {
             return ResponseEntity.ok(java.util.Collections.emptyList());
