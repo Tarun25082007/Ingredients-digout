@@ -64,10 +64,6 @@ export const AuthProvider = ({ children }) => {
       const res = await api.get('/user/profile');
       setUserProfile(res.data);
       localStorage.setItem('userProfile', JSON.stringify(res.data));
-      if (!res.data.profileCompleted && !sessionStorage.getItem('onboarding_dismissed')) {
-        setIsOnboarding(true);
-        setIsProfileModalOpen(true);
-      }
     } catch (err) {
       console.warn('Could not fetch user profile:', err);
     }
@@ -76,17 +72,12 @@ export const AuthProvider = ({ children }) => {
   const login = (jwtToken, userData) => {
     setToken(jwtToken);
     setUser(userData);
-    sessionStorage.removeItem('onboarding_dismissed');
     if (userData && userData.user) {
       setUserProfile(userData.user);
       localStorage.setItem('userProfile', JSON.stringify(userData.user));
-      if (!userData.user.profileCompleted) {
-        setIsOnboarding(true);
-        setIsProfileModalOpen(true);
-      }
-    } else if (userData && userData.profileCompleted === false) {
-      setIsOnboarding(true);
-      setIsProfileModalOpen(true);
+    } else if (userData) {
+      setUserProfile(userData);
+      localStorage.setItem('userProfile', JSON.stringify(userData));
     }
   };
 
@@ -95,7 +86,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setUserProfile(null);
     setIsProfileModalOpen(false);
-    sessionStorage.removeItem('onboarding_dismissed');
   };
 
   const openProfileModal = () => {
@@ -106,7 +96,6 @@ export const AuthProvider = ({ children }) => {
   const closeProfileModal = () => {
     setIsProfileModalOpen(false);
     setIsOnboarding(false);
-    sessionStorage.setItem('onboarding_dismissed', 'true');
   };
 
   const handleProfileUpdated = (updatedProfile) => {
