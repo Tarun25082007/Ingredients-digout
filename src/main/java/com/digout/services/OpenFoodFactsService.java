@@ -428,6 +428,7 @@ public class OpenFoodFactsService {
         "Blueberries", "Avocado", "Watermelon", "Papaya", "Pomegranate", "Grapes",
         "Broccoli", "Spinach Salad", "Carrot", "Cucumber Salad", "Tomato",
         "Masala Dosa", "Plain Dosa", "Rava Dosa", "Idli Sambar", "Medu Vada",
+        "Sweet Pongal", "Ven Pongal", "Pani Puri", "Vada Pav", "Bhel Puri", "Sev Puri",
         "Dal Tadka", "Dal Makhani", "Paneer Butter Masala", "Palak Paneer", "Paneer Tikka",
         "Chicken Biryani", "Mutton Biryani", "Veg Biryani", "Butter Chicken", "Tandoori Chicken",
         "Chapati / Roti", "Butter Naan", "Garlic Naan", "Aloo Paratha", "Paneer Paratha",

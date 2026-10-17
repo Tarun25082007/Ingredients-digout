@@ -670,7 +670,7 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                       <input
                         ref={searchInputRef}
                         type="text"
-                        placeholder={foodCategory === 'fresh' ? 'e.g. Dosa, Apple, Grilled Salad, Dal' : t('search_placeholder')}
+                        placeholder={foodCategory === 'fresh' ? 'e.g. Dosa, Pongal, Biryani, Dal' : t('search_placeholder')}
                         value={searchName}
                         onChange={(e) => setSearchName(e.target.value)}
                         onFocus={() => setShowSuggestions(true)}
@@ -743,7 +743,9 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
                                 </div>
                               ) : (
                                 <div className="p-3 text-center text-xs text-gray-500 bg-gray-50/50">
-                                  No direct barcode database match for "{searchName}".
+                                  {foodCategory === 'fresh'
+                                    ? `No direct recipe match for "${searchName}".`
+                                    : `No direct product match for "${searchName}".`}
                                 </div>
                               )}
 
