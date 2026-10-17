@@ -55,7 +55,7 @@ public class GeminiService {
                 HttpEntity<java.util.Map<String, Object>> request = new HttpEntity<>(payload, headers);
                 return restTemplate.postForEntity(GEMINI_API_URL + geminiApiKey, request, String.class);
             } catch (org.springframework.web.client.HttpStatusCodeException e) {
-                log.warn("Gemini model '{}' returned HTTP {}. Upgrading to next model...", model, e.getStatusCode());
+                log.warn("Gemini model '{}' returned HTTP {}: {}. Upgrading to next model...", model, e.getStatusCode(), e.getResponseBodyAsString());
                 lastException = e;
             } catch (Exception e) {
                 log.warn("Gemini model '{}' failed ({}: {}). Upgrading to next model...", model, e.getClass().getSimpleName(), e.getMessage());

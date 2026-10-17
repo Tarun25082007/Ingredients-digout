@@ -50,6 +50,11 @@ public class GlobalExceptionHandler {
         }
         
         log.error("Unhandled exception in request: {}", cause.getMessage(), cause);
+        String msg = cause.getMessage();
+        if (msg != null && (msg.toLowerCase().contains("failed to analyze") || msg.toLowerCase().contains("ai failed") || msg.toLowerCase().contains("models failed"))) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("message", "AI food analysis service is temporarily busy or unavailable. Please try again in a few moments."));
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("message", "An internal error occurred. Please try again later."));
     }
