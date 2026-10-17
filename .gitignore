@@ -2,8 +2,7 @@
 node_modules/
 dist/
 .env*
+!.env.example
 target/
 .idea/
 .vscode/
-.env  
- 
