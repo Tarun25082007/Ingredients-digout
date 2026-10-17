@@ -288,8 +288,8 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
   }, [isMirrored, stopCamera, uploadImage]);
 
   const popularStaples = foodCategory === 'fresh'
-    ? ['Masala Dosa', 'Apple', 'Grilled Chicken Salad', 'Oatmeal', 'Dal Tadka']
-    : ["Lay's Classic", "Coca-Cola", "Nutella", "Oreo", "Maggi Noodles"];
+    ? ['Masala Dosa', 'Sweet Pongal', 'Chicken Biryani', 'Cheeseburger', 'Margherita Pizza', 'Sushi', 'Tacos', 'Pad Thai', 'Apple', 'Dal Tadka']
+    : ["Lay's Classic", "Maggi Noodles", "Coca-Cola", "Oreo", "KitKat", "Shin Ramyun", "Nutella", "Doritos", "Kurkure"];
 
   const saveRecentSearch = useCallback((query) => {
     if (!query || !query.trim()) return;

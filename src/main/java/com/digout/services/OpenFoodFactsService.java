@@ -424,31 +424,122 @@ public class OpenFoodFactsService {
             });
 
     private static final java.util.List<String> FRESH_FOOD_ITEMS = java.util.List.of(
+        // Fruits & Fresh Produce
         "Fresh Red Apple", "Green Apple", "Banana", "Orange", "Mango", "Strawberries", 
         "Blueberries", "Avocado", "Watermelon", "Papaya", "Pomegranate", "Grapes",
-        "Broccoli", "Spinach Salad", "Carrot", "Cucumber Salad", "Tomato",
-        "Masala Dosa", "Plain Dosa", "Rava Dosa", "Idli Sambar", "Medu Vada",
-        "Sweet Pongal", "Ven Pongal", "Pani Puri", "Vada Pav", "Bhel Puri", "Sev Puri",
+        "Pineapple", "Guava", "Dragon Fruit", "Kiwi", "Broccoli", "Spinach Salad", 
+        "Carrot", "Cucumber Salad", "Tomato", "Boiled Sweet Corn",
+
+        // Indian & South Asian Staples & Street Food
+        "Masala Dosa", "Plain Dosa", "Rava Dosa", "Set Dosa", "Idli Sambar", "Medu Vada",
+        "Sweet Pongal", "Ven Pongal / Khara Pongal", "Pani Puri", "Bhel Puri", "Sev Puri", 
+        "Vada Pav", "Pav Bhaji", "Samosa", "Kachori", "Dahi Vada", "Aloo Tikki", "Kathi Roll",
+        "Poha", "Upma", "Khichdi", "Chole Bhature", "Rajma Chawal", "Poori Masala", "Chana Chaat",
         "Dal Tadka", "Dal Makhani", "Paneer Butter Masala", "Palak Paneer", "Paneer Tikka",
-        "Chicken Biryani", "Mutton Biryani", "Veg Biryani", "Butter Chicken", "Tandoori Chicken",
-        "Chapati / Roti", "Butter Naan", "Garlic Naan", "Aloo Paratha", "Paneer Paratha",
-        "Chole Bhature", "Rajma Chawal", "Poha", "Upma", "Khichdi", "Samosa", "Pav Bhaji",
-        "Grilled Chicken Salad", "Caesar Salad", "Greek Salad", "Oatmeal with Berries",
-        "Greek Yogurt with Honey", "Boiled Eggs", "Scrambled Eggs", "Omelette with Toast",
-        "Avocado Toast", "Grilled Salmon", "Margherita Pizza", "Veggie Burger", 
-        "Chicken Burger", "French Fries", "Pasta Alfredo", "Spaghetti Bolognese",
-        "Filter Coffee", "Masala Chai", "Green Tea", "Fresh Orange Juice", "Mango Lassi",
-        "Sweet Lassi", "Buttermilk (Chaas)", "Fresh Coconut Water"
+        "Shahi Paneer", "Kadai Paneer", "Mushroom Masala", "Aloo Gobi", "Bhindi Masala",
+        "Chicken Biryani", "Mutton Biryani", "Veg Biryani", "Egg Biryani", "Butter Chicken", 
+        "Tandoori Chicken", "Chicken Tikka", "Fish Curry", "Mutton Rogan Josh",
+        "Chapati / Roti", "Butter Naan", "Garlic Naan", "Tandoori Roti", "Aloo Paratha", "Paneer Paratha",
+        "Curd Rice", "Sambhar Rice", "Lemon Rice", "Bisi Bele Bath", "Momos (Steamed)", "Gobi Manchurian",
+        "Gulab Jamun", "Rasgulla", "Jalebi", "Gajar Ka Halwa", "Kheer / Payasam",
+        "Filter Coffee", "Masala Chai", "Mango Lassi", "Sweet Lassi", "Buttermilk (Chaas)", "Fresh Coconut Water",
+
+        // American & Canadian Staples
+        "Cheeseburger", "Bacon Cheeseburger", "Veggie Burger", "Chicken Burger",
+        "Hot Dog", "Buffalo Chicken Wings", "Grilled Cheese Sandwich", "BLT Sandwich", "Club Sandwich",
+        "Macaroni and Cheese", "Clam Chowder", "Texas BBQ Ribs", "Pulled Pork Sandwich",
+        "French Fries", "Mashed Potatoes with Gravy", "Caesar Salad", "Cobb Salad",
+        "Pancakes with Maple Syrup", "Belgian Waffles", "Bagel with Cream Cheese", 
+        "Peanut Butter and Jelly Sandwich", "Apple Pie", "Chocolate Brownie",
+
+        // Mexican & Latin American
+        "Tacos al Pastor", "Carne Asada Tacos", "Chicken Quesadilla", "Burrito Bowl",
+        "Beef Burrito", "Guacamole with Chips", "Enchiladas", "Chiles Rellenos", "Tamales",
+        "Elote (Mexican Street Corn)", "Nachos with Melted Cheese", "Churros",
+        "Feijoada", "Pão de Queijo", "Empanadas", "Ceviche Mixto", "Açaí Bowl",
+
+        // Italian & Mediterranean
+        "Margherita Pizza", "Pepperoni Pizza", "Quattro Formaggi Pizza", "Calzone",
+        "Spaghetti Bolognese", "Spaghetti Carbonara", "Fettuccine Alfredo", "Lasagna alla Bolognese",
+        "Penne all'Arrabbiata", "Mushroom Risotto", "Bruschetta al Pomodoro", "Caprese Salad",
+        "Minestrone Soup", "Focaccia Bread", "Tiramisu", "Panna Cotta", "Gelato",
+        "Greek Salad", "Souvlaki", "Gyros Wrap", "Moussaka", "Spanakopita", "Falafel Pita Pocket",
+        "Spanish Seafood Paella", "Tortilla Española", "Patatas Bravas", "Gazpacho",
+
+        // British & European
+        "Fish and Chips", "Shepherd's Pie", "Cottage Pie", "Full English Breakfast", 
+        "Bangers and Mash", "Beef Wellington", "Cornish Pasty", "Scones with Jam and Cream",
+        "Croissant", "Pain au Chocolat", "Baguette with Butter", "Quiche Lorraine", "French Onion Soup",
+        "Croque Monsieur", "Crêpes with Sugar and Lemon", "Crème Brûlée",
+        "German Bratwurst with Mustard", "Currywurst", "Wiener Schnitzel", "Soft Pretzel (Brezel)",
+
+        // East Asian (Japan, China, Korea)
+        "Shoyu Ramen", "Tonkotsu Ramen", "Miso Ramen", "Salmon Sushi (Nigiri)", "Spicy Tuna Roll",
+        "Chicken Teriyaki with Rice", "Tempura Udon", "Pork Tonkatsu", "Gyoza Dumplings", "Miso Soup",
+        "Yakitori Skewers", "Takoyaki", "Matcha Green Tea",
+        "Kung Pao Chicken", "Sweet and Sour Chicken", "Peking Duck", "Mapo Tofu", 
+        "Yangzhou Fried Rice", "Chow Mein", "Dim Sum Dumplings", "Wonton Soup", "Spring Rolls",
+        "Bibimbap with Egg", "Beef Bulgogi", "Tteokbokki (Spicy Rice Cakes)", "Korean Fried Chicken", 
+        "Kimchi Jjigae (Stew)", "Japchae Noodles", "Kimchi",
+
+        // Southeast Asian & Middle Eastern
+        "Pad Thai Noodles", "Tom Yum Soup", "Thai Green Curry", "Massaman Curry", "Mango Sticky Rice",
+        "Vietnamese Beef Pho (Pho Bo)", "Chicken Pho (Pho Ga)", "Banh Mi Sandwich", "Fresh Spring Rolls (Goi Cuon)",
+        "Nasi Goreng", "Chicken Satay with Peanut Sauce", "Hainanese Chicken Rice", "Singapore Laksa",
+        "Chicken Shawarma Wrap", "Lamb Kebab", "Shish Tawook", "Hummus with Warm Pita", 
+        "Baba Ganoush", "Tabbouleh Salad", "Shakshuka with Eggs", "Kunafa", "Baklava",
+
+        // Healthy Breakfast & Fitness
+        "Oatmeal with Berries", "Greek Yogurt with Honey", "Boiled Eggs", "Scrambled Eggs with Toast",
+        "Avocado Toast with Poached Egg", "Grilled Salmon with Asparagus", "Grilled Chicken Breast with Rice",
+        "Quinoa Protein Bowl", "Overnight Oats with Chia Seeds"
     );
 
     private static final java.util.List<String> PACKAGED_FOOD_ITEMS = java.util.List.of(
+        // Chips & Savory Snacks (Global & Regional)
         "Lay's Classic Salted", "Lay's India's Magic Masala", "Lay's American Style Cream & Onion",
-        "Kurkure Masala Munch", "Doritos Nacho Cheese", "Pringles Original", "Pringles Sour Cream & Onion",
-        "Maggi 2-Minute Noodles", "Maggi Masala Noodles", "Top Ramen Curry", "Knorr Tomato Soup",
-        "Oreo Original Sandwich Cookies", "Parle-G Glucose Biscuits", "Britannia Good Day Butter",
-        "Britannia Bourbon", "Cadbury Dairy Milk Silk", "KitKat 4-Finger", "Snickers Chocolate Bar",
-        "Nutella Hazelnut Spread", "Amul Butter", "Amul Processed Cheese", "Kellogg's Corn Flakes",
-        "Quaker Rolled Oats", "Coca-Cola Original", "Coca-Cola Zero Sugar", "Pepsi", "Sprite", "Red Bull Energy Drink"
+        "Lay's Barbecue Chips", "Kurkure Masala Munch", "Doritos Nacho Cheese", "Doritos Cool Ranch",
+        "Pringles Original", "Pringles Sour Cream & Onion", "Cheetos Crunchy", "Cheetos Flamin' Hot",
+        "Takis Fuego", "Ruffles Cheddar & Sour Cream", "Tostitos Tortilla Chips", "Fritos Corn Chips",
+        "Haldiram's Aloo Bhujia", "Haldiram's Bhujia Sev", "Haldiram's Khatta Meetha", "Bingo Mad Angles",
+        "Walkers Ready Salted", "Walkers Cheese & Onion", "Calbee Shrimp Chips",
+
+        // Instant Noodles & Ready Meals
+        "Maggi 2-Minute Masala Noodles", "Maggi Atta Noodles", "Top Ramen Curry", "Yippee Magic Masala Noodles",
+        "Shin Ramyun Spicy Gourmet Noodles", "Samyang Buldak Hot Chicken Ramen", "Indomie Mi Goreng Fried Noodles",
+        "Nissin Cup Noodles", "Maruchan Instant Lunch", "Knorr Classic Tomato Soup", "Campbell's Tomato Soup",
+        "Kraft Macaroni & Cheese", "MTR Ready-to-Eat Pongal", "MTR Ready-to-Eat Dal Makhani",
+
+        // Biscuits, Cookies & Wafers
+        "Oreo Original Sandwich Cookies", "Oreo Double Stuf", "Chips Ahoy! Original",
+        "Parle-G Glucose Biscuits", "Britannia Good Day Butter", "Britannia Bourbon",
+        "Britannia Marie Gold", "Sunfeast Dark Fantasy Choco Fills", "Hide & Seek Choco Chip",
+        "McVitie's Digestives", "McVitie's Hobnobs", "Lotus Biscoff Cookies", "Pocky Chocolate Sticks",
+        "Hello Panda Chocolate", "Loacker Quadratini Wafers",
+
+        // Chocolates & Confectionery
+        "Cadbury Dairy Milk", "Cadbury Dairy Milk Silk", "Cadbury 5 Star", "KitKat 4-Finger",
+        "Snickers Chocolate Bar", "Twix Caramel Cookie Bar", "Mars Chocolate Bar", "Milky Way Bar",
+        "Hershey's Milk Chocolate Bar", "Reese's Peanut Butter Cups", "M&M's Milk Chocolate",
+        "Ferrero Rocher", "Nutella Hazelnut Spread", "Lotus Biscoff Spread",
+        "Milka Alpine Milk", "Lindt Excellence Dark 70%", "Toblerone Milk Chocolate", "Kinder Joy", "Haribo Goldbears",
+
+        // Dairy & Breakfast Staples
+        "Amul Butter", "Amul Processed Cheese", "Amul Taaza Milk", "Mother Dairy Paneer",
+        "Kellogg's Corn Flakes", "Kellogg's Froot Loops", "Cheerios Original", "Honey Nut Cheerios",
+        "Quaker Rolled Oats", "Quaker Instant Oatmeal", "Pop-Tarts Frosted Strawberry",
+
+        // Soft Drinks, Sodas & Energy Drinks
+        "Coca-Cola Original", "Coca-Cola Zero Sugar", "Diet Coke", "Pepsi", "Pepsi Zero Sugar",
+        "Thums Up", "Limca", "Sprite", "7Up", "Mountain Dew", "Fanta Orange", "Dr Pepper",
+        "Red Bull Energy Drink", "Monster Energy Original", "Gatorade Cool Blue",
+        "Frooti Mango Drink", "Maaza Mango Drink", "Slice Mango", "Paper Boat Aamras",
+        "Arizona Iced Green Tea", "Pocari Sweat", "Yakult Probiotic Drink", "Vita Coco Coconut Water",
+        "Bournvita Chocolate Drink", "Horlicks Malt Drink", "Milo Chocolate Drink",
+
+        // Sauces & Condiments
+        "Heinz Tomato Ketchup", "Hellmann's Real Mayonnaise", "Sriracha Hot Chili Sauce",
+        "Tabasco Original Pepper Sauce", "Nutella", "Skippy Creamy Peanut Butter", "Kikkoman Soy Sauce"
     );
 
     public java.util.List<ProductSuggestionDTO> autocompleteProducts(String query, String countryCode) {
