@@ -52,9 +52,19 @@ const Navbar = () => {
       }
     };
 
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setDropdownOpen(false);
+        setIsLangOpen(false);
+        setIsCountryOpen(false);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -226,7 +236,7 @@ const Navbar = () => {
                     openProfileModal();
                     setDropdownOpen(false);
                   }}
-                  className="w-full text-left block px-4 py-2 text-sm text-emerald-700 font-medium hover:bg-emerald-50 flex items-center justify-between"
+                  className="w-full text-left px-4 py-2 text-sm text-emerald-700 font-medium hover:bg-emerald-50 flex items-center justify-between"
                 >
                   <span>🩺 {t('health_profile')}</span>
                   {userProfile?.profileCompleted ? (

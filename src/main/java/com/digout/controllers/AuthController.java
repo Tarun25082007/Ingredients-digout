@@ -196,7 +196,7 @@ public class AuthController {
             if (!audMatches) {
                 log.warn("Google OAuth audience mismatch: expected='{}', aud='{}', azp='{}'", cleanExpected, aud, azp);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
-                    "message", "Token audience mismatch. Expected: " + cleanExpected + ", got: " + aud
+                    "message", "Token audience verification failed."
                 ));
             }
 

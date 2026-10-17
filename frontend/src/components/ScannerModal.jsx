@@ -504,6 +504,17 @@ const ScannerModal = ({ onClose, onScanComplete }) => {
     }
   }, [showSuggestions, searchName, suggestions, recentSearches, popularStaples, selectedIndex, handleSuggestionClick]);
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        stopCamera();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [stopCamera, onClose]);
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"

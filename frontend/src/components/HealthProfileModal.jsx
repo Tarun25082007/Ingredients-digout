@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../api';
 import { X, Activity, Heart, ShieldAlert, Sparkles, Check, Trash2 } from 'lucide-react';
@@ -7,6 +7,7 @@ const KNOWN_CONDITION_IDS = ['PREGNANCY', 'PCOS', 'PROSTATE', 'DIABETES', 'ULCER
 
 const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile = null, isMandatoryOnboarding = false }) => {
   const { t } = useLanguage();
+  const closeTimerRef = useRef(null);
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('PREFER_NOT_TO_SAY');
@@ -83,9 +84,21 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
   }, [initialProfile, isOpen]);
 
   useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen && !showDeleteAccountConfirm && !saving) {
-        onClose();
+      if (e.key === 'Escape' && isOpen && !saving) {
+        if (showDeleteAccountConfirm) {
+          setShowDeleteAccountConfirm(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -245,7 +258,7 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
       if (onProfileUpdated) {
         onProfileUpdated(res.data);
       }
-      setTimeout(() => {
+      closeTimerRef.current = setTimeout(() => {
         onClose();
       }, 700);
     } catch (err) {

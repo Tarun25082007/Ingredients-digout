@@ -44,6 +44,9 @@ public class ScanController {
     private final ObjectMapper objectMapper;
     private final GroqService groqService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
     public ScanController(GeminiService geminiService, 
                           OpenFoodFactsService openFoodFactsService, 
                           UsdaFoodDataService usdaFoodDataService,
@@ -578,17 +581,26 @@ public class ScanController {
                         }
                     }
                     
-                    scanHistoryRepository.deleteByUserIdAndProductNameIgnoreCase(user.getId(), pName);
-
+                    final String finalPName = pName;
                     ScanHistory history = ScanHistory.builder()
                             .user(user)
-                            .productName(pName)
+                            .productName(finalPName)
                             .rawOcrText("") 
                             .whoAssessmentJson(objectMapper.writeValueAsString(assessment))
                             .healthStatus(status)
                             .build();
-                            
-                    scanHistoryRepository.save(history);
+
+                    if (transactionManager != null) {
+                        new org.springframework.transaction.support.TransactionTemplate(transactionManager).execute(txStatus -> {
+                            scanHistoryRepository.deleteByUserIdAndProductNameIgnoreCase(user.getId(), finalPName);
+                            scanHistoryRepository.flush();
+                            scanHistoryRepository.save(history);
+                            return null;
+                        });
+                    } else {
+                        scanHistoryRepository.deleteByUserIdAndProductNameIgnoreCase(user.getId(), finalPName);
+                        scanHistoryRepository.save(history);
+                    }
                 } catch (Exception dbEx) {
                     log.warn("Failed to save scan history: {}", dbEx.getMessage());
                 }
@@ -659,11 +671,29 @@ public class ScanController {
         
         if (userOpt.isPresent()) {
             Optional<ScanHistory> historyOpt = scanHistoryRepository.findById(id);
-            if (historyOpt.isPresent() && historyOpt.get().getUser().getId().equals(userOpt.get().getId())) {
+            if (historyOpt.isPresent() && historyOpt.get().getUser() != null && historyOpt.get().getUser().getId().equals(userOpt.get().getId())) {
                 scanHistoryRepository.deleteById(id);
                 return ResponseEntity.ok(java.util.Map.of("message", "History item deleted."));
             }
             return ResponseEntity.status(404).body(java.util.Map.of("message", "History item not found or unauthorized."));
+        }
+        
+        return ResponseEntity.status(404).body(java.util.Map.of("message", "User not found"));
+    }
+
+    @DeleteMapping("/history/all")
+    public ResponseEntity<?> clearAllScanHistory() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return ResponseEntity.status(401).body(java.util.Map.of("message", "Unauthorized"));
+        }
+
+        String email = auth.getName();
+        Optional<User> userOpt = userRepository.findByAnyEmail(email);
+        
+        if (userOpt.isPresent()) {
+            scanHistoryRepository.deleteByUserId(userOpt.get().getId());
+            return ResponseEntity.ok(java.util.Map.of("message", "All scan history cleared successfully."));
         }
         
         return ResponseEntity.status(404).body(java.util.Map.of("message", "User not found"));

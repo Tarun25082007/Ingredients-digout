@@ -16,6 +16,8 @@ const HistoryDashboard = () => {
   const [selectedScan, setSelectedScan] = useState(null);
   const [scanToDelete, setScanToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -42,7 +44,7 @@ const HistoryDashboard = () => {
         setHistory(parsedHistory);
         setError(''); // clear any previous errors
       } catch (err) {
-        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+        if (err.name === 'CanceledError' || err.name === 'AbortError' || abortController.signal.aborted) return;
         
         if (err.response && (err.response.status === 401 || err.response.status === 403)) {
           // Token is likely expired or invalid
@@ -60,7 +62,9 @@ const HistoryDashboard = () => {
           return prev;
         });
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -70,13 +74,15 @@ const HistoryDashboard = () => {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && scanToDelete && !isDeleting) {
-        setScanToDelete(null);
+      if (e.key === 'Escape') {
+        if (selectedScan) setSelectedScan(null);
+        else if (scanToDelete && !isDeleting) setScanToDelete(null);
+        else if (showClearAllConfirm && !isClearingAll) setShowClearAllConfirm(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scanToDelete, isDeleting]);
+  }, [selectedScan, scanToDelete, isDeleting, showClearAllConfirm, isClearingAll]);
 
   const promptDeleteScan = (scan, e) => {
     e.stopPropagation();
@@ -99,6 +105,20 @@ const HistoryDashboard = () => {
       setError('Failed to delete scan.');
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleConfirmClearAll = async () => {
+    setIsClearingAll(true);
+    try {
+      await api.delete('/scan/history/all');
+      setHistory([]);
+      setShowClearAllConfirm(false);
+      setError('');
+    } catch (err) {
+      setError('Failed to clear all scan history.');
+    } finally {
+      setIsClearingAll(false);
     }
   };
 
@@ -146,14 +166,27 @@ const HistoryDashboard = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            className="self-stretch sm:self-auto px-4 py-2.5 sm:px-5 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
-          >
-            <Scan className="w-4 h-4" />
-            <span>{t('start_new_scan') || "Start a New Scan"}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+            {history.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowClearAllConfirm(true)}
+                className="px-3 py-2.5 sm:px-4 sm:py-2.5 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 rounded-xl text-xs sm:text-sm font-bold shadow-sm hover:shadow transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                title={t('clear_history') || "Clear All History"}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{t('clear_history') || "Clear All History"}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-4 py-2.5 sm:px-5 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+            >
+              <Scan className="w-4 h-4" />
+              <span>{t('start_new_scan') || "Start a New Scan"}</span>
+            </button>
+          </div>
         </div>
         
         {error && (
@@ -331,9 +364,65 @@ const HistoryDashboard = () => {
         </div>
       )}
 
+      {/* Clear All Confirmation Modal */}
+      {showClearAllConfirm && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isClearingAll) {
+              setShowClearAllConfirm(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 text-center animate-slideUp">
+            <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              {t('clear_history') || "Clear All History"}
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-600 mb-6">
+              Are you sure you want to delete all scan history? This action cannot be undone.
+            </p>
+            <div className="flex space-x-3 justify-center">
+              <button
+                type="button"
+                disabled={isClearingAll}
+                onClick={() => setShowClearAllConfirm(false)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl transition disabled:opacity-50"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={isClearingAll}
+                onClick={handleConfirmClearAll}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-xl shadow-md hover:shadow-lg transition flex items-center space-x-1.5 disabled:opacity-50"
+              >
+                {isClearingAll ? (
+                  <span>{t('deleting')}</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{t('clear_history') || "Clear All"}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Details Modal */}
       {selectedScan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-custom-900/80 backdrop-blur-md overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-custom-900/80 backdrop-blur-md overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedScan(null);
+            }
+          }}
+        >
           <div className="relative w-full max-w-3xl my-8">
             <button
               onClick={() => setSelectedScan(null)}

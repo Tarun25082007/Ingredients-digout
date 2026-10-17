@@ -4,12 +4,11 @@ WORKDIR /app
 
 # Copy the pom.xml and download dependencies
 COPY pom.xml .
-# This step caches the dependencies to speed up future builds
-RUN mvn dependency:go-offline -B
+RUN mvn dependency:go-offline -B -Dmaven.wagon.http.retryHandler.count=5
 
 # Copy the source code and build the application
 COPY src ./src
-RUN mvn clean package -DskipTests -Dmaven.wagon.http.retryHandler.count=5
+RUN mvn package -DskipTests -Dmaven.wagon.http.retryHandler.count=5
 
 # Extract layers
 RUN java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted

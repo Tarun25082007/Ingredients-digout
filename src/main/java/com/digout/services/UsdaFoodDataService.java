@@ -38,7 +38,11 @@ public class UsdaFoodDataService {
             String url = String.format(USDA_BRANDED_API_URL_TEMPLATE, usdaApiKey, encodedName);
 
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            if (response.getBody() == null || response.getBody().isBlank()) {
+                return null;
+            }
             JsonNode root = objectMapper.readTree(response.getBody());
+            if (root == null) return null;
             JsonNode foods = root.path("foods");
 
             if (!foods.isMissingNode() && foods.isArray() && foods.size() > 0) {
@@ -108,7 +112,13 @@ public class UsdaFoodDataService {
             String url = String.format(USDA_API_URL_TEMPLATE, usdaApiKey, encodedName);
 
             ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            if (response.getBody() == null || response.getBody().isBlank()) {
+                return new OpenFoodFactsDTO(productName, "", null, null, null);
+            }
             JsonNode root = objectMapper.readTree(response.getBody());
+            if (root == null) {
+                return new OpenFoodFactsDTO(productName, "", null, null, null);
+            }
             JsonNode foods = root.path("foods");
 
             if (foods.isMissingNode() || !foods.isArray() || foods.size() == 0) {

@@ -107,7 +107,13 @@ public class GeminiService {
                 ));
 
                 // Parse the response
+                if (response.getBody() == null || response.getBody().isBlank()) {
+                    throw new RuntimeException("Empty response body from Gemini API");
+                }
                 JsonNode root = objectMapper.readTree(response.getBody());
+                if (root == null) {
+                    throw new RuntimeException("Malformed response body from Gemini API");
+                }
                 JsonNode steps = root.path("steps");
                 String jsonText = "";
                 
@@ -216,7 +222,13 @@ public class GeminiService {
                 ));
 
                 // Parse the response
+                if (response.getBody() == null || response.getBody().isBlank()) {
+                    throw new RuntimeException("Empty response body from Gemini API");
+                }
                 JsonNode root = objectMapper.readTree(response.getBody());
+                if (root == null) {
+                    throw new RuntimeException("Malformed response body from Gemini API");
+                }
                 JsonNode steps = root.path("steps");
                 String jsonText = "";
 
@@ -296,7 +308,7 @@ public class GeminiService {
 
         boolean inString = false;
         boolean escaped = false;
-        java.util.Stack<Character> stack = new java.util.Stack<>();
+        java.util.Deque<Character> stack = new java.util.ArrayDeque<>();
 
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

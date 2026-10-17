@@ -6,7 +6,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -14,6 +17,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(nullable = false, unique = true)
@@ -69,13 +73,13 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonIgnore
     @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private java.util.List<ScanHistory> scanHistories;
 
     @PrePersist
     @PreUpdate
     public void populateCanonicalEmail() {
         if (this.email != null) {
+            this.email = this.email.trim().toLowerCase();
             this.canonicalEmail = com.digout.util.EmailUtils.canonicalize(this.email);
         }
     }

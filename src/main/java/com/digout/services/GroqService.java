@@ -368,7 +368,13 @@ public class GroqService {
     }
 
     private String extractRawResponseText(String body) throws Exception {
+        if (body == null || body.isBlank()) {
+            throw new RuntimeException("Empty response body from Groq API");
+        }
         JsonNode root = objectMapper.readTree(body);
+        if (root == null) {
+            throw new RuntimeException("Malformed response body from Groq API");
+        }
         JsonNode choices = root.path("choices");
         if (choices.isArray() && choices.size() > 0) {
             return choices.get(0).path("message").path("content").asText("");
@@ -422,7 +428,7 @@ public class GroqService {
         // Track unclosed quotes and brackets
         boolean inString = false;
         boolean escaped = false;
-        java.util.Stack<Character> stack = new java.util.Stack<>();
+        java.util.Deque<Character> stack = new java.util.ArrayDeque<>();
 
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

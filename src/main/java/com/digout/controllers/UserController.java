@@ -68,7 +68,11 @@ public class UserController {
         }
         
         if (dto.gender() != null) {
-            user.setGender(dto.gender());
+            String g = dto.gender().trim().toUpperCase();
+            if (!java.util.Set.of("MALE", "FEMALE", "OTHER").contains(g)) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid gender. Must be MALE, FEMALE, or OTHER."));
+            }
+            user.setGender(g);
         }
         
         if (dto.heightCm() != null) {
@@ -102,7 +106,7 @@ public class UserController {
             if (sanitizedConditions.length() > 1000) {
                 sanitizedConditions = sanitizedConditions.substring(0, 1000);
                 int lastComma = sanitizedConditions.lastIndexOf(",");
-                if (lastComma > 0) {
+                if (lastComma > 500) {
                     sanitizedConditions = sanitizedConditions.substring(0, lastComma);
                 }
             }
@@ -122,7 +126,11 @@ public class UserController {
         }
         
         if (dto.strictnessLevel() != null) {
-            user.setStrictnessLevel(dto.strictnessLevel().toUpperCase());
+            String s = dto.strictnessLevel().trim().toUpperCase();
+            if (!java.util.Set.of("STANDARD", "STRICT").contains(s)) {
+                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid strictness level. Must be STANDARD or STRICT."));
+            }
+            user.setStrictnessLevel(s);
         }
         
         user.setProfileCompleted(true);
