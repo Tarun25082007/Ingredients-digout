@@ -65,8 +65,9 @@ export const initDevToolsProtection = () => {
       return false;
     }
 
-    // Ctrl+S / Cmd+S (Save Page)
-    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+    // Ctrl+S (Windows/Linux) / Cmd+S (Mac) (Save Page)
+    // Explicitly check !e.shiftKey so Win+Shift+S (Windows Snipping Tool) is NEVER intercepted
+    if (!e.shiftKey && !e.altKey && (e.ctrlKey || (e.metaKey && !navigator.userAgent.includes('Windows'))) && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
       return false;
     }
