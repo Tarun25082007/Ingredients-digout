@@ -60,78 +60,67 @@ public class UserController {
             user.setFullName(sanitizedName);
         }
         
-        if (dto.age() != null) {
-            if (dto.age() < 1 || dto.age() > 130) {
-                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid age. Must be between 1 and 130."));
-            }
-            user.setAge(dto.age());
+        // Ensure important details are kept as NOT NULL
+        if (dto.age() == null || dto.age() < 1 || dto.age() > 130) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Age is required and must be between 1 and 130."));
         }
+        user.setAge(dto.age());
         
-        if (dto.gender() != null) {
-            String g = dto.gender().trim().toUpperCase();
-            if (!java.util.Set.of("MALE", "FEMALE", "OTHER").contains(g)) {
-                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid gender. Must be MALE, FEMALE, or OTHER."));
-            }
-            user.setGender(g);
+        String g = (dto.gender() != null && !dto.gender().isBlank()) ? dto.gender().trim().toUpperCase() : "PREFER_NOT_TO_SAY";
+        if (!java.util.Set.of("MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY").contains(g)) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid gender. Must be MALE, FEMALE, OTHER, or PREFER_NOT_TO_SAY."));
         }
+        user.setGender(g);
         
-        if (dto.heightCm() != null) {
-            if (dto.heightCm() < 30 || dto.heightCm() > 300) {
-                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid height. Must be between 30cm and 300cm."));
-            }
-            user.setHeightCm(dto.heightCm());
+        if (dto.heightCm() == null || dto.heightCm() < 30 || dto.heightCm() > 300) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Height is required and must be between 30cm and 300cm."));
         }
+        user.setHeightCm(dto.heightCm());
         
-        if (dto.weightKg() != null) {
-            if (dto.weightKg() < 5 || dto.weightKg() > 500) {
-                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid weight. Must be between 5kg and 500kg."));
-            }
-            user.setWeightKg(dto.weightKg());
+        if (dto.weightKg() == null || dto.weightKg() < 5 || dto.weightKg() > 500) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Weight is required and must be between 5kg and 500kg."));
         }
+        user.setWeightKg(dto.weightKg());
         
-        if (dto.activityLevel() != null) {
-            String sanitizedActivity = dto.activityLevel().trim();
-            if (sanitizedActivity.length() > 50) sanitizedActivity = sanitizedActivity.substring(0, 50);
-            user.setActivityLevel(sanitizedActivity);
+        String sanitizedActivity = (dto.activityLevel() != null && !dto.activityLevel().isBlank()) ? dto.activityLevel().trim().toUpperCase() : "MODERATE";
+        if (!java.util.Set.of("SEDENTARY", "MODERATE", "ACTIVE").contains(sanitizedActivity)) {
+            sanitizedActivity = "MODERATE";
         }
+        user.setActivityLevel(sanitizedActivity);
 
-        if (dto.calorieGoal() != null) {
-            String sanitizedGoal = dto.calorieGoal().trim();
-            if (sanitizedGoal.length() > 50) sanitizedGoal = sanitizedGoal.substring(0, 50);
-            user.setCalorieGoal(sanitizedGoal);
+        String sanitizedGoal = (dto.calorieGoal() != null && !dto.calorieGoal().isBlank()) ? dto.calorieGoal().trim().toUpperCase() : "MAINTENANCE";
+        if (!java.util.Set.of("DEFICIT", "MAINTENANCE", "SURPLUS").contains(sanitizedGoal)) {
+            sanitizedGoal = "MAINTENANCE";
         }
+        user.setCalorieGoal(sanitizedGoal);
         
-        if (dto.medicalConditions() != null) {
-            String sanitizedConditions = dto.medicalConditions().trim();
-            if (sanitizedConditions.length() > 1000) {
-                sanitizedConditions = sanitizedConditions.substring(0, 1000);
-                int lastComma = sanitizedConditions.lastIndexOf(",");
-                if (lastComma > 500) {
-                    sanitizedConditions = sanitizedConditions.substring(0, lastComma);
-                }
+        String sanitizedConditions = (dto.medicalConditions() != null) ? dto.medicalConditions().trim() : "";
+        if (sanitizedConditions.length() > 1000) {
+            sanitizedConditions = sanitizedConditions.substring(0, 1000);
+            int lastComma = sanitizedConditions.lastIndexOf(",");
+            if (lastComma > 500) {
+                sanitizedConditions = sanitizedConditions.substring(0, lastComma);
             }
-            String effectiveGender = dto.gender() != null ? dto.gender() : user.getGender();
-            if ("MALE".equalsIgnoreCase(effectiveGender)) {
-                sanitizedConditions = java.util.Arrays.stream(sanitizedConditions.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.equalsIgnoreCase("PREGNANCY") && !s.toLowerCase().contains("pregnan") && !s.equalsIgnoreCase("PCOS") && !s.toLowerCase().contains("pcos") && !s.toLowerCase().contains("lactat") && !s.toLowerCase().contains("breastfeed"))
-                    .collect(java.util.stream.Collectors.joining(", "));
-            } else if ("FEMALE".equalsIgnoreCase(effectiveGender)) {
-                sanitizedConditions = java.util.Arrays.stream(sanitizedConditions.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.equalsIgnoreCase("PROSTATE") && !s.toLowerCase().contains("prostate"))
-                    .collect(java.util.stream.Collectors.joining(", "));
-            }
-            user.setMedicalConditions(sanitizedConditions);
         }
+        String effectiveGender = user.getGender();
+        if ("MALE".equalsIgnoreCase(effectiveGender)) {
+            sanitizedConditions = java.util.Arrays.stream(sanitizedConditions.split(","))
+                .map(String::trim)
+                .filter(s -> !s.equalsIgnoreCase("PREGNANCY") && !s.toLowerCase().contains("pregnan") && !s.equalsIgnoreCase("PCOS") && !s.toLowerCase().contains("pcos") && !s.toLowerCase().contains("lactat") && !s.toLowerCase().contains("breastfeed"))
+                .collect(java.util.stream.Collectors.joining(", "));
+        } else if ("FEMALE".equalsIgnoreCase(effectiveGender)) {
+            sanitizedConditions = java.util.Arrays.stream(sanitizedConditions.split(","))
+                .map(String::trim)
+                .filter(s -> !s.equalsIgnoreCase("PROSTATE") && !s.toLowerCase().contains("prostate"))
+                .collect(java.util.stream.Collectors.joining(", "));
+        }
+        user.setMedicalConditions(sanitizedConditions);
         
-        if (dto.strictnessLevel() != null) {
-            String s = dto.strictnessLevel().trim().toUpperCase();
-            if (!java.util.Set.of("STANDARD", "STRICT").contains(s)) {
-                return ResponseEntity.badRequest().body(java.util.Map.of("message", "Invalid strictness level. Must be STANDARD or STRICT."));
-            }
-            user.setStrictnessLevel(s);
+        String s = (dto.strictnessLevel() != null && !dto.strictnessLevel().isBlank()) ? dto.strictnessLevel().trim().toUpperCase() : "STANDARD";
+        if (!java.util.Set.of("STANDARD", "STRICT").contains(s)) {
+            s = "STANDARD";
         }
+        user.setStrictnessLevel(s);
         
         user.setProfileCompleted(true);
         userRepository.save(user);

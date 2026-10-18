@@ -207,17 +207,17 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
 
     try {
       const parsedAge = age ? parseInt(age, 10) : null;
-      if (parsedAge !== null && (parsedAge < 1 || parsedAge > 120)) {
+      if (!parsedAge || isNaN(parsedAge) || parsedAge < 1 || parsedAge > 120) {
         setError('Please enter a valid age between 1 and 120.');
         setSaving(false);
         return;
       }
-      if (heightVal && (heightVal < 40 || heightVal > 260)) {
+      if (!heightVal || isNaN(heightVal) || heightVal < 40 || heightVal > 260) {
         setError('Please enter a valid height between 40 cm and 260 cm.');
         setSaving(false);
         return;
       }
-      if (weightVal && (weightVal < 15 || weightVal > 350)) {
+      if (!weightVal || isNaN(weightVal) || weightVal < 15 || weightVal > 350) {
         setError('Please enter a valid weight between 15 kg and 350 kg.');
         setSaving(false);
         return;
@@ -244,12 +244,12 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
         fullName: fullName.trim() || undefined,
         age: parsedAge,
         gender: gender || 'PREFER_NOT_TO_SAY',
-        heightCm: heightVal || null,
-        weightKg: weightVal || null,
-        activityLevel,
-        calorieGoal,
+        heightCm: heightVal,
+        weightKg: weightVal,
+        activityLevel: activityLevel || 'MODERATE',
+        calorieGoal: calorieGoal || 'MAINTENANCE',
         medicalConditions: allConditions.join(', '),
-        strictnessLevel,
+        strictnessLevel: strictnessLevel || 'STANDARD',
         profileCompleted: true
       };
 
@@ -258,6 +258,8 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
       if (onProfileUpdated) {
         onProfileUpdated(res.data);
       }
+      sessionStorage.setItem('onboarding_dismissed', 'true');
+      localStorage.setItem('health_profile_completed', 'true');
       closeTimerRef.current = setTimeout(() => {
         onClose();
       }, 700);
@@ -346,11 +348,14 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('age')}</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {t('age')} <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="number"
                   min="1"
                   max="120"
+                  required
                   placeholder="e.g. 28"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
@@ -359,7 +364,9 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('gender')}</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {t('gender')} <span className="text-red-500 font-bold">*</span>
+                </label>
                 <div className="grid grid-cols-2 gap-1">
                   {[
                     { value: 'MALE', label: t('gender_male') },
@@ -385,11 +392,14 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('height')}</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {t('height')} (cm) <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="number"
-                  min="50"
-                  max="250"
+                  min="40"
+                  max="260"
+                  required
                   placeholder="e.g. 175"
                   value={heightCm}
                   onChange={(e) => setHeightCm(e.target.value)}
@@ -398,11 +408,14 @@ const HealthProfileModal = ({ isOpen, onClose, onProfileUpdated, initialProfile 
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">{t('weight')}</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  {t('weight')} (kg) <span className="text-red-500 font-bold">*</span>
+                </label>
                 <input
                   type="number"
-                  min="20"
-                  max="300"
+                  min="15"
+                  max="350"
+                  required
                   placeholder="e.g. 70"
                   value={weightKg}
                   onChange={(e) => setWeightKg(e.target.value)}

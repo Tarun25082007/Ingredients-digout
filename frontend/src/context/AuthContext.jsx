@@ -86,6 +86,8 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setUserProfile(null);
     setIsProfileModalOpen(false);
+    setIsOnboarding(false);
+    sessionStorage.removeItem('onboarding_dismissed');
   };
 
   const openProfileModal = () => {
@@ -96,11 +98,15 @@ export const AuthProvider = ({ children }) => {
   const closeProfileModal = () => {
     setIsProfileModalOpen(false);
     setIsOnboarding(false);
+    sessionStorage.setItem('onboarding_dismissed', 'true');
+    localStorage.setItem('health_profile_prompted', 'true');
   };
 
   const handleProfileUpdated = (updatedProfile) => {
     setUserProfile(updatedProfile);
     localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+    localStorage.setItem('health_profile_completed', 'true');
+    sessionStorage.setItem('onboarding_dismissed', 'true');
   };
 
   return (

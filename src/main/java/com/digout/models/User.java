@@ -40,7 +40,9 @@ public class User {
 
     private Integer age;
 
-    private String gender;
+    @Column(name = "gender")
+    @Builder.Default
+    private String gender = "PREFER_NOT_TO_SAY";
 
     @Column(name = "height_cm")
     private Double heightCm;
@@ -49,14 +51,17 @@ public class User {
     private Double weightKg;
 
     @Column(name = "activity_level")
-    private String activityLevel;
+    @Builder.Default
+    private String activityLevel = "MODERATE";
 
     @Column(name = "calorie_goal")
-    private String calorieGoal;
+    @Builder.Default
+    private String calorieGoal = "MAINTENANCE";
 
     @Column(name = "medical_conditions", columnDefinition = "TEXT")
     @jakarta.persistence.Convert(converter = com.digout.security.CryptoConverter.class)
-    private String medicalConditions;
+    @Builder.Default
+    private String medicalConditions = "";
 
     @Column(name = "profile_completed")
     @Builder.Default

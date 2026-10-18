@@ -7,6 +7,17 @@ import { initDevToolsProtection } from './utils/devToolsGuard.js';
 
 import { registerSW } from 'virtual:pwa-register';
 
+// Clean up any stale legacy dev service workers
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      if (registration.active && registration.active.scriptURL.includes('dev-sw.js')) {
+        registration.unregister();
+      }
+    }
+  });
+}
+
 // Auto-activate and update service worker immediately
 registerSW({ immediate: true });
 
