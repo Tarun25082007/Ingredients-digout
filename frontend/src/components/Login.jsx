@@ -294,9 +294,9 @@ const Login = () => {
       {/* Edge-to-edge ambient background matching the outside */}
       <div 
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
-        style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+        style={{ backgroundImage: `url('/images/supermarket.jpg')` }}
       >
-        <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-custom-900/60 backdrop-blur-[6px]"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md bg-emerald-50/95 backdrop-blur-xl p-6 sm:p-10 rounded-2xl sm:rounded-3xl shadow-2xl border border-emerald-200 mx-auto">

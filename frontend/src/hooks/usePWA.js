@@ -35,7 +35,7 @@ export function usePWA() {
   }, []);
 
   const installApp = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) return false;
 
     // Show the install prompt
     deferredPrompt.prompt();
@@ -48,9 +48,10 @@ export function usePWA() {
     setIsInstallable(false);
     
     if (outcome === 'accepted') {
-      console.log('User accepted the A2HS prompt');
+      setIsInstalled(true);
+      return true;
     } else {
-      console.log('User dismissed the A2HS prompt');
+      return false;
     }
   };
 

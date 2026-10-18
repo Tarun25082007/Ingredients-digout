@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
 import ScannerModal from '../components/ScannerModal';
+import InstallAppModal from '../components/InstallAppModal';
 import { useLanguage } from '../context/LanguageContext';
+import { usePWA } from '../hooks/usePWA';
 
 const Home = () => {
   const [showScanner, setShowScanner] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
   const { t } = useLanguage();
+  const { isInstallable, isInstalled, installApp } = usePWA();
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      const accepted = await installApp();
+      if (!accepted) {
+        setShowInstallModal(true);
+      }
+    } else {
+      setShowInstallModal(true);
+    }
+  };
 
   
   return (
@@ -16,7 +31,7 @@ const Home = () => {
         style={{ backgroundImage: `url('/images/supermarket.jpg')` }}
       >
         {/* Dark Overlay to keep text readable while keeping supermarket atmosphere visible on all screens */}
-        <div className="absolute inset-0 bg-custom-900/60 backdrop-blur-[3px]"></div>
+        <div className="absolute inset-0 bg-custom-900/60 backdrop-blur-[6px]"></div>
       </div>
       
       {/* Main Content Wrapper */}
@@ -49,6 +64,23 @@ const Home = () => {
             </svg>
           </div>
         </div>
+
+        {/* Desktop & Mobile TWA / PWA Download Option */}
+        {!isInstalled && (
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              onClick={handleInstallClick}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs sm:text-sm text-custom-100 hover:text-white backdrop-blur-md transition-all shadow-sm active:scale-95 cursor-pointer group"
+              title={t('install_app')}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <svg className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              <span>{t('install_app')} (Desktop & Mobile PWA / TWA)</span>
+            </button>
+          </div>
+        )}
         
         {/* Mobile FAB */}
         <button 
@@ -72,6 +104,13 @@ const Home = () => {
       <div className="z-10 mt-auto mb-4 text-center text-xs text-gray-300 font-medium drop-shadow-md pl-4 pr-20 md:px-6 max-w-xl pb-4 md:pb-2">
         ℹ️ {t('disclaimer')}
       </div>
+
+      <InstallAppModal 
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+        isInstallable={isInstallable}
+        installApp={installApp}
+      />
     </div>
   );
 };

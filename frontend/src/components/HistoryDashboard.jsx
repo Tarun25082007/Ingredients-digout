@@ -127,9 +127,9 @@ const HistoryDashboard = () => {
       <div className="relative flex justify-center items-center min-h-[90vh]">
         <div 
           className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
-          style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+          style={{ backgroundImage: `url('/images/supermarket.jpg')` }}
         >
-          <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
+          <div className="absolute inset-0 bg-custom-900/60 backdrop-blur-[6px]"></div>
         </div>
         <div className="relative z-10 w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
       </div>
@@ -141,9 +141,9 @@ const HistoryDashboard = () => {
       {/* Edge-to-edge ambient background matching the home page */}
       <div 
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
-        style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+        style={{ backgroundImage: `url('/images/supermarket.jpg')` }}
       >
-        <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
+        <div className="absolute inset-0 bg-custom-900/60 backdrop-blur-[6px]"></div>
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto">

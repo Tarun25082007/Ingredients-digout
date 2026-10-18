@@ -5,6 +5,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { getUserCountry, setUserCountry, getAllCountries } from '../utils/countryUtils';
 import { getLanguagesForCountry } from '../utils/languageUtils';
 import { usePWA } from '../hooks/usePWA';
+import InstallAppModal from './InstallAppModal';
 
 const Navbar = () => {
   const { user, token, userProfile, logout, openProfileModal } = useContext(AuthContext);
@@ -12,12 +13,24 @@ const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isCountryOpen, setIsCountryOpen] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
   const [country, setCountry] = useState(getUserCountry().toUpperCase());
   const countries = getAllCountries();
   const availableLanguages = getLanguagesForCountry(country);
   const location = useLocation();
   const isSubPage = location.pathname !== '/';
-  const { isInstallable, installApp } = usePWA();
+  const { isInstallable, isInstalled, installApp } = usePWA();
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      const accepted = await installApp();
+      if (!accepted) {
+        setShowInstallModal(true);
+      }
+    } else {
+      setShowInstallModal(true);
+    }
+  };
 
   const selectCountry = (selected) => {
     setCountry(selected.toUpperCase());
@@ -96,15 +109,18 @@ const Navbar = () => {
       {/* Right side: Actions */}
       <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         
-        {/* Install App Button */}
-        {isInstallable && (
+        {/* Desktop & Mobile App Install / Download Option */}
+        {!isInstalled && (
           <button 
-            onClick={installApp}
-            className="flex items-center gap-1.5 bg-custom-700 hover:bg-custom-500 text-white border border-custom-500 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition shadow-sm active:scale-95"
-            title="Install App"
+            type="button"
+            onClick={handleInstallClick}
+            className="flex items-center gap-1.5 bg-custom-700 hover:bg-custom-600 text-white border border-custom-500/80 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold transition shadow-sm active:scale-95 cursor-pointer"
+            title={t('install_app') || "Install / Download App (PWA / TWA)"}
           >
-            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            <span className="hidden md:inline">{t('install_app')}</span>
+            <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            <span className="hidden sm:inline">{t('install_app')}</span>
           </button>
         )}
 
@@ -266,6 +282,13 @@ const Navbar = () => {
           </div>
         )}
       </div>
+
+      <InstallAppModal
+        isOpen={showInstallModal}
+        onClose={() => setShowInstallModal(false)}
+        isInstallable={isInstallable}
+        installApp={installApp}
+      />
     </nav>
   );
 };
