@@ -13,10 +13,10 @@ const Home = () => {
       {/* Edge-to-edge Ambient Background */}
       <div 
         className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat pointer-events-none"
-        style={{ backgroundImage: `url('/images/supermarket_blur.jpg')` }}
+        style={{ backgroundImage: `url('/images/supermarket.jpg')` }}
       >
-        {/* Dark Overlay to make text pop */}
-        <div className="absolute inset-0 bg-custom-900/50 backdrop-blur-[2px]"></div>
+        {/* Dark Overlay to keep text readable while keeping supermarket atmosphere visible on all screens */}
+        <div className="absolute inset-0 bg-custom-900/60 backdrop-blur-[3px]"></div>
       </div>
       
       {/* Main Content Wrapper */}
